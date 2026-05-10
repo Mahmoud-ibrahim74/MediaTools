@@ -8,6 +8,7 @@ using MediaTools.Application.DTOs;
 using MediaTools.Application.UseCases;
 using MediaTools.Domain.Enums;
 using MediaTools.Domain.ValueObjects;
+using MediaTools.Presentation.Services;
 using MediaTools.Presentation.Undo;
 
 namespace MediaTools.Presentation.ViewModels;
@@ -21,18 +22,22 @@ public partial class VideoCompressViewModel : ObservableObject
 
     private readonly CompressVideoUseCase _compressVideoUseCase;
     private readonly IVideoCompressionService _videoCompressionService;
+    private readonly IUserPreferencesService _preferences;
     private readonly UndoRedoHost<VideoCompressUndoSnapshot> _history;
     private CancellationTokenSource? _compressionCts;
     private long _sourceSizeBytes;
     private bool _suppressUndoNotification;
 
-    public VideoCompressViewModel(CompressVideoUseCase compressVideoUseCase, IVideoCompressionService videoCompressionService)
+    public VideoCompressViewModel(
+        CompressVideoUseCase compressVideoUseCase,
+        IVideoCompressionService videoCompressionService,
+        IUserPreferencesService preferences)
     {
         _compressVideoUseCase = compressVideoUseCase;
         _videoCompressionService = videoCompressionService;
+        _preferences = preferences;
+        _preferences.SaveFolderPathChanged += OnSaveFolderPathChanged;
 
-        // Backing field only: setter runs OnOutputDirectoryChanged → NotifyUndoableEdit before _history exists.
-        _outputDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
         foreach (var b in AudioBitrateOptions)
         {
             AudioBitrates.Add(b);
@@ -54,6 +59,9 @@ public partial class VideoCompressViewModel : ObservableObject
             CaptureVideoSnapshot(),
             OnUndoRedoHistoryChanged);
     }
+
+    private void OnSaveFolderPathChanged(object? sender, EventArgs e) =>
+        StartCompressionCommand.NotifyCanExecuteChanged();
 
     public ObservableCollection<int> AudioBitrates { get; } = [];
 
@@ -104,9 +112,6 @@ public partial class VideoCompressViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _removeAudio;
-
-    [ObservableProperty]
-    private string _outputDirectory = string.Empty;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ProgressPercentDisplay))]
@@ -169,7 +174,7 @@ public partial class VideoCompressViewModel : ObservableObject
 
     private bool CanStartCompression() =>
         !string.IsNullOrWhiteSpace(SelectedFilePath)
-        && Directory.Exists(OutputDirectory)
+        && Directory.Exists(_preferences.SaveFolderPath)
         && !IsRunning;
 
     private bool CanUndoOperation() => _history.CanUndo && !IsRunning;
@@ -246,27 +251,6 @@ public partial class VideoCompressViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void BrowseOutput()
-    {
-        var dlg = new Ookii.Dialogs.Wpf.VistaFolderBrowserDialog
-        {
-            SelectedPath = Directory.Exists(OutputDirectory)
-                ? OutputDirectory
-                : Environment.GetFolderPath(Environment.SpecialFolder.MyVideos),
-            UseDescriptionForTitle = true,
-            Description = "Choose output folder"
-        };
-
-        if (dlg.ShowDialog() != true || string.IsNullOrWhiteSpace(dlg.SelectedPath))
-        {
-            return;
-        }
-
-        var path = dlg.SelectedPath;
-        _history.PushUndoFrameAnd(() => OutputDirectory = path);
-    }
-
-    [RelayCommand]
     private void ClearFile()
     {
         _history.PushUndoFrameAnd(() =>
@@ -330,7 +314,7 @@ public partial class VideoCompressViewModel : ObservableObject
 
         var profile = BuildCurrentProfile();
         var outputName = Path.GetFileNameWithoutExtension(SelectedFilePath) + profile.OutputFileExtension;
-        var outputPath = Path.Combine(OutputDirectory, outputName);
+        var outputPath = Path.Combine(_preferences.SaveFolderPath, outputName);
 
         var request = new CompressVideoRequest(SelectedFilePath, outputPath, profile);
 
@@ -410,14 +394,15 @@ public partial class VideoCompressViewModel : ObservableObject
     [RelayCommand]
     private void OpenOutputFolder()
     {
-        if (!Directory.Exists(OutputDirectory))
+        var folder = _preferences.SaveFolderPath;
+        if (!Directory.Exists(folder))
         {
             return;
         }
 
         Process.Start(new ProcessStartInfo
         {
-            FileName = OutputDirectory,
+            FileName = folder,
             UseShellExecute = true
         });
     }
@@ -536,7 +521,6 @@ public partial class VideoCompressViewModel : ObservableObject
             TargetHeightInput,
             AudioBitrateKbps,
             RemoveAudio,
-            OutputDirectory,
             ProgressPercent01,
             ProgressStatusText,
             ProgressDetailText,
@@ -566,7 +550,6 @@ public partial class VideoCompressViewModel : ObservableObject
         TargetHeightInput = s.TargetHeightInput;
         AudioBitrateKbps = s.AudioBitrateKbps;
         RemoveAudio = s.RemoveAudio;
-        OutputDirectory = s.OutputDirectory;
         ProgressPercent01 = s.ProgressPercent01;
         ProgressStatusText = s.ProgressStatusText;
         ProgressDetailText = s.ProgressDetailText;
@@ -596,12 +579,6 @@ public partial class VideoCompressViewModel : ObservableObject
     partial void OnAudioBitrateKbpsChanged(int value) => NotifyUndoableEdit();
 
     partial void OnRemoveAudioChanged(bool value) => NotifyUndoableEdit();
-
-    partial void OnOutputDirectoryChanged(string value)
-    {
-        StartCompressionCommand.NotifyCanExecuteChanged();
-        NotifyUndoableEdit();
-    }
 
     partial void OnSelectedFilePathChanged(string? value) =>
         StartCompressionCommand.NotifyCanExecuteChanged();

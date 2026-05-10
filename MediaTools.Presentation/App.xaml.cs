@@ -2,6 +2,7 @@
 using MediaTools.Application.Abstractions;
 using MediaTools.Application.UseCases;
 using MediaTools.Infrastructure;
+using MediaTools.Presentation.Services;
 using MediaTools.Presentation.ViewModels;
 using MediaTools.Presentation.Views;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,15 +23,18 @@ public partial class App : System.Windows.Application
                 (_, services) =>
                 {
                     services.AddInfrastructure();
+                    services.AddSingleton<IUserPreferencesService, UserPreferencesService>();
                     services.AddSingleton<CompressVideoUseCase>();
                     services.AddSingleton<ProcessPhotoUseCase>();
                     services.AddSingleton<MainWindowViewModel>();
                     services.AddTransient<DashboardViewModel>();
                     services.AddTransient<VideoCompressViewModel>();
                     services.AddTransient<PhotoEnhancerViewModel>();
+                    services.AddTransient<AppSettingsViewModel>();
                     services.AddTransient<DashboardPage>();
                     services.AddTransient<VideoCompressPage>();
                     services.AddTransient<PhotoEnhancerPage>();
+                    services.AddTransient<AppSettingsPage>();
                     services.AddSingleton<MainWindow>();
                 })
             .Build();

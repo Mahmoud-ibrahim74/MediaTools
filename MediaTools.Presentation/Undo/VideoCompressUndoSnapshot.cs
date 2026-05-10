@@ -17,7 +17,6 @@ public sealed record VideoCompressUndoSnapshot(
     string? TargetHeightInput,
     int AudioBitrateKbps,
     bool RemoveAudio,
-    string OutputDirectory,
     double ProgressPercent01,
     string ProgressStatusText,
     string ProgressDetailText,

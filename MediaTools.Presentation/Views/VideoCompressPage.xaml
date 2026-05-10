@@ -347,22 +347,6 @@
             </StackPanel>
           </Border>
 
-          <Grid Margin="0,16,0,0">
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="*" />
-              <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <TextBox MinHeight="36"
-                     VerticalContentAlignment="Center"
-                     Text="{Binding OutputDirectory, UpdateSourceTrigger=PropertyChanged}" />
-            <Button Grid.Column="1"
-                    Margin="12,0,0,0"
-                    MinWidth="110"
-                    Command="{Binding BrowseOutputCommand}"
-                    Content="Browse…"
-                    Style="{DynamicResource OutlinedButtonStyle}" />
-          </Grid>
-
           <Border Margin="0,16,0,0"
                   Padding="16"
                   Style="{DynamicResource CardBorderStyle}"

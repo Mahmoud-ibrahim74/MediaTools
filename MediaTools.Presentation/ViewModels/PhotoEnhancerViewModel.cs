@@ -11,6 +11,7 @@ using MediaTools.Application.DTOs;
 using MediaTools.Application.UseCases;
 using MediaTools.Domain.Enums;
 using MediaTools.Domain.ValueObjects;
+using MediaTools.Presentation.Services;
 using MediaTools.Presentation.Undo;
 
 namespace MediaTools.Presentation.ViewModels;
@@ -24,31 +25,37 @@ public partial class PhotoEnhancerViewModel : ObservableObject
 
     private readonly ProcessPhotoUseCase _processPhotoUseCase;
     private readonly IImageProcessingService _imageProcessingService;
+    private readonly IUserPreferencesService _preferences;
     private readonly UndoRedoHost<PhotoEnhancerUndoSnapshot> _history;
     private CancellationTokenSource? _cts;
     private CancellationTokenSource? _previewCts;
     private int _previewVersion;
     private bool _suppressUndoNotification;
 
-    public PhotoEnhancerViewModel(ProcessPhotoUseCase processPhotoUseCase, IImageProcessingService imageProcessingService)
+    public PhotoEnhancerViewModel(
+        ProcessPhotoUseCase processPhotoUseCase,
+        IImageProcessingService imageProcessingService,
+        IUserPreferencesService preferences)
     {
         _processPhotoUseCase = processPhotoUseCase;
         _imageProcessingService = imageProcessingService;
+        _preferences = preferences;
+        _preferences.SaveFolderPathChanged += OnSaveFolderPathChanged;
 
-        // Assign backing field only: the property setter runs OnOutputDirectoryChanged → undo before _history exists.
-        _outputDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "MediaTools Export");
         foreach (var e in MaxEdgePresets)
         {
             MaxEdgeOptions.Add(e);
         }
 
-        Directory.CreateDirectory(_outputDirectory);
         _history = new UndoRedoHost<PhotoEnhancerUndoSnapshot>(
             CapturePhotoSnapshot,
             ApplyPhotoSnapshot,
             CapturePhotoSnapshot(),
             OnUndoRedoHistoryChanged);
     }
+
+    private void OnSaveFolderPathChanged(object? sender, EventArgs e) =>
+        ProcessPhotoCommand.NotifyCanExecuteChanged();
 
     public IEnumerable<double> ScaleFactorOptions => [1, 1.25, 1.5, 2, 2.5, 3, 4];
 
@@ -110,9 +117,6 @@ public partial class PhotoEnhancerViewModel : ObservableObject
     private PhotoFilterKind _selectedFilter = PhotoFilterKind.None;
 
     [ObservableProperty]
-    private string _outputDirectory = string.Empty;
-
-    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ProgressPercentDisplay))]
     [NotifyPropertyChangedFor(nameof(ShowProgressCard))]
     private double _progressPercent01;
@@ -158,7 +162,7 @@ public partial class PhotoEnhancerViewModel : ObservableObject
 
     private bool CanStartProcess() =>
         !string.IsNullOrWhiteSpace(SelectedFilePath)
-        && Directory.Exists(OutputDirectory)
+        && Directory.Exists(_preferences.SaveFolderPath)
         && !IsRunning;
 
     private bool CanUndoOperation() => _history.CanUndo && !IsRunning;
@@ -241,27 +245,6 @@ public partial class PhotoEnhancerViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void BrowseOutput()
-    {
-        var dlg = new Ookii.Dialogs.Wpf.VistaFolderBrowserDialog
-        {
-            SelectedPath = Directory.Exists(OutputDirectory)
-                ? OutputDirectory
-                : Environment.GetFolderPath(Environment.SpecialFolder.MyPictures),
-            UseDescriptionForTitle = true,
-            Description = "Choose output folder"
-        };
-
-        if (dlg.ShowDialog() != true || string.IsNullOrWhiteSpace(dlg.SelectedPath))
-        {
-            return;
-        }
-
-        var path = dlg.SelectedPath;
-        _history.PushUndoFrameAnd(() => OutputDirectory = path);
-    }
-
-    [RelayCommand]
     private void ClearFile()
     {
         _history.PushUndoFrameAnd(() =>
@@ -315,7 +298,7 @@ public partial class PhotoEnhancerViewModel : ObservableObject
         var settings = BuildSettings();
         var ext = ExtensionFor(settings.TargetFormat);
         var outputPath = Path.Combine(
-            OutputDirectory,
+            _preferences.SaveFolderPath,
             Path.GetFileNameWithoutExtension(SelectedFilePath) + "_enhanced" + ext);
 
         var request = new ProcessPhotoRequest(SelectedFilePath, outputPath, settings);
@@ -383,14 +366,15 @@ public partial class PhotoEnhancerViewModel : ObservableObject
     [RelayCommand]
     private void OpenOutputFolder()
     {
-        if (!Directory.Exists(OutputDirectory))
+        var folder = _preferences.SaveFolderPath;
+        if (!Directory.Exists(folder))
         {
             return;
         }
 
         Process.Start(new ProcessStartInfo
         {
-            FileName = OutputDirectory,
+            FileName = folder,
             UseShellExecute = true
         });
     }
@@ -489,7 +473,6 @@ public partial class PhotoEnhancerViewModel : ObservableObject
             SelectedMaxEdge,
             UpscaleQualityMode,
             SelectedFilter,
-            OutputDirectory,
             ProgressPercent01,
             ProgressStatusText,
             ProgressDetailText,
@@ -511,7 +494,6 @@ public partial class PhotoEnhancerViewModel : ObservableObject
         SelectedMaxEdge = s.SelectedMaxEdge;
         UpscaleQualityMode = s.UpscaleQualityMode;
         SelectedFilter = s.SelectedFilter;
-        OutputDirectory = s.OutputDirectory;
         ProgressPercent01 = s.ProgressPercent01;
         ProgressStatusText = s.ProgressStatusText;
         ProgressDetailText = s.ProgressDetailText;
@@ -548,12 +530,6 @@ public partial class PhotoEnhancerViewModel : ObservableObject
     partial void OnUpscaleQualityModeChanged(UpscaleQualityMode value) => OnSettingsChangedForPreview();
 
     partial void OnSelectedFilterChanged(PhotoFilterKind value) => OnSettingsChangedForPreview();
-
-    partial void OnOutputDirectoryChanged(string value)
-    {
-        ProcessPhotoCommand.NotifyCanExecuteChanged();
-        OnSettingsChangedForPreview();
-    }
 
     partial void OnSelectedFilePathChanged(string? value) =>
         ProcessPhotoCommand.NotifyCanExecuteChanged();

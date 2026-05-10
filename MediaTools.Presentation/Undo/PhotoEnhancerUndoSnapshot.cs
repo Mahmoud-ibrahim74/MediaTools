@@ -15,7 +15,6 @@ public sealed record PhotoEnhancerUndoSnapshot(
     int SelectedMaxEdge,
     UpscaleQualityMode UpscaleQualityMode,
     PhotoFilterKind SelectedFilter,
-    string OutputDirectory,
     double ProgressPercent01,
     string ProgressStatusText,
     string ProgressDetailText,

@@ -27,6 +27,7 @@ public partial class MainWindow : MetroWindow
             "Dashboard" => _services.GetRequiredService<DashboardPage>(),
             "VideoCompress" => _services.GetRequiredService<VideoCompressPage>(),
             "PhotoEnhancer" => _services.GetRequiredService<PhotoEnhancerPage>(),
+            "AppSettings" => _services.GetRequiredService<AppSettingsPage>(),
             _ => null
         };
 
