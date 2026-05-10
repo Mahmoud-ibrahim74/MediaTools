@@ -29,6 +29,7 @@ public partial class MainWindow : MetroWindow
             "PhotoEnhancer" => _services.GetRequiredService<PhotoEnhancerPage>(),
             "AudioEnhancer" => _services.GetRequiredService<AudioEnhancerPage>(),
             "ThumbnailGenerator" => _services.GetRequiredService<ThumbnailGeneratorPage>(),
+            "SubtitleExtractor" => _services.GetRequiredService<SubtitleExtractorPage>(),
             "AppSettings" => _services.GetRequiredService<AppSettingsPage>(),
             _ => null
         };

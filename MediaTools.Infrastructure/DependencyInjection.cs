@@ -13,6 +13,7 @@ public static class DependencyInjection
         services.AddSingleton<IAudioProcessingService, FfmpegAudioProcessingService>();
         services.AddSingleton<IImageProcessingService, ImageSharpPhotoProcessingService>();
         services.AddSingleton<IThumbnailGeneratorService, ThumbnailGeneratorService>();
+        services.AddSingleton<ISubtitleExtractorService, FfmpegSubtitleExtractorService>();
         services.AddSingleton<ICompressionJobRepository, InMemoryCompressionJobRepository>();
         return services;
     }

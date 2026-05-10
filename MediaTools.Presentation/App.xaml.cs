@@ -29,18 +29,21 @@ public partial class App : System.Windows.Application
                     services.AddSingleton<ProcessPhotoUseCase>();
                     services.AddSingleton<ProcessAudioUseCase>();
                     services.AddSingleton<ProcessThumbnailUseCase>();
+                    services.AddSingleton<ProcessSubtitleExtractUseCase>();
                     services.AddSingleton<MainWindowViewModel>();
                     services.AddTransient<DashboardViewModel>();
                     services.AddTransient<VideoCompressViewModel>();
                     services.AddTransient<PhotoEnhancerViewModel>();
                     services.AddTransient<AudioEnhancerViewModel>();
                     services.AddTransient<ThumbnailGeneratorViewModel>();
+                    services.AddTransient<SubtitleExtractorViewModel>();
                     services.AddTransient<AppSettingsViewModel>();
                     services.AddTransient<DashboardPage>();
                     services.AddTransient<VideoCompressPage>();
                     services.AddTransient<PhotoEnhancerPage>();
                     services.AddTransient<AudioEnhancerPage>();
                     services.AddTransient<ThumbnailGeneratorPage>();
+                    services.AddTransient<SubtitleExtractorPage>();
                     services.AddTransient<AppSettingsPage>();
                     services.AddSingleton<MainWindow>();
                 })

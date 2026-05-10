@@ -62,6 +62,9 @@ public partial class DashboardViewModel : ObservableObject
     [RelayCommand]
     private void GoToThumbnailGenerator() => _shell.NavigateCommand.Execute("ThumbnailGenerator");
 
+    [RelayCommand]
+    private void GoToSubtitleExtractor() => _shell.NavigateCommand.Execute("SubtitleExtractor");
+
     private static string FormatBytes(long bytes)
     {
         const long kb = 1024;
