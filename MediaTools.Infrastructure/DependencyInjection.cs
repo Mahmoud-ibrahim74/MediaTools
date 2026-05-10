@@ -10,6 +10,7 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructure(this IServiceCollection services)
     {
         services.AddSingleton<IVideoCompressionService, FfmpegVideoCompressionService>();
+        services.AddSingleton<IImageProcessingService, ImageSharpPhotoProcessingService>();
         services.AddSingleton<ICompressionJobRepository, InMemoryCompressionJobRepository>();
         return services;
     }

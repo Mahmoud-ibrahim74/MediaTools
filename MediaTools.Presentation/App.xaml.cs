@@ -23,11 +23,14 @@ public partial class App : System.Windows.Application
                 {
                     services.AddInfrastructure();
                     services.AddSingleton<CompressVideoUseCase>();
+                    services.AddSingleton<ProcessPhotoUseCase>();
                     services.AddSingleton<MainWindowViewModel>();
                     services.AddTransient<DashboardViewModel>();
                     services.AddTransient<VideoCompressViewModel>();
+                    services.AddTransient<PhotoEnhancerViewModel>();
                     services.AddTransient<DashboardPage>();
                     services.AddTransient<VideoCompressPage>();
+                    services.AddTransient<PhotoEnhancerPage>();
                     services.AddSingleton<MainWindow>();
                 })
             .Build();

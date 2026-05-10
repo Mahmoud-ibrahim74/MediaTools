@@ -10,18 +10,28 @@
       Drop="OnDrop"
       DragEnter="OnDragEnter"
       DragLeave="OnDragLeave"
-      DragOver="OnDragOver">
-  <Grid Background="{DynamicResource ContentBackgroundBrush}">
-    <ScrollViewer Padding="24"
+      DragOver="OnDragOver"
+      HorizontalAlignment="Stretch"
+      VerticalAlignment="Stretch">
+  <Grid HorizontalAlignment="Stretch"
+        VerticalAlignment="Stretch"
+        Background="{DynamicResource ContentBackgroundBrush}">
+    <ScrollViewer x:Name="VideoCompressScroll"
+                  Padding="24"
+                  HorizontalAlignment="Stretch"
+                  VerticalAlignment="Stretch"
+                  HorizontalScrollBarVisibility="Disabled"
                   VerticalScrollBarVisibility="Auto">
-      <Grid MaxWidth="1180">
+      <Grid Width="{Binding ViewportWidth, ElementName=VideoCompressScroll}"
+            HorizontalAlignment="Stretch">
         <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="*" />
-          <ColumnDefinition Width="280" />
+          <ColumnDefinition Width="*" MinWidth="280" />
+          <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
 
         <StackPanel Grid.Column="0"
-                    Margin="0,0,24,0">
+                    Margin="0,0,24,0"
+                    HorizontalAlignment="Stretch">
           <StackPanel Margin="0,0,0,20">
             <TextBlock FontSize="26"
                        FontWeight="SemiBold"
@@ -419,7 +429,10 @@
           </StackPanel>
         </StackPanel>
 
-        <StackPanel Grid.Column="1">
+        <StackPanel Grid.Column="1"
+                    MinWidth="260"
+                    MaxWidth="400"
+                    HorizontalAlignment="Stretch">
           <Border Padding="16"
                   Style="{DynamicResource CardBorderStyle}">
             <StackPanel>

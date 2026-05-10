@@ -146,6 +146,50 @@
               </Button.Style>
             </Button>
 
+            <Button Margin="4,2"
+                    Padding="12,10"
+                    HorizontalContentAlignment="Stretch"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Command="{Binding NavigateCommand}"
+                    CommandParameter="PhotoEnhancer"
+                    Cursor="Hand">
+              <Button.Style>
+                <Style TargetType="Button">
+                  <Setter Property="Foreground" Value="{DynamicResource SideMenuTextBrush}" />
+                  <Setter Property="Template">
+                    <Setter.Value>
+                      <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd"
+                                Background="Transparent"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                          <StackPanel Orientation="Horizontal">
+                            <iconPacks:PackIconMaterial Width="18"
+                                                        Height="18"
+                                                        VerticalAlignment="Center"
+                                                        Kind="ImageFilterHdrOutline" />
+                            <TextBlock Margin="10,0,0,0"
+                                       VerticalAlignment="Center"
+                                       Text="Photo Enhancer" />
+                          </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                          <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SideMenuHoverBrush}" />
+                          </Trigger>
+                          <DataTrigger Binding="{Binding CurrentNavigationKey}" Value="PhotoEnhancer">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SideMenuActiveBrush}" />
+                            <Setter Property="Foreground" Value="{DynamicResource AccentLightBrush}" />
+                          </DataTrigger>
+                        </ControlTemplate.Triggers>
+                      </ControlTemplate>
+                    </Setter.Value>
+                  </Setter>
+                </Style>
+              </Button.Style>
+            </Button>
+
             <RadioButton Margin="4,2"
                          Padding="12,10"
                          HorizontalAlignment="Stretch"
@@ -210,6 +254,10 @@
     <Border Grid.Column="1"
             Background="{DynamicResource ContentBackgroundBrush}">
       <Frame x:Name="ContentFrame"
+             HorizontalAlignment="Stretch"
+             VerticalAlignment="Stretch"
+             HorizontalContentAlignment="Stretch"
+             VerticalContentAlignment="Stretch"
              NavigationUIVisibility="Hidden"
              Background="Transparent" />
     </Border>
