@@ -267,7 +267,7 @@
                          FontSize="13"
                          Foreground="#FF5F6B76"
                          TextWrapping="Wrap"
-                         Text="Extract embedded subtitles (SRT, WebVTT, ASS, copy) and enhance clips — watermark, speed, reverse, stabilize, color grade, crop &amp; resize, or pull audio." />
+                         Text="Extract embedded subtitles (SRT, WebVTT, ASS, copy) and enhance clips — watermark, speed, reverse, color grade, crop &amp; resize, or pull audio." />
             </StackPanel>
           </Grid>
         </Border>

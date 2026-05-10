@@ -5,7 +5,6 @@ public enum VideoEnhanceOperation
     Watermark,
     SpeedChange,
     Reverse,
-    Stabilize,
     ColorGrading,
     CropAndResize,
     ExtractAudio,

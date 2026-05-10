@@ -9,5 +9,4 @@ public sealed record VideoEnhanceSettings(
     VideoSpeedSettings? Speed,
     VideoCropResizeSettings? CropResize,
     VideoColorGradingSettings? ColorGrading,
-    VideoStabilizerSettings? Stabilizer,
     VideoToAudioSettings? ToAudio);

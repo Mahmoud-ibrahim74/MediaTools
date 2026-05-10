@@ -11,7 +11,7 @@ namespace MediaTools.Infrastructure.Services;
 
 /// <summary>
 /// Single multi-feature video enhancer backed by the bundled FFmpeg binary:
-/// watermark, speed change, reverse, stabilize (2-pass), color grading, crop/resize, and video-to-audio.
+/// watermark, speed change, reverse, color grading, crop/resize, and video-to-audio.
 /// </summary>
 public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoCompressionService) : IVideoEnhanceService
 {
@@ -69,7 +69,9 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
             }
         }
 
-        Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
+        sourcePath = Path.GetFullPath(sourcePath);
+        outputPath = Path.GetFullPath(outputPath);
+        EnsureParentDirectoryExists(outputPath);
 
         var enc = pipeline.VideoEncoder;
 
@@ -96,7 +98,8 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
 
                 var step = steps[i] with { VideoEncoder = enc };
                 var isLast = i == steps.Count - 1;
-                var nextPath = isLast ? outputPath : Path.Combine(tempRoot, $"step_{i:00}.mkv");
+                // MP4 + explicit muxer avoids Matroska/HW-encoder quirks that often surface as AVERROR(EINVAL) (-22).
+                var nextPath = isLast ? outputPath : Path.Combine(tempRoot, $"step_{i:00}.mp4");
 
                 var stepIndex = i;
                 var stepCount = steps.Count;
@@ -155,6 +158,10 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
         IProgress<VideoEnhanceProgressReport> progress,
         CancellationToken cancellationToken)
     {
+        sourcePath = Path.GetFullPath(sourcePath);
+        outputPath = Path.GetFullPath(outputPath);
+        EnsureParentDirectoryExists(outputPath);
+
         var totalDurationSeconds = analysis.Duration.TotalSeconds;
         var enc = settings.VideoEncoder;
 
@@ -172,11 +179,6 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
 
             case VideoEnhanceOperation.Reverse:
                 await ApplyReverseAsync(sourcePath, outputPath, analysis, enc, totalDurationSeconds, progress, cancellationToken)
-                    .ConfigureAwait(false);
-                break;
-
-            case VideoEnhanceOperation.Stabilize:
-                await ApplyStabilizeAsync(sourcePath, outputPath, analysis, settings.Stabilizer!, enc, totalDurationSeconds, progress, cancellationToken)
                     .ConfigureAwait(false);
                 break;
 
@@ -285,7 +287,7 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
                         return null;
                     }
 
-                    sb.Append(ci, $"-i \"{wm.ImagePath}\" ");
+                    sb.Append(ci, $"-i \"{Path.GetFullPath(wm.ImagePath)}\" ");
                     var pos = BuildOverlayPosition(wm.Position, margin);
                     filterComplex =
                         $"[1:v]scale={targetWmWidth.ToString(ci)}:-1,format=rgba," +
@@ -297,8 +299,15 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
                     var rawText = string.IsNullOrWhiteSpace(wm.Text) ? "MediaTools" : wm.Text;
                     var fontSize = Math.Max(12, (int)Math.Round(analysis.Height * sizePct * 0.35));
                     var pos = BuildDrawtextPosition(wm.Position, margin);
+                    var fontPath = TryResolveDrawtextFontFile();
+                    if (fontPath is null && OperatingSystem.IsWindows())
+                    {
+                        return null;
+                    }
+
                     filterComplex =
                         $"[0:v]drawtext=text='{EscapeDrawtextText(rawText)}':" +
+                        $"{FormatDrawtextFontFileFilterOption(fontPath)}" +
                         $"fontcolor=white@{opacity.ToString("0.###", ci)}:" +
                         $"fontsize={fontSize.ToString(ci)}:" +
                         $"box=1:boxcolor=black@{(opacity * 0.5).ToString("0.###", ci)}:" +
@@ -442,8 +451,10 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
 
         if (process.ExitCode != 0)
         {
+            var err = ExtractError(stderr.ToString());
+            var argsPreview = arguments.Length > 600 ? arguments[..600] + "…" : arguments;
             throw new InvalidOperationException(
-                $"FFmpeg exited with code {process.ExitCode}: {ExtractError(stderr.ToString())}");
+                $"FFmpeg exited with code {process.ExitCode}: {err} | Args (truncated): {argsPreview}");
         }
 
         var bytes = ms.ToArray();
@@ -455,18 +466,85 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
         return bytes;
     }
 
-    /// <summary>movflags +faststart is only valid for ISO-BMFF (e.g. mp4). Using it with .mkv breaks muxing (often FFmpeg exit -22).</summary>
-    private static bool IsFaststartMuxCompatible(string outputPath)
+    /// <summary>Pipeline chunk files step_XX.* — never use +faststart (fragile for chained re-encodes).</summary>
+    private static bool IsPipelineIntermediateStepFile(string outputPath)
+    {
+        var name = Path.GetFileName(outputPath);
+        if (!name.StartsWith("step_", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var stem = Path.GetFileNameWithoutExtension(name);
+        return stem.Length == 7
+            && char.IsDigit(stem[5])
+            && char.IsDigit(stem[6]);
+    }
+
+    /// <summary>movflags +faststart is only for final ISO-BMFF deliverables, not Matroska or pipeline chunks.</summary>
+    private static bool WantsMuxFaststart(string outputPath) =>
+        !IsPipelineIntermediateStepFile(outputPath)
+        && (Path.GetExtension(outputPath) is var ext
+            && (ext.Equals(".mp4", StringComparison.OrdinalIgnoreCase)
+                || ext.Equals(".m4v", StringComparison.OrdinalIgnoreCase)
+                || ext.Equals(".mov", StringComparison.OrdinalIgnoreCase)));
+
+    private static void EnsureParentDirectoryExists(string outputPath)
+    {
+        var dir = Path.GetDirectoryName(Path.GetFullPath(outputPath));
+        if (!string.IsNullOrEmpty(dir))
+        {
+            Directory.CreateDirectory(dir);
+        }
+    }
+
+    /// <summary>Forces muxer so FFmpeg does not mis-detect container (avoids EINVAL opening output on Windows).</summary>
+    private static void AppendMuxerFormatBeforeOutput(StringBuilder sb, string outputPath)
     {
         var ext = Path.GetExtension(outputPath);
-        return ext.Equals(".mp4", StringComparison.OrdinalIgnoreCase)
-            || ext.Equals(".m4v", StringComparison.OrdinalIgnoreCase)
-            || ext.Equals(".mov", StringComparison.OrdinalIgnoreCase);
+        if (ext.Equals(".mp4", StringComparison.OrdinalIgnoreCase) || ext.Equals(".m4v", StringComparison.OrdinalIgnoreCase))
+        {
+            sb.Append("-f mp4 ");
+        }
+        else if (ext.Equals(".mov", StringComparison.OrdinalIgnoreCase))
+        {
+            sb.Append("-f mov ");
+        }
+        else if (ext.Equals(".mkv", StringComparison.OrdinalIgnoreCase))
+        {
+            sb.Append("-f matroska ");
+        }
+        else if (ext.Equals(".mp3", StringComparison.OrdinalIgnoreCase))
+        {
+            sb.Append("-f mp3 ");
+        }
+        else if (ext.Equals(".m4a", StringComparison.OrdinalIgnoreCase))
+        {
+            sb.Append("-f ipod ");
+        }
+        else if (ext.Equals(".flac", StringComparison.OrdinalIgnoreCase))
+        {
+            sb.Append("-f flac ");
+        }
+        else if (ext.Equals(".ogg", StringComparison.OrdinalIgnoreCase))
+        {
+            sb.Append("-f ogg ");
+        }
+        else if (ext.Equals(".wav", StringComparison.OrdinalIgnoreCase))
+        {
+            sb.Append("-f wav ");
+        }
+    }
+
+    private static void AppendQuotedOutput(StringBuilder sb, CultureInfo ci, string outputPath)
+    {
+        AppendMuxerFormatBeforeOutput(sb, outputPath);
+        sb.Append(ci, $"\"{outputPath}\"");
     }
 
     private static void AppendMovFlagsFaststartIfCompatible(StringBuilder sb, string outputPath)
     {
-        if (IsFaststartMuxCompatible(outputPath))
+        if (WantsMuxFaststart(outputPath))
         {
             sb.Append("-movflags +faststart ");
         }
@@ -490,7 +568,7 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
                 break;
         }
 
-        if (requestFaststart && IsFaststartMuxCompatible(outputPath))
+        if (requestFaststart && WantsMuxFaststart(outputPath))
         {
             sb.Append("-movflags +faststart ");
         }
@@ -531,7 +609,7 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
                 throw new FileNotFoundException("Watermark image was not found.", wm.ImagePath);
             }
 
-            sb.Append(ci, $"-i \"{wm.ImagePath}\" ");
+            sb.Append(ci, $"-i \"{Path.GetFullPath(wm.ImagePath)}\" ");
 
             var pos = BuildOverlayPosition(wm.Position, margin);
             filterComplex =
@@ -544,9 +622,17 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
             var rawText = string.IsNullOrWhiteSpace(wm.Text) ? "MediaTools" : wm.Text;
             var fontSize = Math.Max(12, (int)Math.Round(analysis.Height * sizePct * 0.35));
             var pos = BuildDrawtextPosition(wm.Position, margin);
+            var fontPath = TryResolveDrawtextFontFile();
+            if (fontPath is null && OperatingSystem.IsWindows())
+            {
+                throw new InvalidOperationException(
+                    "Text watermark needs a TrueType font, but none were found in Windows\\Fonts (e.g. segoeui.ttf, arial.ttf). " +
+                    "Use an image watermark or install a standard UI font.");
+            }
 
             filterComplex =
                 $"[0:v]drawtext=text='{EscapeDrawtextText(rawText)}':" +
+                $"{FormatDrawtextFontFileFilterOption(fontPath)}" +
                 $"fontcolor=white@{opacity.ToString("0.###", ci)}:" +
                 $"fontsize={fontSize.ToString(ci)}:" +
                 $"box=1:boxcolor=black@{(opacity * 0.5).ToString("0.###", ci)}:" +
@@ -558,7 +644,7 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
         sb.Append("-map \"[v]\" ");
         sb.Append(mapAudio);
         AppendH264VideoEncode(sb, videoEncoder, outputPath, requestFaststart: true);
-        sb.Append(ci, $"\"{outputPath}\"");
+        AppendQuotedOutput(sb, ci, outputPath);
 
         await RunFfmpegAsync(sb.ToString(), totalDurationSeconds, progress, "Embedding watermark", ct).ConfigureAwait(false);
     }
@@ -608,7 +694,7 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
             AppendMovFlagsFaststartIfCompatible(sb, outputPath);
         }
 
-        sb.Append(ci, $"\"{outputPath}\"");
+        AppendQuotedOutput(sb, ci, outputPath);
         var stepName = $"Speed {factor.ToString("0.##", ci)}x";
 
         // Output duration shrinks by factor when speeding up; total progress = output_time / output_duration
@@ -643,62 +729,9 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
         }
 
         AppendMovFlagsFaststartIfCompatible(sb, outputPath);
-        sb.Append(ci, $"\"{outputPath}\"");
+        AppendQuotedOutput(sb, ci, outputPath);
 
         await RunFfmpegAsync(sb.ToString(), totalDurationSeconds, progress, "Reversing", ct).ConfigureAwait(false);
-    }
-
-    private async Task ApplyStabilizeAsync(
-        string sourcePath,
-        string outputPath,
-        VideoSourceAnalysis analysis,
-        VideoStabilizerSettings stab,
-        VideoHardwareEncoderKind videoEncoder,
-        double totalDurationSeconds,
-        IProgress<VideoEnhanceProgressReport> progress,
-        CancellationToken ct)
-    {
-        var ci = CultureInfo.InvariantCulture;
-        var smoothing = Math.Clamp(stab.Smoothing, 1, 100);
-        var zoom = Math.Clamp(stab.Zoom, 0, 5);
-
-        var trfPath = Path.Combine(Path.GetTempPath(), $"mediatools_vidstab_{Guid.NewGuid():N}.trf");
-        try
-        {
-            var sb1 = new StringBuilder();
-            sb1.Append("-y -hide_banner -nostats -loglevel error -progress pipe:1 ");
-            sb1.Append(ci, $"-i \"{sourcePath}\" ");
-            sb1.Append(ci,
-                $"-vf \"vidstabdetect=stepsize=6:shakiness=8:accuracy=9:result={EscapeFilterPath(trfPath)}\" ");
-            sb1.Append("-f null -");
-
-            await RunFfmpegAsync(sb1.ToString(), totalDurationSeconds, progress, "Analyzing motion (1/2)", ct).ConfigureAwait(false);
-
-            var sb2 = new StringBuilder();
-            sb2.Append("-y -hide_banner -nostats -loglevel error -progress pipe:1 ");
-            sb2.Append(ci, $"-i \"{sourcePath}\" ");
-            sb2.Append(ci,
-                $"-vf \"vidstabtransform=smoothing={smoothing.ToString(ci)}:" +
-                $"zoom={zoom.ToString("0.##", ci)}:input={EscapeFilterPath(trfPath)},unsharp=5:5:0.8:3:3:0.4\" ");
-
-            if (analysis.HasAudio)
-            {
-                sb2.Append("-c:a copy ");
-            }
-            else
-            {
-                sb2.Append("-an ");
-            }
-
-            AppendH264VideoEncode(sb2, videoEncoder, outputPath, requestFaststart: true);
-            sb2.Append(ci, $"\"{outputPath}\"");
-
-            await RunFfmpegAsync(sb2.ToString(), totalDurationSeconds, progress, "Stabilizing (2/2)", ct).ConfigureAwait(false);
-        }
-        finally
-        {
-            TryDelete(trfPath);
-        }
     }
 
     private async Task ApplyColorGradingAsync(
@@ -729,7 +762,7 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
         }
 
         AppendH264VideoEncode(sb, videoEncoder, outputPath, requestFaststart: true);
-        sb.Append(ci, $"\"{outputPath}\"");
+        AppendQuotedOutput(sb, ci, outputPath);
 
         await RunFfmpegAsync(sb.ToString(), totalDurationSeconds, progress, "Color grading", ct).ConfigureAwait(false);
     }
@@ -771,7 +804,7 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
         }
 
         AppendH264VideoEncode(sb, videoEncoder, outputPath, requestFaststart: true);
-        sb.Append(ci, $"\"{outputPath}\"");
+        AppendQuotedOutput(sb, ci, outputPath);
 
         await RunFfmpegAsync(sb.ToString(), totalDurationSeconds, progress, "Crop & resize", ct).ConfigureAwait(false);
     }
@@ -811,7 +844,7 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
                 throw new ArgumentOutOfRangeException(nameof(audioSettings), audioSettings.Format, null);
         }
 
-        sb.Append(ci, $"\"{outputPath}\"");
+        AppendQuotedOutput(sb, ci, outputPath);
 
         await RunFfmpegAsync(sb.ToString(), totalDurationSeconds, progress, "Extracting audio", ct).ConfigureAwait(false);
     }
@@ -886,8 +919,10 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
 
         if (process.ExitCode != 0)
         {
+            var err = ExtractError(stderr.ToString());
+            var argsPreview = arguments.Length > 600 ? arguments[..600] + "…" : arguments;
             throw new InvalidOperationException(
-                $"FFmpeg exited with code {process.ExitCode}: {ExtractError(stderr.ToString())}");
+                $"FFmpeg exited with code {process.ExitCode}: {err} | Args (truncated): {argsPreview}");
         }
     }
 
@@ -927,12 +962,13 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
             return "FFmpeg failed.";
         }
 
-        var line = stderr
-            .Split('\n')
-            .Select(l => l.Trim())
-            .LastOrDefault(l => l.Length > 0);
+        var lines = stderr
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(l => l.Length > 0)
+            .TakeLast(8)
+            .ToArray();
 
-        return string.IsNullOrEmpty(line) ? "FFmpeg failed." : line;
+        return lines.Length == 0 ? "FFmpeg failed." : string.Join(" | ", lines);
     }
 
     private static string BuildOverlayPosition(WatermarkPosition position, int margin)
@@ -992,9 +1028,91 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
         return string.Join(",", parts);
     }
 
-    /// <summary>Escape characters that have meaning inside an FFmpeg filter argument.</summary>
-    private static string EscapeFilterPath(string path) =>
-        path.Replace('\\', '/').Replace(":", "\\:");
+    /// <summary>
+    /// Text watermarks use drawtext. Without <c>fontfile=</c>, many Windows FFmpeg builds call Fontconfig with no
+    /// config and crash (access violation) or fail. A concrete .ttf path avoids Fontconfig.
+    /// </summary>
+    private static string? TryResolveDrawtextFontFile()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            var fonts = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Fonts");
+            ReadOnlySpan<string> names =
+            [
+                "segoeui.ttf",
+                "arial.ttf",
+                "calibri.ttf",
+                "SegoeUI.ttf"
+            ];
+
+            foreach (var name in names)
+            {
+                var p = Path.Combine(fonts, name);
+                if (File.Exists(p))
+                {
+                    return p;
+                }
+            }
+
+            return null;
+        }
+
+        if (OperatingSystem.IsMacOS())
+        {
+            ReadOnlySpan<string> mac =
+            [
+                "/System/Library/Fonts/Supplemental/Arial.ttf",
+                "/Library/Fonts/Arial.ttf",
+                "/System/Library/Fonts/Helvetica.ttc"
+            ];
+
+            foreach (var p in mac)
+            {
+                if (File.Exists(p))
+                {
+                    return p;
+                }
+            }
+
+            return null;
+        }
+
+        ReadOnlySpan<string> linux =
+        [
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/TTF/DejaVuSans.ttf"
+        ];
+
+        foreach (var p in linux)
+        {
+            if (File.Exists(p))
+            {
+                return p;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>Drive colons and special characters escaped for use in a drawtext filter option string.</summary>
+    private static string EscapeDrawtextFontPathForFilter(string absolutePath)
+    {
+        var normalized = Path.GetFullPath(absolutePath).Replace('\\', '/');
+        if (normalized.Length >= 2
+            && char.IsAsciiLetter(normalized[0])
+            && normalized[1] == ':')
+        {
+            normalized = $"{normalized[0]}\\:{normalized[2..]}";
+        }
+
+        return normalized.Replace("'", "\\'", StringComparison.Ordinal);
+    }
+
+    /// <summary>Returns <c>fontfile=…:</c> or empty when no font (non-Windows: fall back to FFmpeg default / fontconfig).</summary>
+    private static string FormatDrawtextFontFileFilterOption(string? fontPath) =>
+        string.IsNullOrWhiteSpace(fontPath)
+            ? string.Empty
+            : $"fontfile={EscapeDrawtextFontPathForFilter(fontPath)}:";
 
     /// <summary>Escape characters for drawtext text='…'.</summary>
     private static string EscapeDrawtextText(string text) =>

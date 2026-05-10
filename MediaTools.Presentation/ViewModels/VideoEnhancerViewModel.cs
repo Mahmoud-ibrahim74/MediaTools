@@ -41,7 +41,6 @@ public partial class VideoEnhancerViewModel : ObservableObject
 
     private static readonly VideoEnhanceOperation[] VideoExportStepOrder =
     [
-        VideoEnhanceOperation.Stabilize,
         VideoEnhanceOperation.CropAndResize,
         VideoEnhanceOperation.ColorGrading,
         VideoEnhanceOperation.SpeedChange,
@@ -55,7 +54,6 @@ public partial class VideoEnhancerViewModel : ObservableObject
         nameof(IncludeWatermarkInExport),
         nameof(IncludeSpeedInExport),
         nameof(IncludeReverseInExport),
-        nameof(IncludeStabilizeInExport),
         nameof(IncludeColorGradingInExport),
         nameof(IncludeCropResizeInExport),
         nameof(WatermarkKind),
@@ -66,8 +64,6 @@ public partial class VideoEnhancerViewModel : ObservableObject
         nameof(WatermarkSizePercent),
         nameof(SpeedFactor),
         nameof(SpeedPreservePitch),
-        nameof(StabilizerSmoothing),
-        nameof(StabilizerZoom),
         nameof(ColorBrightness),
         nameof(ColorContrast),
         nameof(ColorSaturation),
@@ -236,7 +232,6 @@ public partial class VideoEnhancerViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(ShowWatermarkPanel))]
     [NotifyPropertyChangedFor(nameof(ShowSpeedPanel))]
     [NotifyPropertyChangedFor(nameof(ShowReversePanel))]
-    [NotifyPropertyChangedFor(nameof(ShowStabilizePanel))]
     [NotifyPropertyChangedFor(nameof(ShowColorPanel))]
     [NotifyPropertyChangedFor(nameof(ShowCropResizePanel))]
     [NotifyPropertyChangedFor(nameof(ShowExtractAudioPanel))]
@@ -273,12 +268,6 @@ public partial class VideoEnhancerViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(ExportPipelineSummary))]
     [NotifyPropertyChangedFor(nameof(HasAnyVideoInclude))]
     [NotifyPropertyChangedFor(nameof(StartActionLabel))]
-    private bool _includeStabilizeInExport;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ExportPipelineSummary))]
-    [NotifyPropertyChangedFor(nameof(HasAnyVideoInclude))]
-    [NotifyPropertyChangedFor(nameof(StartActionLabel))]
     private bool _includeColorGradingInExport;
 
     [ObservableProperty]
@@ -291,7 +280,6 @@ public partial class VideoEnhancerViewModel : ObservableObject
         IncludeWatermarkInExport
         || IncludeSpeedInExport
         || IncludeReverseInExport
-        || IncludeStabilizeInExport
         || IncludeColorGradingInExport
         || IncludeCropResizeInExport;
 
@@ -354,13 +342,6 @@ public partial class VideoEnhancerViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _speedPreservePitch = true;
-
-    // Stabilize
-    [ObservableProperty]
-    private int _stabilizerSmoothing = 10;
-
-    [ObservableProperty]
-    private double _stabilizerZoom = 0;
 
     // Color grading
     [ObservableProperty]
@@ -474,7 +455,6 @@ public partial class VideoEnhancerViewModel : ObservableObject
         ShowFileInfoCard
         && (Operation == VideoEnhanceOperation.SpeedChange
             || Operation == VideoEnhanceOperation.Reverse
-            || Operation == VideoEnhanceOperation.Stabilize
             || Operation == VideoEnhanceOperation.ExtractAudio
             || Operation == VideoEnhanceOperation.ExtractSubtitle);
 
@@ -490,8 +470,6 @@ public partial class VideoEnhancerViewModel : ObservableObject
     public bool ShowSpeedPanel => Operation == VideoEnhanceOperation.SpeedChange;
 
     public bool ShowReversePanel => Operation == VideoEnhanceOperation.Reverse;
-
-    public bool ShowStabilizePanel => Operation == VideoEnhanceOperation.Stabilize;
 
     public bool ShowColorPanel => Operation == VideoEnhanceOperation.ColorGrading;
 
@@ -568,8 +546,6 @@ public partial class VideoEnhancerViewModel : ObservableObject
             WatermarkSizePercent,
             SpeedFactor,
             SpeedPreservePitch,
-            StabilizerSmoothing,
-            StabilizerZoom,
             ColorBrightness,
             ColorContrast,
             ColorSaturation,
@@ -586,7 +562,6 @@ public partial class VideoEnhancerViewModel : ObservableObject
             IncludeWatermarkInExport,
             IncludeSpeedInExport,
             IncludeReverseInExport,
-            IncludeStabilizeInExport,
             IncludeColorGradingInExport,
             IncludeCropResizeInExport,
             AudioFormat,
@@ -625,8 +600,6 @@ public partial class VideoEnhancerViewModel : ObservableObject
         WatermarkSizePercent = s.WatermarkSizePercent;
         SpeedFactor = s.SpeedFactor;
         SpeedPreservePitch = s.SpeedPreservePitch;
-        StabilizerSmoothing = s.StabilizerSmoothing;
-        StabilizerZoom = s.StabilizerZoom;
         ColorBrightness = s.ColorBrightness;
         ColorContrast = s.ColorContrast;
         ColorSaturation = s.ColorSaturation;
@@ -643,7 +616,6 @@ public partial class VideoEnhancerViewModel : ObservableObject
         IncludeWatermarkInExport = s.IncludeWatermarkInExport;
         IncludeSpeedInExport = s.IncludeSpeedInExport;
         IncludeReverseInExport = s.IncludeReverseInExport;
-        IncludeStabilizeInExport = s.IncludeStabilizeInExport;
         IncludeColorGradingInExport = s.IncludeColorGradingInExport;
         IncludeCropResizeInExport = s.IncludeCropResizeInExport;
         AudioFormat = s.AudioFormat;
@@ -1122,7 +1094,6 @@ public partial class VideoEnhancerViewModel : ObservableObject
             VideoEnhanceOperation.Watermark => IncludeWatermarkInExport,
             VideoEnhanceOperation.SpeedChange => IncludeSpeedInExport,
             VideoEnhanceOperation.Reverse => IncludeReverseInExport,
-            VideoEnhanceOperation.Stabilize => IncludeStabilizeInExport,
             VideoEnhanceOperation.ColorGrading => IncludeColorGradingInExport,
             VideoEnhanceOperation.CropAndResize => IncludeCropResizeInExport,
             _ => false
@@ -1175,7 +1146,7 @@ public partial class VideoEnhancerViewModel : ObservableObject
 
     private bool TryBuildStep(VideoEnhanceOperation op, VideoHardwareEncoderKind enc, out VideoEnhanceSettings settings, out string? error)
     {
-        settings = new VideoEnhanceSettings(op, enc, null, null, null, null, null, null);
+        settings = new VideoEnhanceSettings(op, enc, null, null, null, null, null);
         error = null;
 
         switch (op)
@@ -1217,13 +1188,6 @@ public partial class VideoEnhancerViewModel : ObservableObject
                 return true;
 
             case VideoEnhanceOperation.Reverse:
-                return true;
-
-            case VideoEnhanceOperation.Stabilize:
-                settings = settings with
-                {
-                    Stabilizer = new VideoStabilizerSettings(StabilizerSmoothing, StabilizerZoom)
-                };
                 return true;
 
             case VideoEnhanceOperation.ColorGrading:
@@ -1309,7 +1273,6 @@ public partial class VideoEnhancerViewModel : ObservableObject
                 VideoEnhanceOperation.Watermark => "watermark",
                 VideoEnhanceOperation.SpeedChange => $"speed{SpeedFactor:0.##}x",
                 VideoEnhanceOperation.Reverse => "reverse",
-                VideoEnhanceOperation.Stabilize => "stabilized",
                 VideoEnhanceOperation.ColorGrading => "graded",
                 VideoEnhanceOperation.CropAndResize => "edit",
                 VideoEnhanceOperation.ExtractAudio => "audio",
@@ -1433,7 +1396,6 @@ public partial class VideoEnhancerViewModel : ObservableObject
             VideoEnhanceOperation.Watermark => "Watermark",
             VideoEnhanceOperation.SpeedChange => "Speed change",
             VideoEnhanceOperation.Reverse => "Reverse",
-            VideoEnhanceOperation.Stabilize => "Stabilize",
             VideoEnhanceOperation.ColorGrading => "Color grading",
             VideoEnhanceOperation.CropAndResize => "Crop & resize",
             VideoEnhanceOperation.ExtractAudio => "Audio extract",

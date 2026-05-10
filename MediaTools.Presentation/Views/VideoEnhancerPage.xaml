@@ -206,22 +206,6 @@
                       </Style>
                     </Button.Style>
                   </Button>
-                  <Button Content="Stabilize"
-                          Command="{Binding SelectOperationCommand}"
-                          CommandParameter="{x:Static domainEnums:VideoEnhanceOperation.Stabilize}">
-                    <Button.Style>
-                      <Style BasedOn="{StaticResource VideoEnhanceOperationTabStyle}" TargetType="Button">
-                        <Style.Triggers>
-                          <DataTrigger Binding="{Binding Operation}" Value="{x:Static domainEnums:VideoEnhanceOperation.Stabilize}">
-                            <Setter Property="Background" Value="{DynamicResource AccentPrimaryBrush}" />
-                            <Setter Property="Foreground" Value="White" />
-                            <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
-                            <Setter Property="FontWeight" Value="SemiBold" />
-                          </DataTrigger>
-                        </Style.Triggers>
-                      </Style>
-                    </Button.Style>
-                  </Button>
                   <Button Content="Color"
                           Command="{Binding SelectOperationCommand}"
                           CommandParameter="{x:Static domainEnums:VideoEnhanceOperation.ColorGrading}">
@@ -401,34 +385,6 @@
               </DockPanel>
               <TextBlock FontSize="13" Foreground="#FF5F6B76" TextWrapping="Wrap"
                          Text="Plays the video and audio backward end-to-end. Long clips may need plenty of free disk space (FFmpeg buffers frames)." />
-            </StackPanel>
-          </Border>
-
-          <!-- Stabilize -->
-          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}"
-                  Visibility="{Binding ShowStabilizePanel, Converter={StaticResource BoolToVisibilityConverter}}">
-            <StackPanel>
-              <DockPanel Margin="0,0,0,12" LastChildFill="True">
-                <CheckBox DockPanel.Dock="Right"
-                          VerticalAlignment="Center"
-                          Content="Include in export"
-                          IsChecked="{Binding IncludeStabilizeInExport}" />
-                <TextBlock FontWeight="SemiBold" Text="Stabilize (vidstab)" VerticalAlignment="Center" />
-              </DockPanel>
-              <TextBlock FontSize="12" Foreground="#FF5F6B76">
-                <Run Text="Smoothing: " /><Run Text="{Binding StabilizerSmoothing}" /><Run Text=" frames" />
-              </TextBlock>
-              <Slider Margin="0,6,0,0" Minimum="1" Maximum="60" SmallChange="1" LargeChange="5"
-                      IsSnapToTickEnabled="True" TickFrequency="1"
-                      Value="{Binding StabilizerSmoothing}" />
-              <TextBlock Margin="0,12,0,0" FontSize="12" Foreground="#FF5F6B76">
-                <Run Text="Zoom: " /><Run Text="{Binding StabilizerZoom, StringFormat={}{0:0.00}}" />
-              </TextBlock>
-              <Slider Margin="0,6,0,0" Minimum="0" Maximum="3" SmallChange="0.1" LargeChange="0.5"
-                      TickFrequency="0.1"
-                      Value="{Binding StabilizerZoom}" />
-              <TextBlock Margin="0,8,0,0" FontSize="11" Foreground="#FF5F6B76" TextWrapping="Wrap"
-                         Text="Two-pass: motion is detected first, then transforms applied. Higher smoothing = stiller frame, but more cropping at the edges." />
             </StackPanel>
           </Border>
 
@@ -732,7 +688,7 @@
             <StackPanel>
               <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Operations" />
               <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
-                         Text="• Watermark — image (PNG with alpha) or text overlay&#x0a;• Speed change — 0.25x to 4x with optional pitch preservation&#x0a;• Reverse — full backward play of video and audio&#x0a;• Stabilize — two-pass libvidstab smoothing&#x0a;• Color grading — brightness, contrast, saturation, gamma, hue&#x0a;• Crop &amp; resize — pixel-precise cropping then scaling&#x0a;• Video → Audio — strip the audio to MP3, AAC, FLAC, Opus, or WAV&#x0a;• Subtitles — export an embedded stream to SRT, WebVTT, ASS, or copy" />
+                         Text="• Watermark — image (PNG with alpha) or text overlay&#x0a;• Speed change — 0.25x to 4x with optional pitch preservation&#x0a;• Reverse — full backward play of video and audio&#x0a;• Color grading — brightness, contrast, saturation, gamma, hue&#x0a;• Crop &amp; resize — pixel-precise cropping then scaling&#x0a;• Video → Audio — strip the audio to MP3, AAC, FLAC, Opus, or WAV&#x0a;• Subtitles — export an embedded stream to SRT, WebVTT, ASS, or copy" />
             </StackPanel>
           </Border>
           <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">
