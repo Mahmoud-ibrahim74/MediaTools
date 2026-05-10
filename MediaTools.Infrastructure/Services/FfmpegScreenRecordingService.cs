@@ -204,19 +204,27 @@ public sealed partial class FfmpegScreenRecordingService(IVideoCompressionServic
             TotalDuration: sw.Elapsed);
     }
 
+    /// <summary>
+    /// gdigrab (GDI) rarely sustains &gt; ~60 real captures/sec on Windows; higher -framerate often yields empty or broken video.
+    /// We capture at most this rate, then use the fps filter to reach the user's target constant frame rate (duplicated frames).
+    /// </summary>
+    private const int GdigrabPracticalMaxCaptureFps = 60;
+
     private static string BuildArguments(string outputPath, ScreenRecordingSettings settings)
     {
         var ci = CultureInfo.InvariantCulture;
-        var fps = Math.Clamp(settings.FrameRate, 5, 120);
+        var outputFps = Math.Clamp(settings.FrameRate, 5, 120);
+        var captureFps = Math.Min(outputFps, GdigrabPracticalMaxCaptureFps);
         var crf = Math.Clamp(settings.Crf, 14, 40);
 
         var sb = new StringBuilder();
         sb.Append("-hide_banner -y ");
 
         sb.Append("-f gdigrab ");
-        sb.Append(ci, $"-framerate {fps} ");
+        sb.Append(ci, $"-framerate {captureFps} ");
         sb.Append(ci, $"-draw_mouse {(settings.CaptureCursor ? 1 : 0)} ");
         sb.Append("-rtbufsize 256M ");
+        sb.Append("-thread_queue_size 1024 ");
 
         if (settings.Region == ScreenRecordingRegion.Custom
             || settings.Region == ScreenRecordingRegion.PrimaryMonitor)
@@ -233,6 +241,11 @@ public sealed partial class FfmpegScreenRecordingService(IVideoCompressionServic
         {
             sb.Append("-f dshow -rtbufsize 256M ");
             sb.Append(ci, $"-i audio=\"{EscapeForCommandLine(settings.MicrophoneDeviceName)}\" ");
+        }
+
+        if (outputFps != captureFps)
+        {
+            sb.Append(ci, $"-vf fps={outputFps} ");
         }
 
         sb.Append("-c:v libx264 -preset veryfast -pix_fmt yuv420p ");

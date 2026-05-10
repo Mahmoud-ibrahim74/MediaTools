@@ -210,7 +210,7 @@
             <StackPanel>
               <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Tips" />
               <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
-                         Text="Lower CRF for better quality (file size grows quickly). 30 fps is a good default; 60 fps doubles file size. MKV is more crash-tolerant; MP4 plays everywhere." />
+                         Text="Lower CRF for better quality (file size grows quickly). 30 fps is a good default; 60 fps doubles file size. 90/120 fps target smooth high-rate exports: the desktop is captured at up to 60 real frames per second, then frames are duplicated to match your choice (GDI cannot reliably grab faster). MKV is more crash-tolerant; MP4 plays everywhere." />
             </StackPanel>
           </Border>
           <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">

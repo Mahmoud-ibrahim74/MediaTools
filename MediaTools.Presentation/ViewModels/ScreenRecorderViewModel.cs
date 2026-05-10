@@ -50,7 +50,7 @@ public partial class ScreenRecorderViewModel : ObservableObject
 
     public IEnumerable<ScreenRecordingOutputFormat> OutputFormats => Enum.GetValues<ScreenRecordingOutputFormat>();
 
-    public IEnumerable<int> FrameRates => [15, 24, 30, 60];
+    public IEnumerable<int> FrameRates => [15, 24, 30, 60, 90, 120];
 
     public IEnumerable<int> StartDelays => [0, 3, 5, 10];
 
