@@ -68,7 +68,7 @@
                          FontSize="12"
                          Foreground="#FF5F6B76"
                          TextWrapping="Wrap"
-                         Text="MediaTools will scan your system for available GPU encoders. Select the one that matches your hardware." />
+                         Text="Click Detect Encoders to run a short test on this PC. Only encoders that actually work with your GPU and drivers stay selectable; the rest stay disabled. Software (CPU) is always available." />
               <StackPanel Margin="0,16,0,0" Orientation="Horizontal">
                 <Button MinWidth="160"
                         Command="{Binding DetectEncodersCommand}"

@@ -35,9 +35,29 @@ public sealed class FfmpegVideoCompressionService : IVideoCompressionService
         var ffmpegExe = Path.Combine(ffmpegDirectory, "ffmpeg.exe");
         var ffprobeExe = Path.Combine(ffmpegDirectory, "ffprobe.exe");
 
-        if (!File.Exists(ffmpegExe) || !File.Exists(ffprobeExe))
+        var missingBinary = !File.Exists(ffmpegExe) || !File.Exists(ffprobeExe);
+        var shouldReplaceMinimalBuild = !missingBinary
+            && OperatingSystem.IsWindows()
+            && await FfmpegBuildLacksGpuEncoderListingsAsync(ffmpegExe, cancellationToken).ConfigureAwait(false);
+
+        if (shouldReplaceMinimalBuild)
         {
-            await FFmpegDownloader.GetLatestVersion(FFmpegVersion.Official, ffmpegDirectory)
+            try
+            {
+                Directory.Delete(ffmpegDirectory, recursive: true);
+            }
+            catch
+            {
+                // ignore; download may still overwrite some files
+            }
+
+            Directory.CreateDirectory(ffmpegDirectory);
+        }
+
+        if (missingBinary || shouldReplaceMinimalBuild)
+        {
+            // "Official" (ffbinaries) builds omit NVENC/AMF/QSV. Full (e.g. gyan.dev-style) includes GPU encoders.
+            await FFmpegDownloader.GetLatestVersion(FFmpegVersion.Full, ffmpegDirectory)
                 .ConfigureAwait(false);
         }
 
@@ -52,6 +72,48 @@ public sealed class FfmpegVideoCompressionService : IVideoCompressionService
         {
             _toolsReady = true;
         }
+    }
+
+    /// <summary>
+    /// ffbinaries "Official" packages often ship without any h264_* GPU encoders, so hardware detection always fails
+    /// even with a capable GPU. Full builds list NVENC/AMF/QSV.
+    /// </summary>
+    private static async Task<bool> FfmpegBuildLacksGpuEncoderListingsAsync(string ffmpegExe, CancellationToken cancellationToken)
+    {
+        using var proc = new Process
+        {
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = ffmpegExe,
+                Arguments = "-hide_banner -encoders",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            }
+        };
+
+        proc.Start();
+        var readOut = proc.StandardOutput.ReadToEndAsync(cancellationToken);
+        var readErr = proc.StandardError.ReadToEndAsync(cancellationToken);
+        try
+        {
+            await Task.WhenAll(readOut, readErr).ConfigureAwait(false);
+            await proc.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch
+        {
+            return false;
+        }
+
+        var text = (await readOut.ConfigureAwait(false)) + "\n" + (await readErr.ConfigureAwait(false));
+        bool has(string s) => text.Contains(s, StringComparison.OrdinalIgnoreCase);
+
+        var hasGpuEncoder = has("h264_nvenc") || has("hevc_nvenc")
+            || has("h264_amf") || has("hevc_amf")
+            || has("h264_qsv") || has("hevc_qsv");
+
+        return !hasGpuEncoder;
     }
 
     public async Task<MediaFile> AnalyzeAsync(string filePath, CancellationToken cancellationToken = default)
