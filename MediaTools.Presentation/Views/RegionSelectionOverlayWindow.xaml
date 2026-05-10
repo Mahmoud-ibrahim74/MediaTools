@@ -1,0 +1,91 @@
+<Window x:Class="MediaTools.Presentation.Views.RegionSelectionOverlayWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Select region"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="NoResize"
+        Topmost="True"
+        ShowInTaskbar="False"
+        Focusable="True"
+        Loaded="OnLoaded"
+        SizeChanged="OnWindowSizeChanged"
+        PreviewKeyDown="OnPreviewKeyDown">
+  <Grid x:Name="RootGrid" Background="Transparent">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+
+    <Grid x:Name="MainCaptureArea"
+          Grid.Row="0"
+          Background="Transparent"
+          Cursor="Cross"
+          PreviewMouseLeftButtonDown="OnCaptureMouseLeftButtonDown"
+          PreviewMouseMove="OnCaptureMouseMove"
+          PreviewMouseLeftButtonUp="OnCaptureMouseLeftButtonUp"
+          PreviewMouseRightButtonDown="OnCaptureMouseRightButtonDown"
+          SizeChanged="OnMainCaptureAreaSizeChanged">
+      <Canvas x:Name="OverlayCanvas"
+              Background="Transparent"
+              HorizontalAlignment="Stretch"
+              VerticalAlignment="Stretch" />
+    </Grid>
+
+    <Border Grid.Row="1"
+            Padding="14,12"
+            Background="#E6101820"
+            BorderBrush="#33000000"
+            BorderThickness="0,1,0,0">
+      <Grid>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock x:Name="InstructionText"
+                   Grid.Row="0"
+                   Foreground="White"
+                   FontSize="13"
+                   TextWrapping="Wrap"
+                   Text="Drag on the dimmed area to draw the capture region. Choose seconds of delay (optional), then Start recording. Esc / Cancel closes; during countdown they only stop the timer." />
+
+        <TextBlock x:Name="CountdownStatusText"
+                   Grid.Row="1"
+                   Margin="0,8,0,0"
+                   Foreground="#FFB2DFDB"
+                   FontSize="14"
+                   FontWeight="SemiBold"
+                   Text="" />
+
+        <StackPanel Grid.Row="2"
+                    Margin="0,12,0,0"
+                    Orientation="Horizontal">
+          <TextBlock VerticalAlignment="Center"
+                     Foreground="#FFB0BEC5"
+                     FontSize="13"
+                     Text="Delay before record" />
+          <ComboBox x:Name="DelayComboBox"
+                    Width="72"
+                    Margin="10,0,0,0"
+                    VerticalAlignment="Center" />
+          <Button x:Name="StartRecordingButton"
+                  Margin="16,0,0,0"
+                  Padding="16,8"
+                  IsEnabled="False"
+                  Click="OnStartRecordingClick"
+                  Content="Start recording"
+                  Style="{DynamicResource PrimaryButtonStyle}" />
+          <Button x:Name="CancelOverlayButton"
+                  Margin="10,0,0,0"
+                  Padding="16,8"
+                  Click="OnCancelClick"
+                  Content="Cancel"
+                  Style="{DynamicResource OutlinedButtonStyle}" />
+        </StackPanel>
+      </Grid>
+    </Border>
+  </Grid>
+</Window>

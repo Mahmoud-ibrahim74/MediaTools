@@ -53,9 +53,20 @@
                          Visibility="{Binding ShowPrimaryMonitorHint, Converter={StaticResource BoolToVisibilityConverter}}"
                          Text="Captures only the primary monitor at its native resolution." />
 
+              <Button Margin="0,12,0,0"
+                      HorizontalAlignment="Left"
+                      Click="OnDrawRegionOnScreenClick"
+                      Content="Draw region on screen…"
+                      Style="{DynamicResource OutlinedButtonStyle}" />
+              <TextBlock Margin="0,6,0,0"
+                         FontSize="11"
+                         Foreground="#FF5F6B76"
+                         TextWrapping="Wrap"
+                         Text="Opens a fullscreen overlay: drag to outline the region, set delay if you want, then Start recording. Countdown runs in the overlay; recording begins automatically (the main page delay is skipped). Esc / Cancel closes; during countdown they only stop the timer." />
+
               <StackPanel Margin="0,12,0,0"
                           Visibility="{Binding ShowCustomRegionEditor, Converter={StaticResource BoolToVisibilityConverter}}">
-                <TextBlock FontSize="12" FontWeight="SemiBold" Foreground="#FF5F6B76" Text="Custom rectangle (pixels)" />
+                <TextBlock FontSize="12" FontWeight="SemiBold" Foreground="#FF5F6B76" Text="Custom rectangle (pixels, optional)" />
                 <UniformGrid Margin="0,6,0,0" Columns="4">
                   <StackPanel Margin="0,0,8,0">
                     <TextBlock FontSize="11" Foreground="#FF5F6B76" Text="X" />

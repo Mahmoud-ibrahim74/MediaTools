@@ -137,6 +137,30 @@ public partial class ScreenRecorderViewModel : ObservableObject
 
     public bool ShowResultCard => Succeeded && !IsRecording;
 
+    /// <summary>Apply a screen-space rectangle from the drag overlay and switch to <see cref="ScreenRecordingRegion.Custom"/>.</summary>
+    public void ApplyPickedRegion(int offsetX, int offsetY, int width, int height)
+    {
+        var w = Math.Max(16, width);
+        var h = Math.Max(16, height);
+        w -= w % 2;
+        h -= h % 2;
+        if (w < 16)
+        {
+            w = 16;
+        }
+
+        if (h < 16)
+        {
+            h = 16;
+        }
+
+        Region = ScreenRecordingRegion.Custom;
+        OffsetX = offsetX;
+        OffsetY = offsetY;
+        CaptureWidth = w;
+        CaptureHeight = h;
+    }
+
     private bool CanStartRecording() =>
         !IsRecording
         && CountdownSeconds == 0
