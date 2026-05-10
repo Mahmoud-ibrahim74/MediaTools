@@ -35,7 +35,7 @@
             <StackPanel Grid.Column="0">
               <TextBlock FontSize="26" FontWeight="SemiBold" Text="Video tools" />
               <TextBlock Margin="0,6,0,0" FontSize="14" Foreground="#FF5F6B76" TextWrapping="Wrap"
-                         Text="Extract embedded subtitles and enhance video — watermark, speed, reverse, stabilize, color, crop &amp; resize, and audio export." />
+                         Text="Load a video, pick an operation (including embedded subtitles), then export." />
             </StackPanel>
             <StackPanel Grid.Column="1"
                         Orientation="Horizontal"
@@ -45,6 +45,7 @@
                       Margin="0,0,8,0"
                       Padding="0"
                       Command="{Binding UndoCommand}"
+                      IsEnabled="{Binding AreVideoToolsEnabled}"
                       Style="{DynamicResource OutlinedButtonStyle}"
                       ToolTip="Undo (Ctrl+Z)">
                 <iconPacks:PackIconMaterial Width="22"
@@ -56,6 +57,7 @@
                       Height="40"
                       Padding="0"
                       Command="{Binding RedoCommand}"
+                      IsEnabled="{Binding AreVideoToolsEnabled}"
                       Style="{DynamicResource OutlinedButtonStyle}"
                       ToolTip="Redo (Ctrl+Y)">
                 <iconPacks:PackIconMaterial Width="22"
@@ -66,136 +68,9 @@
             </StackPanel>
           </Grid>
 
-          <!-- Subtitle extraction -->
-          <TextBlock Margin="0,8,0,12" FontSize="18" FontWeight="SemiBold" Text="Subtitle extraction" />
-          <Border Padding="20"
-                  AllowDrop="True"
-                  DragEnter="OnSubtitleDragOver"
-                  DragLeave="OnSubtitleDragLeave"
-                  DragOver="OnSubtitleDragOver"
-                  Drop="OnSubtitleDrop">
-            <Border.Style>
-              <Style BasedOn="{StaticResource CardBorderStyle}" TargetType="Border">
-                <Setter Property="BorderThickness" Value="2" />
-                <Style.Triggers>
-                  <DataTrigger Binding="{Binding SubIsDropHover}" Value="True">
-                    <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
-                  </DataTrigger>
-                </Style.Triggers>
-              </Style>
-            </Border.Style>
-            <StackPanel HorizontalAlignment="Center">
-              <iconPacks:PackIconMaterial Width="48" Height="48" HorizontalAlignment="Center"
-                                          Foreground="{DynamicResource AccentPrimaryBrush}" Kind="SubtitlesOutline" />
-              <TextBlock Margin="0,12,0,0" HorizontalAlignment="Center" FontWeight="SemiBold"
-                         Text="Drag &amp; drop a video for subtitles" />
-              <TextBlock Margin="0,6,0,0" HorizontalAlignment="Center" Foreground="#FF5F6B76" TextAlignment="Center"
-                         Text="MP4, MKV, MOV, AVI, WebM, and more" />
-              <Button Margin="0,16,0,0" HorizontalAlignment="Center" Command="{Binding BrowseSubtitleFileCommand}"
-                      Content="Browse video" Style="{DynamicResource OutlinedButtonStyle}" />
-            </StackPanel>
-          </Border>
+          <TextBlock Margin="0,8,0,12" FontSize="18" FontWeight="SemiBold" Text="Video" />
 
-          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}"
-                  Visibility="{Binding ShowSubFileInfoCard, Converter={StaticResource BoolToVisibilityConverter}}">
-            <Grid>
-              <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-              </Grid.RowDefinitions>
-              <DockPanel Grid.Row="0" LastChildFill="True">
-                <Button Width="36" Height="36" Margin="12,0,0,0" Padding="0" VerticalAlignment="Top"
-                        Command="{Binding ClearSubtitleFileCommand}" DockPanel.Dock="Right"
-                        Style="{DynamicResource OutlinedButtonStyle}">
-                  <iconPacks:PackIconMaterial Width="16" Height="16" Kind="Close" />
-                </Button>
-                <TextBlock VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding SubFileDisplayName}" TextWrapping="Wrap" />
-              </DockPanel>
-              <StackPanel Grid.Row="1" Margin="0,14,0,0">
-                <TextBlock Visibility="{Binding SubIsAnalyzing, Converter={StaticResource BoolToVisibilityConverter}}"
-                           Foreground="#FF5F6B76" Text="Scanning for subtitle tracks…" />
-                <Border Padding="16" Background="#FFFFF8E1" BorderBrush="#FFFFE082" BorderThickness="1" CornerRadius="8"
-                        Visibility="{Binding ShowNoSubtitleTracksWarning, Converter={StaticResource BoolToVisibilityConverter}}">
-                  <TextBlock Foreground="#FF6D4C41" TextWrapping="Wrap"
-                             Text="No embedded subtitle tracks were found in this file." />
-                </Border>
-              </StackPanel>
-              <StackPanel Grid.Row="2" Margin="0,14,0,0"
-                          Visibility="{Binding ShowSubtitleTrackPicker, Converter={StaticResource BoolToVisibilityConverter}}">
-                <TextBlock FontSize="12" FontWeight="SemiBold" Foreground="#FF5F6B76" Text="Subtitle track" />
-                <ComboBox Margin="0,6,0,0" DisplayMemberPath="DisplayLabel"
-                          ItemsSource="{Binding SubtitleTracks}" SelectedItem="{Binding SubSelectedTrack}" />
-              </StackPanel>
-              <UniformGrid Grid.Row="3" Margin="0,14,0,0" Columns="3">
-                <StackPanel Margin="0,0,12,0">
-                  <TextBlock FontSize="11" Foreground="#FF5F6B76" Text="Size" />
-                  <TextBlock Margin="0,4,0,0" Text="{Binding SubFileSizeDisplay}" />
-                </StackPanel>
-                <StackPanel Margin="0,0,12,0">
-                  <TextBlock FontSize="11" Foreground="#FF5F6B76" Text="Duration" />
-                  <TextBlock Margin="0,4,0,0" Text="{Binding SubDurationDisplay}" />
-                </StackPanel>
-                <StackPanel>
-                  <TextBlock FontSize="11" Foreground="#FF5F6B76" Text="Video / hint" />
-                  <TextBlock Margin="0,4,0,0" Text="{Binding SubFormatDisplay}" TextTrimming="CharacterEllipsis" />
-                </StackPanel>
-              </UniformGrid>
-            </Grid>
-          </Border>
-
-          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">
-            <StackPanel>
-              <TextBlock Margin="0,0,0,12" FontWeight="SemiBold" Text="Subtitle export" />
-              <TextBlock Margin="0,0,0,6" FontSize="12" Foreground="#FF5F6B76" Text="Output format" />
-              <ComboBox Margin="0,0,0,12" ItemsSource="{Binding SubtitleExportFormats}" SelectedItem="{Binding SubExportFormat}" />
-              <TextBlock FontSize="12" Foreground="#FF5F6B76" TextWrapping="Wrap"
-                         Text="SubRip, WebVTT, and ASS re-encode when needed. Copy keeps the original bitstream; the file extension follows the codec." />
-            </StackPanel>
-          </Border>
-
-          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}"
-                  Visibility="{Binding ShowSubProgressCard, Converter={StaticResource BoolToVisibilityConverter}}">
-            <StackPanel>
-              <TextBlock FontWeight="SemiBold" Text="{Binding SubProgressStatusText}" />
-              <TextBlock Margin="0,6,0,0" Foreground="#FF5F6B76" Text="{Binding SubProgressDetailText}" />
-              <Border Margin="0,16,0,0" CornerRadius="6" ClipToBounds="True" Background="#FFE8EEF4">
-                <ProgressBar Height="12" Maximum="100" Style="{DynamicResource MetroProgressBarRounded}"
-                             Value="{Binding SubProgressPercentDisplay, Mode=OneWay}" />
-              </Border>
-              <TextBlock Margin="0,12,0,0" FontSize="28" FontWeight="SemiBold"
-                         Foreground="{DynamicResource AccentPrimaryBrush}"
-                         Text="{Binding SubProgressPercentDisplay, Mode=OneWay, StringFormat={}{0}%}" />
-            </StackPanel>
-          </Border>
-
-          <Border Margin="0,16,0,0" Padding="16" BorderBrush="{DynamicResource StatusSuccessBrush}" BorderThickness="2"
-                  Background="{DynamicResource CardBackgroundBrush}"
-                  Visibility="{Binding ShowSubResultCard, Converter={StaticResource BoolToVisibilityConverter}}">
-            <StackPanel>
-              <StackPanel Orientation="Horizontal">
-                <iconPacks:PackIconMaterial Width="22" Height="22" Foreground="{DynamicResource StatusSuccessBrush}" Kind="CheckCircleOutline" />
-                <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontWeight="SemiBold"
-                           Foreground="{DynamicResource StatusSuccessBrush}" Text="Saved successfully" />
-              </StackPanel>
-              <TextBlock Margin="0,10,0,0" Text="{Binding SubResultMessage}" TextWrapping="Wrap" />
-              <Button Margin="0,14,0,0" HorizontalAlignment="Left" Command="{Binding OpenOutputFolderCommand}"
-                      Content="Open output folder" Style="{DynamicResource PrimaryButtonStyle}" />
-            </StackPanel>
-          </Border>
-
-          <StackPanel Margin="0,16,0,32" HorizontalAlignment="Right" Orientation="Horizontal">
-            <Button Margin="0,0,12,0" MinWidth="100" Command="{Binding SubCancelCommand}" Content="Cancel"
-                    Style="{DynamicResource OutlinedButtonStyle}"
-                    Visibility="{Binding ShowSubCancelButton, Converter={StaticResource BoolToVisibilityConverter}}" />
-            <Button MinWidth="220" Command="{Binding ExtractSubtitleCommand}" Content="Extract subtitle"
-                    Style="{DynamicResource PrimaryButtonStyle}" />
-          </StackPanel>
-
-          <TextBlock Margin="0,8,0,12" FontSize="18" FontWeight="SemiBold" Text="Video enhancement" />
-
-          <!-- Enhancer drop zone -->
+          <!-- Drop zone -->
           <Border Padding="20"
                   AllowDrop="True"
                   DragEnter="OnEnhancerDragOver"
@@ -216,7 +91,7 @@
               <iconPacks:PackIconMaterial Width="48" Height="48" HorizontalAlignment="Center"
                                           Foreground="{DynamicResource AccentPrimaryBrush}" Kind="MovieEditOutline" />
               <TextBlock Margin="0,12,0,0" HorizontalAlignment="Center" FontWeight="SemiBold"
-                         Text="Drag &amp; drop a video here (enhancer)" />
+                         Text="Drag &amp; drop a video here" />
               <TextBlock Margin="0,6,0,0" HorizontalAlignment="Center" Foreground="#FF5F6B76" TextAlignment="Center"
                          Text="MP4, MKV, MOV, AVI, WebM, and more" />
               <Button Margin="0,16,0,0" HorizontalAlignment="Center" Command="{Binding BrowseFileCommand}"
@@ -224,6 +99,7 @@
             </StackPanel>
           </Border>
 
+          <StackPanel IsEnabled="{Binding AreVideoToolsEnabled}">
           <!-- File info -->
           <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}"
                   Visibility="{Binding ShowFileInfoCard, Converter={StaticResource BoolToVisibilityConverter}}">
@@ -365,6 +241,21 @@
                     <Style BasedOn="{StaticResource OutlinedButtonStyle}" TargetType="Button">
                       <Style.Triggers>
                         <DataTrigger Binding="{Binding Operation}" Value="{x:Static domainEnums:VideoEnhanceOperation.ExtractAudio}">
+                          <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+                          <Setter Property="FontWeight" Value="SemiBold" />
+                          <Setter Property="Background" Value="#FFF0F7FF" />
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </Button.Style>
+                </Button>
+                <Button Margin="0,0,8,8" MinWidth="132" Padding="10,8" Content="Subtitles" FontSize="12"
+                        Command="{Binding SelectOperationCommand}"
+                        CommandParameter="{x:Static domainEnums:VideoEnhanceOperation.ExtractSubtitle}">
+                  <Button.Style>
+                    <Style BasedOn="{StaticResource OutlinedButtonStyle}" TargetType="Button">
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding Operation}" Value="{x:Static domainEnums:VideoEnhanceOperation.ExtractSubtitle}">
                           <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
                           <Setter Property="FontWeight" Value="SemiBold" />
                           <Setter Property="Background" Value="#FFF0F7FF" />
@@ -583,9 +474,34 @@
             </StackPanel>
           </Border>
 
+          <!-- Embedded subtitles -->
+          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}"
+                  Visibility="{Binding ShowSubtitlePanel, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel>
+              <TextBlock Margin="0,0,0,12" FontWeight="SemiBold" Text="Embedded subtitles" />
+              <TextBlock Visibility="{Binding SubIsAnalyzing, Converter={StaticResource BoolToVisibilityConverter}}"
+                         Foreground="#FF5F6B76" Text="Scanning for subtitle tracks…" />
+              <Border Margin="0,0,0,0" Padding="16" Background="#FFFFF8E1" BorderBrush="#FFFFE082" BorderThickness="1" CornerRadius="8"
+                      Visibility="{Binding ShowNoSubtitleTracksWarning, Converter={StaticResource BoolToVisibilityConverter}}">
+                <TextBlock Foreground="#FF6D4C41" TextWrapping="Wrap"
+                           Text="No embedded subtitle tracks were found in this file." />
+              </Border>
+              <StackPanel Margin="0,14,0,0"
+                          Visibility="{Binding ShowSubtitleTrackPicker, Converter={StaticResource BoolToVisibilityConverter}}">
+                <TextBlock FontSize="12" FontWeight="SemiBold" Foreground="#FF5F6B76" Text="Track" />
+                <ComboBox Margin="0,6,0,0" DisplayMemberPath="DisplayLabel"
+                          ItemsSource="{Binding SubtitleTracks}" SelectedItem="{Binding SubSelectedTrack}" />
+              </StackPanel>
+              <TextBlock Margin="0,16,0,0" FontSize="12" FontWeight="SemiBold" Foreground="#FF5F6B76" Text="Output format" />
+              <ComboBox Margin="0,6,0,0" ItemsSource="{Binding SubtitleExportFormats}" SelectedItem="{Binding SubExportFormat}" />
+              <TextBlock Margin="0,8,0,0" FontSize="12" Foreground="#FF5F6B76" TextWrapping="Wrap"
+                         Text="SubRip, WebVTT, and ASS re-encode when needed. Copy keeps the original bitstream; the file extension follows the codec." />
+            </StackPanel>
+          </Border>
+
           <!-- Progress -->
           <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}"
-                  Visibility="{Binding ShowProgressCard, Converter={StaticResource BoolToVisibilityConverter}}">
+                  Visibility="{Binding ShowEnhancerProgressCard, Converter={StaticResource BoolToVisibilityConverter}}">
             <StackPanel>
               <TextBlock FontWeight="SemiBold" Text="{Binding ProgressStatusText}" />
               <TextBlock Margin="0,6,0,0" Foreground="#FF5F6B76" Text="{Binding ProgressDetailText}" />
@@ -599,10 +515,25 @@
             </StackPanel>
           </Border>
 
+          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}"
+                  Visibility="{Binding ShowSubtitleProgressCard, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel>
+              <TextBlock FontWeight="SemiBold" Text="{Binding SubProgressStatusText}" />
+              <TextBlock Margin="0,6,0,0" Foreground="#FF5F6B76" Text="{Binding SubProgressDetailText}" />
+              <Border Margin="0,16,0,0" CornerRadius="6" ClipToBounds="True" Background="#FFE8EEF4">
+                <ProgressBar Height="12" Maximum="100" Style="{DynamicResource MetroProgressBarRounded}"
+                             Value="{Binding SubProgressPercentDisplay, Mode=OneWay}" />
+              </Border>
+              <TextBlock Margin="0,12,0,0" FontSize="28" FontWeight="SemiBold"
+                         Foreground="{DynamicResource AccentPrimaryBrush}"
+                         Text="{Binding SubProgressPercentDisplay, Mode=OneWay, StringFormat={}{0}%}" />
+            </StackPanel>
+          </Border>
+
           <!-- Result -->
           <Border Margin="0,16,0,0" Padding="16" BorderBrush="{DynamicResource StatusSuccessBrush}" BorderThickness="2"
                   Background="{DynamicResource CardBackgroundBrush}"
-                  Visibility="{Binding ShowResultCard, Converter={StaticResource BoolToVisibilityConverter}}">
+                  Visibility="{Binding ShowEnhancerResultCard, Converter={StaticResource BoolToVisibilityConverter}}">
             <StackPanel>
               <StackPanel Orientation="Horizontal">
                 <iconPacks:PackIconMaterial Width="22" Height="22" Foreground="{DynamicResource StatusSuccessBrush}" Kind="CheckCircleOutline" />
@@ -615,26 +546,44 @@
             </StackPanel>
           </Border>
 
+          <Border Margin="0,16,0,0" Padding="16" BorderBrush="{DynamicResource StatusSuccessBrush}" BorderThickness="2"
+                  Background="{DynamicResource CardBackgroundBrush}"
+                  Visibility="{Binding ShowSubtitleResultCard, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <iconPacks:PackIconMaterial Width="22" Height="22" Foreground="{DynamicResource StatusSuccessBrush}" Kind="CheckCircleOutline" />
+                <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontWeight="SemiBold"
+                           Foreground="{DynamicResource StatusSuccessBrush}" Text="Saved successfully" />
+              </StackPanel>
+              <TextBlock Margin="0,10,0,0" Text="{Binding SubResultMessage}" TextWrapping="Wrap" />
+              <Button Margin="0,14,0,0" HorizontalAlignment="Left" Command="{Binding OpenOutputFolderCommand}"
+                      Content="Open output folder" Style="{DynamicResource PrimaryButtonStyle}" />
+            </StackPanel>
+          </Border>
+
           <!-- Actions -->
           <StackPanel Margin="0,24,0,32" HorizontalAlignment="Right" Orientation="Horizontal">
             <Button Margin="0,0,12,0" MinWidth="100" Command="{Binding CancelCommand}" Content="Cancel"
                     Style="{DynamicResource OutlinedButtonStyle}"
                     Visibility="{Binding ShowCancelButton, Converter={StaticResource BoolToVisibilityConverter}}" />
-            <Button MinWidth="220" Command="{Binding StartCommand}" Content="Apply &amp; export"
+            <Button MinWidth="220" Command="{Binding StartCommand}" Content="{Binding StartActionLabel}"
                     Style="{DynamicResource PrimaryButtonStyle}" />
+          </StackPanel>
           </StackPanel>
         </StackPanel>
 
         <!-- Right column: hints + live source preview -->
         <StackPanel Grid.Column="1" MinWidth="300" MaxWidth="480" HorizontalAlignment="Stretch">
-          <Border Padding="16" Style="{DynamicResource CardBorderStyle}">
+          <Border Padding="16" Style="{DynamicResource CardBorderStyle}"
+                  Visibility="{Binding ShowSubtitlePanel, Converter={StaticResource BoolToVisibilityConverter}}">
             <StackPanel>
               <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Subtitle tracks" />
               <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
                          Text="Each entry is an embedded stream FFmpeg can map. If extraction fails, try Copy or another format." />
             </StackPanel>
           </Border>
-          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">
+          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}"
+                  Visibility="{Binding ShowSubtitlePanel, Converter={StaticResource BoolToVisibilityConverter}}">
             <StackPanel>
               <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Subtitle limitations" />
               <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
@@ -716,7 +665,7 @@
             <StackPanel>
               <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Operations" />
               <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
-                         Text="• Watermark — image (PNG with alpha) or text overlay&#x0a;• Speed change — 0.25x to 4x with optional pitch preservation&#x0a;• Reverse — full backward play of video and audio&#x0a;• Stabilize — two-pass libvidstab smoothing&#x0a;• Color grading — brightness, contrast, saturation, gamma, hue&#x0a;• Crop &amp; resize — pixel-precise cropping then scaling&#x0a;• Video → Audio — strip the audio to MP3, AAC, FLAC, Opus, or WAV" />
+                         Text="• Watermark — image (PNG with alpha) or text overlay&#x0a;• Speed change — 0.25x to 4x with optional pitch preservation&#x0a;• Reverse — full backward play of video and audio&#x0a;• Stabilize — two-pass libvidstab smoothing&#x0a;• Color grading — brightness, contrast, saturation, gamma, hue&#x0a;• Crop &amp; resize — pixel-precise cropping then scaling&#x0a;• Video → Audio — strip the audio to MP3, AAC, FLAC, Opus, or WAV&#x0a;• Subtitles — export an embedded stream to SRT, WebVTT, ASS, or copy" />
             </StackPanel>
           </Border>
           <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">

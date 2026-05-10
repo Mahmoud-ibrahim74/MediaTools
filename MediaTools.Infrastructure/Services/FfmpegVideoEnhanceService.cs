@@ -102,6 +102,9 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
                     .ConfigureAwait(false);
                 break;
 
+            case VideoEnhanceOperation.ExtractSubtitle:
+                throw new InvalidOperationException("Subtitle extraction is not implemented in the video enhance pipeline.");
+
             default:
                 throw new ArgumentOutOfRangeException(nameof(settings), settings.Operation, "Unknown operation.");
         }

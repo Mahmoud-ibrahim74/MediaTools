@@ -137,7 +137,6 @@ public partial class VideoEnhancerViewModel : ObservableObject
     private void OnSaveFolderPathChanged(object? sender, EventArgs e)
     {
         StartCommand.NotifyCanExecuteChanged();
-        ExtractSubtitleCommand.NotifyCanExecuteChanged();
     }
 
     public IEnumerable<VideoEnhanceOperation> Operations => Enum.GetValues<VideoEnhanceOperation>();
@@ -190,8 +189,14 @@ public partial class VideoEnhancerViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(ShowColorPanel))]
     [NotifyPropertyChangedFor(nameof(ShowCropResizePanel))]
     [NotifyPropertyChangedFor(nameof(ShowExtractAudioPanel))]
+    [NotifyPropertyChangedFor(nameof(ShowSubtitlePanel))]
     [NotifyPropertyChangedFor(nameof(ShowEffectStillPreviewSection))]
     [NotifyPropertyChangedFor(nameof(ShowNonStillPreviewHint))]
+    [NotifyPropertyChangedFor(nameof(StartActionLabel))]
+    [NotifyPropertyChangedFor(nameof(ShowEnhancerProgressCard))]
+    [NotifyPropertyChangedFor(nameof(ShowEnhancerResultCard))]
+    [NotifyPropertyChangedFor(nameof(ShowSubtitleProgressCard))]
+    [NotifyPropertyChangedFor(nameof(ShowSubtitleResultCard))]
     private VideoEnhanceOperation _operation = VideoEnhanceOperation.Watermark;
 
     // Watermark
@@ -323,6 +328,9 @@ public partial class VideoEnhancerViewModel : ObservableObject
 
     public bool ShowFileInfoCard => !string.IsNullOrWhiteSpace(SelectedFilePath);
 
+    /// <summary>False until a video is loaded; drop/browse targets stay enabled.</summary>
+    public bool AreVideoToolsEnabled => ShowFileInfoCard;
+
     public Uri? PreviewMediaUri =>
         string.IsNullOrWhiteSpace(SelectedFilePath)
             ? null
@@ -340,7 +348,13 @@ public partial class VideoEnhancerViewModel : ObservableObject
         && (Operation == VideoEnhanceOperation.SpeedChange
             || Operation == VideoEnhanceOperation.Reverse
             || Operation == VideoEnhanceOperation.Stabilize
-            || Operation == VideoEnhanceOperation.ExtractAudio);
+            || Operation == VideoEnhanceOperation.ExtractAudio
+            || Operation == VideoEnhanceOperation.ExtractSubtitle);
+
+    public string StartActionLabel =>
+        Operation == VideoEnhanceOperation.ExtractSubtitle
+            ? "Extract subtitle"
+            : "Apply & export";
 
     public bool ShowWatermarkPanel => Operation == VideoEnhanceOperation.Watermark;
 
@@ -356,11 +370,21 @@ public partial class VideoEnhancerViewModel : ObservableObject
 
     public bool ShowExtractAudioPanel => Operation == VideoEnhanceOperation.ExtractAudio;
 
+    public bool ShowSubtitlePanel => Operation == VideoEnhanceOperation.ExtractSubtitle;
+
     public bool ShowProgressCard => IsRunning || FinishedAttempt;
 
     public bool ShowResultCard => Succeeded;
 
-    public bool ShowCancelButton => IsRunning;
+    public bool ShowEnhancerProgressCard => ShowProgressCard && Operation != VideoEnhanceOperation.ExtractSubtitle;
+
+    public bool ShowEnhancerResultCard => ShowResultCard && Operation != VideoEnhanceOperation.ExtractSubtitle;
+
+    public bool ShowSubtitleProgressCard => ShowSubProgressCard && Operation == VideoEnhanceOperation.ExtractSubtitle;
+
+    public bool ShowSubtitleResultCard => ShowSubResultCard && Operation == VideoEnhanceOperation.ExtractSubtitle;
+
+    public bool ShowCancelButton => IsRunning || SubIsRunning;
 
     public int ProgressPercentDisplay => (int)Math.Round(ProgressPercent01 * 100, MidpointRounding.AwayFromZero);
 
@@ -368,7 +392,10 @@ public partial class VideoEnhancerViewModel : ObservableObject
         !string.IsNullOrWhiteSpace(SelectedFilePath)
         && Directory.Exists(_preferences.SaveFolderPath)
         && !IsRunning
-        && !IsAnalyzing;
+        && !SubIsRunning
+        && !IsAnalyzing
+        && (Operation != VideoEnhanceOperation.ExtractSubtitle
+            || (!SubIsAnalyzing && SubSelectedTrack is not null));
 
     private void OnAnyPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -491,6 +518,7 @@ public partial class VideoEnhancerViewModel : ObservableObject
 
         OnPropertyChanged(nameof(PreviewMediaUri));
         OnPropertyChanged(nameof(ShowFileInfoCard));
+        OnPropertyChanged(nameof(AreVideoToolsEnabled));
         OnPropertyChanged(nameof(ShowEffectStillPreviewSection));
         OnPropertyChanged(nameof(ShowNonStillPreviewHint));
         OnPropertyChanged(nameof(IsWatermarkImage));
@@ -500,9 +528,11 @@ public partial class VideoEnhancerViewModel : ObservableObject
         StartCommand.NotifyCanExecuteChanged();
     }
 
-    private bool CanUndoOperation() => _history.CanUndo && !IsRunning && !SubIsRunning;
+    private bool CanUndoOperation() =>
+        AreVideoToolsEnabled && _history.CanUndo && !IsRunning && !SubIsRunning;
 
-    private bool CanRedoOperation() => _history.CanRedo && !IsRunning && !SubIsRunning;
+    private bool CanRedoOperation() =>
+        AreVideoToolsEnabled && _history.CanRedo && !IsRunning && !SubIsRunning;
 
     [RelayCommand(CanExecute = nameof(CanUndoOperation))]
     private void Undo() => _history.TryUndo();
@@ -628,7 +658,7 @@ public partial class VideoEnhancerViewModel : ObservableObject
         bool loaded;
         try
         {
-            loaded = await LoadFileAsync(path).ConfigureAwait(true);
+            loaded = await LoadVideoForPageAsync(path).ConfigureAwait(true);
         }
         finally
         {
@@ -643,6 +673,18 @@ public partial class VideoEnhancerViewModel : ObservableObject
         {
             _history.CancelUndoGroup();
         }
+    }
+
+    /// <summary>Loads enhancer metadata and subtitle tracks for the same file (either drop zone).</summary>
+    private async Task<bool> LoadVideoForPageAsync(string path)
+    {
+        if (!await LoadFileAsync(path).ConfigureAwait(true))
+        {
+            return false;
+        }
+
+        _ = await LoadSubtitleFileAsync(path).ConfigureAwait(true);
+        return true;
     }
 
     [RelayCommand]
@@ -663,7 +705,7 @@ public partial class VideoEnhancerViewModel : ObservableObject
         bool loaded;
         try
         {
-            loaded = await LoadFileAsync(dlg.FileName).ConfigureAwait(true);
+            loaded = await LoadVideoForPageAsync(dlg.FileName).ConfigureAwait(true);
         }
         finally
         {
@@ -706,7 +748,13 @@ public partial class VideoEnhancerViewModel : ObservableObject
     [RelayCommand]
     private void ClearFile()
     {
-        _history.PushUndoFrameAnd(ResetUiToNoFile);
+        _history.PushUndoFrameAnd(ResetPageToNoFile);
+    }
+
+    private void ResetPageToNoFile()
+    {
+        ResetUiToNoFile();
+        ResetSubUiToNoFile();
     }
 
     private void ResetUiToNoFile()
@@ -734,12 +782,17 @@ public partial class VideoEnhancerViewModel : ObservableObject
 
         OnPropertyChanged(nameof(PreviewMediaUri));
         OnPropertyChanged(nameof(ShowFileInfoCard));
+        OnPropertyChanged(nameof(AreVideoToolsEnabled));
         OnPropertyChanged(nameof(ShowEffectStillPreviewSection));
         OnPropertyChanged(nameof(ShowNonStillPreviewHint));
     }
 
     [RelayCommand]
-    private void Cancel() => _cts?.Cancel();
+    private void Cancel()
+    {
+        _subtitleCts?.Cancel();
+        _cts?.Cancel();
+    }
 
     [RelayCommand]
     private void OpenOutputFolder()
@@ -762,6 +815,12 @@ public partial class VideoEnhancerViewModel : ObservableObject
     {
         if (SelectedFilePath is null || !CanStart())
         {
+            return;
+        }
+
+        if (Operation == VideoEnhanceOperation.ExtractSubtitle)
+        {
+            await RunSubtitleExtractAsync().ConfigureAwait(true);
             return;
         }
 
@@ -972,6 +1031,10 @@ public partial class VideoEnhancerViewModel : ObservableObject
                 return true;
             }
 
+            case VideoEnhanceOperation.ExtractSubtitle:
+                error = "Use Start to extract subtitles when that operation is selected.";
+                return false;
+
             default:
                 error = "Unknown operation.";
                 return false;
@@ -997,6 +1060,7 @@ public partial class VideoEnhancerViewModel : ObservableObject
             VideoEnhanceOperation.ColorGrading => "graded",
             VideoEnhanceOperation.CropAndResize => "edit",
             VideoEnhanceOperation.ExtractAudio => "audio",
+            VideoEnhanceOperation.ExtractSubtitle => "sub",
             _ => "out"
         };
 
@@ -1057,6 +1121,7 @@ public partial class VideoEnhancerViewModel : ObservableObject
             Succeeded = false;
             OnPropertyChanged(nameof(PreviewMediaUri));
             OnPropertyChanged(nameof(ShowFileInfoCard));
+            OnPropertyChanged(nameof(AreVideoToolsEnabled));
             OnPropertyChanged(nameof(ShowEffectStillPreviewSection));
             OnPropertyChanged(nameof(ShowNonStillPreviewHint));
             ScheduleEffectPreview();
@@ -1077,14 +1142,31 @@ public partial class VideoEnhancerViewModel : ObservableObject
         }
     }
 
-    partial void OnSelectedFilePathChanged(string? value) => StartCommand.NotifyCanExecuteChanged();
+    partial void OnSelectedFilePathChanged(string? value)
+    {
+        StartCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(AreVideoToolsEnabled));
+        UndoCommand.NotifyCanExecuteChanged();
+        RedoCommand.NotifyCanExecuteChanged();
+    }
 
     partial void OnIsRunningChanged(bool value)
     {
         StartCommand.NotifyCanExecuteChanged();
         UndoCommand.NotifyCanExecuteChanged();
         RedoCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(ShowCancelButton));
+        OnPropertyChanged(nameof(ShowEnhancerProgressCard));
     }
+
+    partial void OnFinishedAttemptChanged(bool value) =>
+        OnPropertyChanged(nameof(ShowEnhancerProgressCard));
+
+    partial void OnSucceededChanged(bool value) =>
+        OnPropertyChanged(nameof(ShowEnhancerResultCard));
+
+    partial void OnOperationChanged(VideoEnhanceOperation value) =>
+        StartCommand.NotifyCanExecuteChanged();
 
     partial void OnIsAnalyzingChanged(bool value) => StartCommand.NotifyCanExecuteChanged();
 
@@ -1098,6 +1180,7 @@ public partial class VideoEnhancerViewModel : ObservableObject
             VideoEnhanceOperation.ColorGrading => "Color grading",
             VideoEnhanceOperation.CropAndResize => "Crop & resize",
             VideoEnhanceOperation.ExtractAudio => "Audio extract",
+            VideoEnhanceOperation.ExtractSubtitle => "Subtitle extract",
             _ => "Video enhance"
         };
 

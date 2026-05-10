@@ -2,7 +2,6 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
 using MediaTools.Application.Abstractions;
 using MediaTools.Application.DTOs;
 using MediaTools.Application.UseCases;
@@ -66,7 +65,6 @@ public partial class VideoEnhancerViewModel
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowSubProgressCard))]
-    [NotifyPropertyChangedFor(nameof(ShowSubCancelButton))]
     private bool _subIsRunning;
 
     [ObservableProperty]
@@ -80,9 +78,6 @@ public partial class VideoEnhancerViewModel
     [ObservableProperty]
     private string _subResultMessage = string.Empty;
 
-    [ObservableProperty]
-    private bool _subIsDropHover;
-
     public bool ShowSubFileInfoCard => !string.IsNullOrWhiteSpace(SubSelectedFilePath);
 
     public bool ShowSubtitleTrackPicker => ShowSubFileInfoCard && SubtitleTracks.Count > 0;
@@ -93,23 +88,14 @@ public partial class VideoEnhancerViewModel
 
     public bool ShowSubResultCard => SubSucceeded;
 
-    public bool ShowSubCancelButton => SubIsRunning;
-
     public int SubProgressPercentDisplay => (int)Math.Round(SubProgressPercent01 * 100, MidpointRounding.AwayFromZero);
 
     private void OnSubtitleTracksCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         OnPropertyChanged(nameof(ShowSubtitleTrackPicker));
         OnPropertyChanged(nameof(ShowNoSubtitleTracksWarning));
-        ExtractSubtitleCommand.NotifyCanExecuteChanged();
+        StartCommand.NotifyCanExecuteChanged();
     }
-
-    private bool CanStartSubtitleExtract() =>
-        !string.IsNullOrWhiteSpace(SubSelectedFilePath)
-        && SubSelectedTrack is not null
-        && Directory.Exists(_preferences.SaveFolderPath)
-        && !SubIsRunning
-        && !SubIsAnalyzing;
 
     private SubtitleExtractorUndoSnapshot CaptureSubtitleSnapshot() =>
         new(
@@ -157,90 +143,9 @@ public partial class VideoEnhancerViewModel
         OnPropertyChanged(nameof(ShowSubFileInfoCard));
         OnPropertyChanged(nameof(ShowSubtitleTrackPicker));
         OnPropertyChanged(nameof(ShowNoSubtitleTracksWarning));
-        ExtractSubtitleCommand.NotifyCanExecuteChanged();
-    }
-
-    public void HandleSubtitleDrop(IEnumerable<string> paths)
-    {
-        foreach (var path in paths)
-        {
-            var ext = Path.GetExtension(path);
-            if (string.IsNullOrEmpty(ext))
-            {
-                continue;
-            }
-
-            if (AllowedExtensions.Contains(ext.ToLowerInvariant()))
-            {
-                _ = LoadSubtitleFromDropWithUndoAsync(path);
-                break;
-            }
-        }
-    }
-
-    private async Task LoadSubtitleFromDropWithUndoAsync(string path)
-    {
-        _history.BeginUndoGroup();
-        _suppressUndoNotification = true;
-        bool loaded;
-        try
-        {
-            loaded = await LoadSubtitleFileAsync(path).ConfigureAwait(true);
-        }
-        finally
-        {
-            _suppressUndoNotification = false;
-        }
-
-        if (loaded)
-        {
-            _history.EndUndoGroup();
-        }
-        else
-        {
-            _history.CancelUndoGroup();
-        }
-    }
-
-    [RelayCommand]
-    private async Task BrowseSubtitleFileAsync()
-    {
-        var dlg = new Microsoft.Win32.OpenFileDialog
-        {
-            Filter = "Video|*.mp4;*.mkv;*.avi;*.mov;*.wmv;*.flv;*.m4v;*.webm|All files|*.*"
-        };
-
-        if (dlg.ShowDialog() != true)
-        {
-            return;
-        }
-
-        _history.BeginUndoGroup();
-        _suppressUndoNotification = true;
-        bool loaded;
-        try
-        {
-            loaded = await LoadSubtitleFileAsync(dlg.FileName).ConfigureAwait(true);
-        }
-        finally
-        {
-            _suppressUndoNotification = false;
-        }
-
-        if (loaded)
-        {
-            _history.EndUndoGroup();
-        }
-        else
-        {
-            _history.CancelUndoGroup();
-        }
-    }
-
-    [RelayCommand]
-    private void ClearSubtitleFile()
-    {
-        _history.PushUndoFrameAnd(ResetSubUiToNoFile);
+        OnPropertyChanged(nameof(ShowSubtitleProgressCard));
+        OnPropertyChanged(nameof(ShowSubtitleResultCard));
+        StartCommand.NotifyCanExecuteChanged();
     }
 
     private void ResetSubUiToNoFile()
@@ -263,12 +168,13 @@ public partial class VideoEnhancerViewModel
         OnPropertyChanged(nameof(ShowSubFileInfoCard));
         OnPropertyChanged(nameof(ShowSubtitleTrackPicker));
         OnPropertyChanged(nameof(ShowNoSubtitleTracksWarning));
+        OnPropertyChanged(nameof(ShowSubtitleProgressCard));
+        OnPropertyChanged(nameof(ShowSubtitleResultCard));
     }
 
-    [RelayCommand(CanExecute = nameof(CanStartSubtitleExtract))]
-    private async Task ExtractSubtitleAsync()
+    internal async Task RunSubtitleExtractAsync()
     {
-        if (SubSelectedFilePath is null || SubSelectedTrack is null || !CanStartSubtitleExtract())
+        if (SubSelectedFilePath is null || SubSelectedTrack is null)
         {
             return;
         }
@@ -365,7 +271,7 @@ public partial class VideoEnhancerViewModel
         {
             SubIsRunning = false;
             SubFinishedAttempt = true;
-            ExtractSubtitleCommand.NotifyCanExecuteChanged();
+            StartCommand.NotifyCanExecuteChanged();
             UndoCommand.NotifyCanExecuteChanged();
             RedoCommand.NotifyCanExecuteChanged();
             _history.FlushPendingEdit();
@@ -380,9 +286,6 @@ public partial class VideoEnhancerViewModel
             }
         }
     }
-
-    [RelayCommand]
-    private void SubCancel() => _subtitleCts?.Cancel();
 
     private static string SubtitleExtensionFor(SubtitleExportFormat format) =>
         format switch
@@ -431,26 +334,34 @@ public partial class VideoEnhancerViewModel
         finally
         {
             SubIsAnalyzing = false;
-            ExtractSubtitleCommand.NotifyCanExecuteChanged();
+            StartCommand.NotifyCanExecuteChanged();
         }
     }
 
     partial void OnSubSelectedTrackChanged(SubtitleTrackInfoDto? value) =>
-        ExtractSubtitleCommand.NotifyCanExecuteChanged();
+        StartCommand.NotifyCanExecuteChanged();
 
     partial void OnSubSelectedFilePathChanged(string? value) =>
-        ExtractSubtitleCommand.NotifyCanExecuteChanged();
+        StartCommand.NotifyCanExecuteChanged();
 
     partial void OnSubIsRunningChanged(bool value)
     {
-        ExtractSubtitleCommand.NotifyCanExecuteChanged();
+        StartCommand.NotifyCanExecuteChanged();
         UndoCommand.NotifyCanExecuteChanged();
         RedoCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(ShowCancelButton));
+        OnPropertyChanged(nameof(ShowSubtitleProgressCard));
     }
+
+    partial void OnSubFinishedAttemptChanged(bool value) =>
+        OnPropertyChanged(nameof(ShowSubtitleProgressCard));
+
+    partial void OnSubSucceededChanged(bool value) =>
+        OnPropertyChanged(nameof(ShowSubtitleResultCard));
 
     partial void OnSubIsAnalyzingChanged(bool value)
     {
         OnPropertyChanged(nameof(ShowNoSubtitleTracksWarning));
-        ExtractSubtitleCommand.NotifyCanExecuteChanged();
+        StartCommand.NotifyCanExecuteChanged();
     }
 }

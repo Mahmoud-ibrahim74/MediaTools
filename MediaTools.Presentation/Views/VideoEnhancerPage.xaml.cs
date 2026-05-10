@@ -48,38 +48,6 @@ public partial class VideoEnhancerPage : Page
         e.Handled = true;
     }
 
-    private void OnSubtitleDragOver(object sender, DragEventArgs e)
-    {
-        if (e.Data.GetDataPresent(DataFormats.FileDrop))
-        {
-            e.Effects = DragDropEffects.Copy;
-            _viewModel.SubIsDropHover = true;
-        }
-        else
-        {
-            e.Effects = DragDropEffects.None;
-        }
-
-        e.Handled = true;
-    }
-
-    private void OnSubtitleDragLeave(object sender, DragEventArgs e)
-    {
-        _viewModel.SubIsDropHover = false;
-        e.Handled = true;
-    }
-
-    private void OnSubtitleDrop(object sender, DragEventArgs e)
-    {
-        _viewModel.SubIsDropHover = false;
-        if (e.Data.GetData(DataFormats.FileDrop) is string[] paths)
-        {
-            _viewModel.HandleSubtitleDrop(paths);
-        }
-
-        e.Handled = true;
-    }
-
     private void OnSourcePreviewMediaOpened(object sender, RoutedEventArgs e)
     {
         if (sender is MediaElement me)

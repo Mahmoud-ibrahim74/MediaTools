@@ -8,5 +8,7 @@ public enum VideoEnhanceOperation
     Stabilize,
     ColorGrading,
     CropAndResize,
-    ExtractAudio
+    ExtractAudio,
+    /// <summary>Embedded subtitle streams → SRT, VTT, ASS, or copy (handled outside the FFmpeg enhance graph).</summary>
+    ExtractSubtitle
 }
