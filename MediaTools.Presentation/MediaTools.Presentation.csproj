@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <ApplicationIcon />
+    <RootNamespace>MediaTools.Presentation</RootNamespace>
+    <AssemblyName>MediaTools</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <PackageReference Include="MahApps.Metro" Version="2.4.10" />
+    <PackageReference Include="MahApps.Metro.IconPacks.Material" Version="5.1.0" />
+    <PackageReference Include="Ookii.Dialogs.Wpf" Version="5.0.1" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MediaTools.Application\MediaTools.Application.csproj" />
+    <ProjectReference Include="..\MediaTools.Domain\MediaTools.Domain.csproj" />
+    <ProjectReference Include="..\MediaTools.Infrastructure\MediaTools.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,464 @@
+<Page x:Class="MediaTools.Presentation.Views.VideoCompressPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
+      mc:Ignorable="d"
+      Title="Video Compress"
+      AllowDrop="True"
+      Drop="OnDrop"
+      DragEnter="OnDragEnter"
+      DragLeave="OnDragLeave"
+      DragOver="OnDragOver">
+  <Grid Background="{DynamicResource ContentBackgroundBrush}">
+    <ScrollViewer Padding="24"
+                  VerticalScrollBarVisibility="Auto">
+      <Grid MaxWidth="1180">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="280" />
+        </Grid.ColumnDefinitions>
+
+        <StackPanel Grid.Column="0"
+                    Margin="0,0,24,0">
+          <StackPanel Margin="0,0,0,20">
+            <TextBlock FontSize="26"
+                       FontWeight="SemiBold"
+                       Text="Video Compress" />
+            <TextBlock Margin="0,6,0,0"
+                       FontSize="14"
+                       Foreground="#FF5F6B76"
+                       Text="Reduce file size while keeping great visual quality using modern codecs and tuned presets." />
+          </StackPanel>
+
+          <Border Padding="20">
+            <Border.Style>
+              <Style BasedOn="{StaticResource CardBorderStyle}" TargetType="Border">
+                <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}" />
+                <Setter Property="BorderThickness" Value="2" />
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding IsDropHover}" Value="True">
+                    <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+                  </DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </Border.Style>
+            <Grid>
+              <StackPanel HorizontalAlignment="Center">
+                <iconPacks:PackIconMaterial Width="48"
+                                            Height="48"
+                                            HorizontalAlignment="Center"
+                                            Foreground="{DynamicResource AccentPrimaryBrush}"
+                                            Kind="CloudUploadOutline" />
+                <TextBlock Margin="0,12,0,0"
+                           HorizontalAlignment="Center"
+                           FontWeight="SemiBold"
+                           Text="Drag &amp; drop a video here" />
+                <TextBlock Margin="0,6,0,0"
+                           HorizontalAlignment="Center"
+                           Foreground="#FF5F6B76"
+                           Text="MP4, MKV, AVI, MOV, WMV, FLV, M4V, WEBM"
+                           TextAlignment="Center" />
+                <Button Margin="0,16,0,0"
+                        HorizontalAlignment="Center"
+                        Command="{Binding BrowseFileCommand}"
+                        Content="Browse File"
+                        Style="{DynamicResource OutlinedButtonStyle}" />
+              </StackPanel>
+            </Grid>
+          </Border>
+
+          <Border Margin="0,16,0,0"
+                  Padding="16"
+                  Style="{DynamicResource CardBorderStyle}"
+                  Visibility="{Binding ShowFileInfoCard, Converter={StaticResource BoolToVisibilityConverter}}">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock FontWeight="SemiBold"
+                           Text="{Binding FileDisplayName}" />
+                <UniformGrid Margin="0,10,0,0"
+                             Columns="3">
+                  <StackPanel Margin="0,0,12,0">
+                    <TextBlock FontSize="11"
+                               Foreground="#FF5F6B76"
+                               Text="Size" />
+                    <TextBlock Margin="0,4,0,0"
+                               Text="{Binding FileSizeDisplay}" />
+                  </StackPanel>
+                  <StackPanel Margin="0,0,12,0">
+                    <TextBlock FontSize="11"
+                               Foreground="#FF5F6B76"
+                               Text="Duration" />
+                    <TextBlock Margin="0,4,0,0"
+                               Text="{Binding DurationDisplay}" />
+                  </StackPanel>
+                  <StackPanel>
+                    <TextBlock FontSize="11"
+                               Foreground="#FF5F6B76"
+                               Text="Format" />
+                    <TextBlock Margin="0,4,0,0"
+                               Text="{Binding FormatDisplay}" />
+                  </StackPanel>
+                </UniformGrid>
+              </StackPanel>
+              <Button Grid.Column="1"
+                      Width="36"
+                      Height="36"
+                      Padding="0"
+                      VerticalAlignment="Top"
+                      Command="{Binding ClearFileCommand}"
+                      Style="{DynamicResource OutlinedButtonStyle}">
+                <iconPacks:PackIconMaterial Width="16"
+                                              Height="16"
+                                              Kind="Close" />
+              </Button>
+            </Grid>
+          </Border>
+
+          <Border Margin="0,16,0,0"
+                  Padding="16"
+                  Style="{DynamicResource CardBorderStyle}">
+            <StackPanel>
+              <TextBlock Margin="0,0,0,12"
+                         FontWeight="SemiBold"
+                         Text="Compression profile" />
+              <UniformGrid Columns="4"
+                           Margin="0,0,0,12">
+                <Button Margin="4"
+                        Padding="10,8"
+                        Command="{Binding SelectProfileCommand}"
+                        CommandParameter="HighQuality"
+                        Content="High Quality">
+                  <Button.Style>
+                    <Style BasedOn="{StaticResource OutlinedButtonStyle}" TargetType="Button">
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding SelectedProfileKey}" Value="HighQuality">
+                          <Setter Property="Background" Value="{DynamicResource AccentPrimaryBrush}" />
+                          <Setter Property="Foreground" Value="White" />
+                          <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </Button.Style>
+                </Button>
+                <Button Margin="4"
+                        Padding="10,8"
+                        Command="{Binding SelectProfileCommand}"
+                        CommandParameter="Balanced"
+                        Content="Balanced">
+                  <Button.Style>
+                    <Style BasedOn="{StaticResource OutlinedButtonStyle}" TargetType="Button">
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding SelectedProfileKey}" Value="Balanced">
+                          <Setter Property="Background" Value="{DynamicResource AccentPrimaryBrush}" />
+                          <Setter Property="Foreground" Value="White" />
+                          <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </Button.Style>
+                </Button>
+                <Button Margin="4"
+                        Padding="10,8"
+                        Command="{Binding SelectProfileCommand}"
+                        CommandParameter="SmallSize"
+                        Content="Small Size">
+                  <Button.Style>
+                    <Style BasedOn="{StaticResource OutlinedButtonStyle}" TargetType="Button">
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding SelectedProfileKey}" Value="SmallSize">
+                          <Setter Property="Background" Value="{DynamicResource AccentPrimaryBrush}" />
+                          <Setter Property="Foreground" Value="White" />
+                          <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </Button.Style>
+                </Button>
+                <Button Margin="4"
+                        Padding="10,8"
+                        Command="{Binding SelectProfileCommand}"
+                        CommandParameter="Web"
+                        Content="Web">
+                  <Button.Style>
+                    <Style BasedOn="{StaticResource OutlinedButtonStyle}" TargetType="Button">
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding SelectedProfileKey}" Value="Web">
+                          <Setter Property="Background" Value="{DynamicResource AccentPrimaryBrush}" />
+                          <Setter Property="Foreground" Value="White" />
+                          <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </Button.Style>
+                </Button>
+              </UniformGrid>
+
+              <Expander Header="Advanced options">
+                <StackPanel Margin="0,12,0,0">
+                  <StackPanel Margin="0,0,0,12">
+                    <DockPanel LastChildFill="True">
+                      <TextBlock DockPanel.Dock="Left"
+                                 VerticalAlignment="Center"
+                                 FontWeight="SemiBold"
+                                 Text="{Binding Crf, StringFormat=CRF ({0})}" />
+                      <TextBlock Margin="12,0,0,0"
+                                 HorizontalAlignment="Right"
+                                 VerticalAlignment="Center"
+                                 DockPanel.Dock="Right"
+                                 Foreground="#FF5F6B76"
+                                 Text="Smallest file ← → Best quality" />
+                    </DockPanel>
+                    <Slider Margin="0,8,0,0"
+                            Maximum="51"
+                            Minimum="0"
+                            TickFrequency="1"
+                            IsSnapToTickEnabled="True"
+                            Value="{Binding Crf}" />
+                  </StackPanel>
+
+                  <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="12" />
+                      <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                      <TextBlock FontSize="12"
+                                 Foreground="#FF5F6B76"
+                                 Text="Video codec" />
+                      <ComboBox Margin="0,6,0,0"
+                              ItemsSource="{Binding VideoCodecItems}"
+                              SelectedItem="{Binding SelectedVideoCodec}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                      <TextBlock FontSize="12"
+                                 Foreground="#FF5F6B76"
+                                 Text="Encode preset" />
+                      <ComboBox Margin="0,6,0,0"
+                              ItemsSource="{Binding EncodePresetItems}"
+                              SelectedItem="{Binding SelectedEncodePreset}" />
+                    </StackPanel>
+                  </Grid>
+
+                  <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="12" />
+                      <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                      <TextBlock FontSize="12"
+                                 Foreground="#FF5F6B76"
+                                 Text="Target width (optional)" />
+                      <TextBox Margin="0,6,0,0"
+                             Text="{Binding TargetWidthInput, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                      <TextBlock FontSize="12"
+                                 Foreground="#FF5F6B76"
+                                 Text="Target height (optional)" />
+                      <TextBox Margin="0,6,0,0"
+                             Text="{Binding TargetHeightInput, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+                  </Grid>
+
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="12" />
+                      <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                      <TextBlock FontSize="12"
+                                 Foreground="#FF5F6B76"
+                                 Text="Audio bitrate (kbps)" />
+                      <ComboBox Margin="0,6,0,0"
+                              ItemsSource="{Binding AudioBitrates}"
+                              SelectedItem="{Binding AudioBitrateKbps}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                      <TextBlock FontSize="12"
+                                 Foreground="#FF5F6B76"
+                                 Text="Audio codec" />
+                      <ComboBox Margin="0,6,0,0"
+                              ItemsSource="{Binding AudioCodecItems}"
+                              SelectedItem="{Binding SelectedAudioCodec}" />
+                    </StackPanel>
+                  </Grid>
+
+                  <CheckBox Margin="0,12,0,0"
+                            Content="Remove audio track"
+                            IsChecked="{Binding RemoveAudio}" />
+                </StackPanel>
+              </Expander>
+            </StackPanel>
+          </Border>
+
+          <Grid Margin="0,16,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBox MinHeight="36"
+                     VerticalContentAlignment="Center"
+                     Text="{Binding OutputDirectory, UpdateSourceTrigger=PropertyChanged}" />
+            <Button Grid.Column="1"
+                    Margin="12,0,0,0"
+                    MinWidth="110"
+                    Command="{Binding BrowseOutputCommand}"
+                    Content="Browse…"
+                    Style="{DynamicResource OutlinedButtonStyle}" />
+          </Grid>
+
+          <Border Margin="0,16,0,0"
+                  Padding="16"
+                  Style="{DynamicResource CardBorderStyle}"
+                  Visibility="{Binding ShowProgressCard, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel>
+              <TextBlock FontWeight="SemiBold"
+                         Text="{Binding ProgressStatusText}" />
+              <TextBlock Margin="0,6,0,0"
+                         Foreground="#FF5F6B76"
+                         Text="{Binding ProgressDetailText}" />
+              <Border Margin="0,16,0,0"
+                      CornerRadius="6"
+                      ClipToBounds="True"
+                      Background="#FFE8EEF4">
+                <ProgressBar Height="12"
+                             Maximum="100"
+                             Style="{DynamicResource MetroProgressBarRounded}"
+                             Value="{Binding ProgressPercentDisplay, Mode=OneWay}" />
+              </Border>
+              <Grid Margin="0,12,0,0">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock FontSize="36"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource AccentPrimaryBrush}"
+                           Text="{Binding ProgressPercentDisplay, Mode=OneWay, StringFormat={}{0}%}" />
+                <StackPanel Grid.Column="1"
+                            HorizontalAlignment="Right">
+                  <TextBlock HorizontalAlignment="Right"
+                             Foreground="#FF5F6B76"
+                             Text="{Binding ElapsedDisplay, StringFormat=Elapsed {0}}" />
+                  <TextBlock Margin="0,4,0,0"
+                             HorizontalAlignment="Right"
+                             Foreground="#FF5F6B76"
+                             Text="{Binding EstimatedRemainingDisplay, StringFormat=Est. remaining {0}}" />
+                </StackPanel>
+              </Grid>
+            </StackPanel>
+          </Border>
+
+          <Border Margin="0,16,0,0"
+                  Padding="16"
+                  BorderBrush="{DynamicResource StatusSuccessBrush}"
+                  BorderThickness="2"
+                  Background="{DynamicResource CardBackgroundBrush}"
+                  Visibility="{Binding ShowResultCard, Converter={StaticResource BoolToVisibilityConverter}}">
+            <Border.Effect>
+              <DropShadowEffect BlurRadius="12"
+                                Direction="270"
+                                Opacity="0.12"
+                                ShadowDepth="1"
+                                Color="#33000000" />
+            </Border.Effect>
+            <Grid>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+              </Grid.RowDefinitions>
+              <StackPanel Grid.Row="0"
+                          Orientation="Horizontal">
+                <iconPacks:PackIconMaterial Width="22"
+                                            Height="22"
+                                            Foreground="{DynamicResource StatusSuccessBrush}"
+                                            Kind="CheckCircleOutline" />
+                <TextBlock Margin="10,0,0,0"
+                           VerticalAlignment="Center"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource StatusSuccessBrush}"
+                           Text="Compression complete!" />
+              </StackPanel>
+              <TextBlock Grid.Row="1"
+                         Margin="0,12,0,0"
+                         FontSize="14"
+                         Text="{Binding ResultSummaryText}"
+                         TextWrapping="Wrap" />
+              <Button Grid.Row="2"
+                      Margin="0,16,0,0"
+                      HorizontalAlignment="Left"
+                      Command="{Binding OpenOutputFolderCommand}"
+                      Content="Open folder"
+                      Style="{DynamicResource PrimaryButtonStyle}" />
+            </Grid>
+          </Border>
+
+          <StackPanel Margin="0,24,0,32"
+                      HorizontalAlignment="Right"
+                      Orientation="Horizontal">
+            <Button Margin="0,0,12,0"
+                    MinWidth="100"
+                    Command="{Binding CancelCommand}"
+                    Content="Cancel"
+                    Style="{DynamicResource OutlinedButtonStyle}"
+                    Visibility="{Binding ShowCancelButton, Converter={StaticResource BoolToVisibilityConverter}}" />
+            <Button MinWidth="180"
+                    Command="{Binding StartCompressionCommand}"
+                    Content="Start compression"
+                    Style="{DynamicResource PrimaryButtonStyle}" />
+          </StackPanel>
+        </StackPanel>
+
+        <StackPanel Grid.Column="1">
+          <Border Padding="16"
+                  Style="{DynamicResource CardBorderStyle}">
+            <StackPanel>
+              <TextBlock Margin="0,0,0,8"
+                         FontWeight="SemiBold"
+                         Text="Codec guide" />
+              <TextBlock TextWrapping="Wrap"
+                         Foreground="#FF5F6B76">
+                <Run FontWeight="SemiBold"
+                     Foreground="#FF1F2A36"
+                     Text="H.264" /><Run Text=" — Best compatibility; fast to encode; ideal for web playback." /><LineBreak /><LineBreak /><Run FontWeight="SemiBold"
+                     Foreground="#FF1F2A36"
+                     Text="H.265" /><Run Text=" — Roughly half the size of H.264 at similar quality; great for archiving." /><LineBreak /><LineBreak /><Run FontWeight="SemiBold"
+                     Foreground="#FF1F2A36"
+                     Text="AV1" /><Run Text=" — Open codec with excellent compression; encode times are longer." />
+              </TextBlock>
+            </StackPanel>
+          </Border>
+
+          <Border Margin="0,16,0,0"
+                  Padding="16"
+                  Style="{DynamicResource CardBorderStyle}">
+            <StackPanel>
+              <TextBlock Margin="0,0,0,8"
+                         FontWeight="SemiBold"
+                         Text="CRF tips" />
+              <TextBlock TextWrapping="Wrap">
+                <Run Foreground="{DynamicResource StatusSuccessBrush}"
+                     FontWeight="SemiBold"
+                     Text="18–22" /><Run Text=" — Near lossless (best quality)." /><LineBreak /><LineBreak /><Run Foreground="{DynamicResource StatusWarningBrush}"
+                     FontWeight="SemiBold"
+                     Text="23–28" /><Run Text=" — Balanced quality and size." /><LineBreak /><LineBreak /><Run Foreground="{DynamicResource StatusDangerBrush}"
+                     FontWeight="SemiBold"
+                     Text="29–51" /><Run Text=" — Smaller files with visible tradeoffs." />
+              </TextBlock>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </Grid>
+    </ScrollViewer>
+  </Grid>
+</Page>
