@@ -12,17 +12,20 @@ public sealed class UserPreferencesService : IUserPreferencesService
     };
 
     private readonly string _filePath;
-    private string _saveFolderPath;
+    private string _saveFolderPath = string.Empty;
+    private bool _toastNotificationsEnabled = true;
 
     public UserPreferencesService()
     {
         var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "MediaTools");
         Directory.CreateDirectory(dir);
         _filePath = Path.Combine(dir, "settings.json");
-        _saveFolderPath = LoadSaveFolderPathOrDefault();
+        LoadPreferencesOrCreateDefaults();
     }
 
     public string SaveFolderPath => _saveFolderPath;
+
+    public bool ToastNotificationsEnabled => _toastNotificationsEnabled;
 
     public event EventHandler? SaveFolderPathChanged;
 
@@ -46,33 +49,54 @@ public sealed class UserPreferencesService : IUserPreferencesService
         SaveFolderPathChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    private string LoadSaveFolderPathOrDefault()
+    public void SetToastNotificationsEnabled(bool enabled)
+    {
+        if (_toastNotificationsEnabled == enabled)
+        {
+            return;
+        }
+
+        _toastNotificationsEnabled = enabled;
+        Persist();
+    }
+
+    private void LoadPreferencesOrCreateDefaults()
     {
         try
         {
             if (!File.Exists(_filePath))
             {
-                return CreateDefaultAndPersist();
+                CreateDefaultFolderAndPersist();
+                return;
             }
 
             using var stream = File.OpenRead(_filePath);
             var dto = JsonSerializer.Deserialize<PreferencesDto>(stream, JsonOptions);
-            if (string.IsNullOrWhiteSpace(dto?.SaveFolderPath))
+            if (dto is null)
             {
-                return CreateDefaultAndPersist();
+                CreateDefaultFolderAndPersist();
+                return;
+            }
+
+            _toastNotificationsEnabled = dto.ToastNotificationsEnabled ?? true;
+
+            if (string.IsNullOrWhiteSpace(dto.SaveFolderPath))
+            {
+                CreateDefaultFolderAndPersist();
+                return;
             }
 
             var path = Path.GetFullPath(dto.SaveFolderPath.Trim());
             Directory.CreateDirectory(path);
-            return path;
+            _saveFolderPath = path;
         }
         catch
         {
-            return CreateDefaultAndPersist();
+            CreateDefaultFolderAndPersist();
         }
     }
 
-    private string CreateDefaultAndPersist()
+    private void CreateDefaultFolderAndPersist()
     {
         var path = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
@@ -80,14 +104,17 @@ public sealed class UserPreferencesService : IUserPreferencesService
         Directory.CreateDirectory(path);
         _saveFolderPath = Path.GetFullPath(path);
         Persist();
-        return _saveFolderPath;
     }
 
     private void Persist()
     {
         try
         {
-            var dto = new PreferencesDto { SaveFolderPath = _saveFolderPath };
+            var dto = new PreferencesDto
+            {
+                SaveFolderPath = _saveFolderPath,
+                ToastNotificationsEnabled = _toastNotificationsEnabled
+            };
             var json = JsonSerializer.Serialize(dto, JsonOptions);
             File.WriteAllText(_filePath, json);
         }
@@ -100,5 +127,8 @@ public sealed class UserPreferencesService : IUserPreferencesService
     private sealed class PreferencesDto
     {
         public string SaveFolderPath { get; set; } = string.Empty;
+
+        /// <summary>Omitted in older settings files — treated as true.</summary>
+        public bool? ToastNotificationsEnabled { get; set; }
     }
 }

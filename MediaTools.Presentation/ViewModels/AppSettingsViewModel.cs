@@ -19,9 +19,13 @@ public partial class AppSettingsViewModel : ObservableObject
     [ObservableProperty]
     private string _saveFolderPathDraft = string.Empty;
 
+    [ObservableProperty]
+    private bool _toastNotificationsEnabledDraft = true;
+
     public void RefreshFromPreferences()
     {
         SaveFolderPathDraft = _preferences.SaveFolderPath;
+        ToastNotificationsEnabledDraft = _preferences.ToastNotificationsEnabled;
     }
 
     [RelayCommand]
@@ -57,7 +61,9 @@ public partial class AppSettingsViewModel : ObservableObject
         try
         {
             _preferences.SetSaveFolderPath(trimmed);
+            _preferences.SetToastNotificationsEnabled(ToastNotificationsEnabledDraft);
             SaveFolderPathDraft = _preferences.SaveFolderPath;
+            ToastNotificationsEnabledDraft = _preferences.ToastNotificationsEnabled;
             MessageBoxHelper.ShowInformation("Settings saved.");
         }
         catch (Exception ex)

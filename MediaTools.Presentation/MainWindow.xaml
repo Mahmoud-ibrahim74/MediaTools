@@ -6,7 +6,7 @@
                  xmlns:mah="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
                  xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
                  mc:Ignorable="d"
-                 Title="MediaTools"
+                 Title="Media Tools"
                  Width="1200"
                  Height="760"
                  MinWidth="960"
@@ -40,7 +40,7 @@
                      FontSize="20"
                      FontWeight="SemiBold"
                      Foreground="{DynamicResource SideMenuTextBrush}"
-                     Text="MediaTools" />
+                     Text="Media Tools" />
         </StackPanel>
 
         <ScrollViewer Grid.Row="1"

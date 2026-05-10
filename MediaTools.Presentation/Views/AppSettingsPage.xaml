@@ -60,6 +60,20 @@
             </StackPanel>
           </Border>
 
+          <Border Margin="0,16,0,0" Padding="20" Style="{DynamicResource CardBorderStyle}">
+            <StackPanel>
+              <TextBlock FontWeight="SemiBold" Text="Notifications" />
+              <TextBlock Margin="0,6,0,0"
+                         FontSize="12"
+                         Foreground="#FF5F6B76"
+                         TextWrapping="Wrap"
+                         Text="Windows toast alerts when a tool finishes (success or failure). Turn off if you prefer only the in-app status." />
+              <CheckBox Margin="0,14,0,0"
+                        Content="Show completion notifications (Windows Action Center)"
+                        IsChecked="{Binding ToastNotificationsEnabledDraft}" />
+            </StackPanel>
+          </Border>
+
           <Border Margin="0,16,0,0"
                   Padding="16"
                   Background="#FFF5F7FA"
@@ -75,7 +89,7 @@
               <TextBlock Margin="10,0,0,0"
                          Foreground="#FF5F6B76"
                          TextWrapping="Wrap"
-                         Text="Settings are stored under your user profile (AppData\Roaming\MediaTools\settings.json)." />
+                         Text="Settings (folder path and notification toggle) are stored under your user profile (AppData\Roaming\MediaTools\settings.json)." />
             </StackPanel>
           </Border>
         </StackPanel>

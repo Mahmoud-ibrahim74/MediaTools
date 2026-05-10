@@ -2,11 +2,11 @@ using Microsoft.Toolkit.Uwp.Notifications;
 
 namespace MediaTools.Presentation.Services;
 
-public sealed class WindowsToastNotificationService : IWindowsToastNotificationService
+public sealed class WindowsToastNotificationService(IUserPreferencesService userPreferences) : IWindowsToastNotificationService
 {
     public void ShowToolFinished(string title, string body, bool isSuccess, string? attribution = null)
     {
-        if (string.IsNullOrWhiteSpace(title))
+        if (string.IsNullOrWhiteSpace(title) || !userPreferences.ToastNotificationsEnabled)
         {
             return;
         }
