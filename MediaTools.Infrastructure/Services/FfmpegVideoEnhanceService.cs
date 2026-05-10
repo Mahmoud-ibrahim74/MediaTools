@@ -60,35 +60,37 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
         var analysis = await AnalyzeAsync(sourcePath, cancellationToken).ConfigureAwait(false);
         var totalDurationSeconds = analysis.Duration.TotalSeconds;
 
+        var enc = settings.VideoEncoder;
+
         switch (settings.Operation)
         {
             case VideoEnhanceOperation.Watermark:
-                await ApplyWatermarkAsync(sourcePath, outputPath, analysis, settings.Watermark!, totalDurationSeconds, progress, cancellationToken)
+                await ApplyWatermarkAsync(sourcePath, outputPath, analysis, settings.Watermark!, enc, totalDurationSeconds, progress, cancellationToken)
                     .ConfigureAwait(false);
                 break;
 
             case VideoEnhanceOperation.SpeedChange:
-                await ApplySpeedAsync(sourcePath, outputPath, analysis, settings.Speed!, totalDurationSeconds, progress, cancellationToken)
+                await ApplySpeedAsync(sourcePath, outputPath, analysis, settings.Speed!, enc, totalDurationSeconds, progress, cancellationToken)
                     .ConfigureAwait(false);
                 break;
 
             case VideoEnhanceOperation.Reverse:
-                await ApplyReverseAsync(sourcePath, outputPath, analysis, totalDurationSeconds, progress, cancellationToken)
+                await ApplyReverseAsync(sourcePath, outputPath, analysis, enc, totalDurationSeconds, progress, cancellationToken)
                     .ConfigureAwait(false);
                 break;
 
             case VideoEnhanceOperation.Stabilize:
-                await ApplyStabilizeAsync(sourcePath, outputPath, analysis, settings.Stabilizer!, totalDurationSeconds, progress, cancellationToken)
+                await ApplyStabilizeAsync(sourcePath, outputPath, analysis, settings.Stabilizer!, enc, totalDurationSeconds, progress, cancellationToken)
                     .ConfigureAwait(false);
                 break;
 
             case VideoEnhanceOperation.ColorGrading:
-                await ApplyColorGradingAsync(sourcePath, outputPath, analysis, settings.ColorGrading!, totalDurationSeconds, progress, cancellationToken)
+                await ApplyColorGradingAsync(sourcePath, outputPath, analysis, settings.ColorGrading!, enc, totalDurationSeconds, progress, cancellationToken)
                     .ConfigureAwait(false);
                 break;
 
             case VideoEnhanceOperation.CropAndResize:
-                await ApplyCropResizeAsync(sourcePath, outputPath, analysis, settings.CropResize!, totalDurationSeconds, progress, cancellationToken)
+                await ApplyCropResizeAsync(sourcePath, outputPath, analysis, settings.CropResize!, enc, totalDurationSeconds, progress, cancellationToken)
                     .ConfigureAwait(false);
                 break;
 
@@ -359,11 +361,36 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
         return bytes;
     }
 
+    private static void AppendH264VideoEncode(StringBuilder sb, VideoHardwareEncoderKind encoder, bool movflagsFaststart)
+    {
+        switch (encoder)
+        {
+            case VideoHardwareEncoderKind.Nvenc:
+                sb.Append("-c:v h264_nvenc -preset p4 -cq 23 -pix_fmt yuv420p ");
+                break;
+            case VideoHardwareEncoderKind.Amf:
+                sb.Append("-c:v h264_amf -quality balanced -rc cqp -qp_i 23 -qp_p 23 -pix_fmt yuv420p ");
+                break;
+            case VideoHardwareEncoderKind.QuickSync:
+                sb.Append("-c:v h264_qsv -preset medium -global_quality 23 -pix_fmt yuv420p ");
+                break;
+            default:
+                sb.Append("-c:v libx264 -preset veryfast -crf 20 -pix_fmt yuv420p ");
+                break;
+        }
+
+        if (movflagsFaststart)
+        {
+            sb.Append("-movflags +faststart ");
+        }
+    }
+
     private async Task ApplyWatermarkAsync(
         string sourcePath,
         string outputPath,
         VideoSourceAnalysis analysis,
         VideoWatermarkSettings wm,
+        VideoHardwareEncoderKind videoEncoder,
         double totalDurationSeconds,
         IProgress<VideoEnhanceProgressReport> progress,
         CancellationToken ct)
@@ -419,7 +446,7 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
         sb.Append(ci, $"-filter_complex \"{filterComplex}\" ");
         sb.Append("-map \"[v]\" ");
         sb.Append(mapAudio);
-        sb.Append("-c:v libx264 -preset veryfast -crf 20 -pix_fmt yuv420p -movflags +faststart ");
+        AppendH264VideoEncode(sb, videoEncoder, movflagsFaststart: true);
         sb.Append(ci, $"\"{outputPath}\"");
 
         await RunFfmpegAsync(sb.ToString(), totalDurationSeconds, progress, "Embedding watermark", ct).ConfigureAwait(false);
@@ -430,6 +457,7 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
         string outputPath,
         VideoSourceAnalysis analysis,
         VideoSpeedSettings speed,
+        VideoHardwareEncoderKind videoEncoder,
         double totalDurationSeconds,
         IProgress<VideoEnhanceProgressReport> progress,
         CancellationToken ct)
@@ -457,12 +485,14 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
 
             sb.Append(ci,
                 $"-filter_complex \"[0:v]{videoFilter}[v];[0:a]{audioFilter}[a]\" -map \"[v]\" -map \"[a]\" ");
-            sb.Append("-c:v libx264 -preset veryfast -crf 20 -pix_fmt yuv420p -c:a aac -b:a 192k -movflags +faststart ");
+            AppendH264VideoEncode(sb, videoEncoder, movflagsFaststart: false);
+            sb.Append("-c:a aac -b:a 192k -movflags +faststart ");
         }
         else
         {
             sb.Append(ci, $"-vf \"{videoFilter}\" ");
-            sb.Append("-c:v libx264 -preset veryfast -crf 20 -pix_fmt yuv420p -an -movflags +faststart ");
+            AppendH264VideoEncode(sb, videoEncoder, movflagsFaststart: false);
+            sb.Append("-an -movflags +faststart ");
         }
 
         sb.Append(ci, $"\"{outputPath}\"");
@@ -477,6 +507,7 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
         string sourcePath,
         string outputPath,
         VideoSourceAnalysis analysis,
+        VideoHardwareEncoderKind videoEncoder,
         double totalDurationSeconds,
         IProgress<VideoEnhanceProgressReport> progress,
         CancellationToken ct)
@@ -489,12 +520,13 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
         if (analysis.HasAudio)
         {
             sb.Append("-vf reverse -af areverse ");
-            sb.Append("-c:v libx264 -preset veryfast -crf 20 -pix_fmt yuv420p -c:a aac -b:a 192k ");
+            AppendH264VideoEncode(sb, videoEncoder, movflagsFaststart: false);
+            sb.Append("-c:a aac -b:a 192k ");
         }
         else
         {
             sb.Append("-vf reverse -an ");
-            sb.Append("-c:v libx264 -preset veryfast -crf 20 -pix_fmt yuv420p ");
+            AppendH264VideoEncode(sb, videoEncoder, movflagsFaststart: false);
         }
 
         sb.Append("-movflags +faststart ");
@@ -508,6 +540,7 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
         string outputPath,
         VideoSourceAnalysis analysis,
         VideoStabilizerSettings stab,
+        VideoHardwareEncoderKind videoEncoder,
         double totalDurationSeconds,
         IProgress<VideoEnhanceProgressReport> progress,
         CancellationToken ct)
@@ -544,7 +577,7 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
                 sb2.Append("-an ");
             }
 
-            sb2.Append("-c:v libx264 -preset veryfast -crf 20 -pix_fmt yuv420p -movflags +faststart ");
+            AppendH264VideoEncode(sb2, videoEncoder, movflagsFaststart: true);
             sb2.Append(ci, $"\"{outputPath}\"");
 
             await RunFfmpegAsync(sb2.ToString(), totalDurationSeconds, progress, "Stabilizing (2/2)", ct).ConfigureAwait(false);
@@ -560,6 +593,7 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
         string outputPath,
         VideoSourceAnalysis analysis,
         VideoColorGradingSettings color,
+        VideoHardwareEncoderKind videoEncoder,
         double totalDurationSeconds,
         IProgress<VideoEnhanceProgressReport> progress,
         CancellationToken ct)
@@ -581,7 +615,7 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
             sb.Append("-an ");
         }
 
-        sb.Append("-c:v libx264 -preset veryfast -crf 20 -pix_fmt yuv420p -movflags +faststart ");
+        AppendH264VideoEncode(sb, videoEncoder, movflagsFaststart: true);
         sb.Append(ci, $"\"{outputPath}\"");
 
         await RunFfmpegAsync(sb.ToString(), totalDurationSeconds, progress, "Color grading", ct).ConfigureAwait(false);
@@ -592,6 +626,7 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
         string outputPath,
         VideoSourceAnalysis analysis,
         VideoCropResizeSettings cr,
+        VideoHardwareEncoderKind videoEncoder,
         double totalDurationSeconds,
         IProgress<VideoEnhanceProgressReport> progress,
         CancellationToken ct)
@@ -622,7 +657,7 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
             sb.Append("-an ");
         }
 
-        sb.Append("-c:v libx264 -preset veryfast -crf 20 -pix_fmt yuv420p -movflags +faststart ");
+        AppendH264VideoEncode(sb, videoEncoder, movflagsFaststart: true);
         sb.Append(ci, $"\"{outputPath}\"");
 
         await RunFfmpegAsync(sb.ToString(), totalDurationSeconds, progress, "Crop & resize", ct).ConfigureAwait(false);

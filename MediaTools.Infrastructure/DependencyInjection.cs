@@ -16,6 +16,7 @@ public static class DependencyInjection
         services.AddSingleton<ISubtitleExtractorService, FfmpegSubtitleExtractorService>();
         services.AddSingleton<IScreenRecordingService, FfmpegScreenRecordingService>();
         services.AddSingleton<IVideoEnhanceService, FfmpegVideoEnhanceService>();
+        services.AddSingleton<IVideoEncoderProbeService, FfmpegVideoEncoderProbeService>();
         services.AddSingleton<ICompressionJobRepository, InMemoryCompressionJobRepository>();
         return services;
     }

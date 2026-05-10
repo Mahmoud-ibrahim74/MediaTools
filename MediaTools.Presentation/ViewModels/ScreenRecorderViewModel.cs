@@ -39,12 +39,50 @@ public partial class ScreenRecorderViewModel : ObservableObject
         _preferences = preferences;
         _toastNotifications = toastNotifications;
         _preferences.SaveFolderPathChanged += OnSaveFolderPathChanged;
+        _preferences.VideoEncoderSettingsChanged += OnVideoEncoderSettingsChanged;
 
         ApplyPrimaryMonitorBounds();
     }
 
     private void OnSaveFolderPathChanged(object? sender, EventArgs e) =>
         StartRecordingCommand.NotifyCanExecuteChanged();
+
+    private void OnVideoEncoderSettingsChanged(object? sender, EventArgs e) =>
+        OnPropertyChanged(nameof(ExportVideoEncoderDisplay));
+
+    private VideoHardwareEncoderKind ResolveEncoderForExport()
+    {
+        var pref = _preferences.PreferredVideoHardwareEncoder;
+        if (pref == VideoHardwareEncoderKind.Software)
+        {
+            return VideoHardwareEncoderKind.Software;
+        }
+
+        if (_preferences.LastVideoEncoderScan is not { } scan)
+        {
+            return VideoHardwareEncoderKind.Software;
+        }
+
+        return pref switch
+        {
+            VideoHardwareEncoderKind.Nvenc when scan.NvencAvailable => VideoHardwareEncoderKind.Nvenc,
+            VideoHardwareEncoderKind.Amf when scan.AmfAvailable => VideoHardwareEncoderKind.Amf,
+            VideoHardwareEncoderKind.QuickSync when scan.QuickSyncAvailable => VideoHardwareEncoderKind.QuickSync,
+            _ => VideoHardwareEncoderKind.Software
+        };
+    }
+
+    private static string FormatEncoderForUi(VideoHardwareEncoderKind k) =>
+        k switch
+        {
+            VideoHardwareEncoderKind.Nvenc => "NVENC — NVIDIA GPU Encoder",
+            VideoHardwareEncoderKind.Amf => "AMF — AMD GPU Encoder",
+            VideoHardwareEncoderKind.QuickSync => "QuickSync — Intel GPU Encoder",
+            _ => "Software (libx264) — CPU"
+        };
+
+    /// <summary>Effective H.264 encoder for this recording (from App settings + last encoder scan).</summary>
+    public string ExportVideoEncoderDisplay => FormatEncoderForUi(ResolveEncoderForExport());
 
     public IEnumerable<ScreenRecordingRegion> Regions => Enum.GetValues<ScreenRecordingRegion>();
 
@@ -433,7 +471,8 @@ public partial class ScreenRecorderViewModel : ObservableObject
             CaptureCursor: CaptureCursor,
             IncludeMicrophone: IncludeMicrophone,
             MicrophoneDeviceName: IncludeMicrophone ? SelectedMicrophone?.Name : null,
-            OutputFormat: OutputFormat);
+            OutputFormat: OutputFormat,
+            VideoEncoder: ResolveEncoderForExport());
     }
 
     private void ApplyPrimaryMonitorBounds()

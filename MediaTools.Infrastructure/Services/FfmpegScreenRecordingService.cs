@@ -248,8 +248,7 @@ public sealed partial class FfmpegScreenRecordingService(IVideoCompressionServic
             sb.Append(ci, $"-vf fps={outputFps} ");
         }
 
-        sb.Append("-c:v libx264 -preset veryfast -pix_fmt yuv420p ");
-        sb.Append(ci, $"-crf {crf} ");
+        AppendH264VideoEncode(sb, settings.VideoEncoder, crf);
 
         if (settings.IncludeMicrophone && !string.IsNullOrWhiteSpace(settings.MicrophoneDeviceName))
         {
@@ -263,6 +262,29 @@ public sealed partial class FfmpegScreenRecordingService(IVideoCompressionServic
 
         sb.Append(ci, $"\"{outputPath}\"");
         return sb.ToString();
+    }
+
+    /// <summary>Matches <see cref="FfmpegVideoEnhanceService"/> quality mapping; <paramref name="quality"/> is the UI CRF (14–40).</summary>
+    private static void AppendH264VideoEncode(StringBuilder sb, VideoHardwareEncoderKind encoder, int quality)
+    {
+        var ci = CultureInfo.InvariantCulture;
+        var q = Math.Clamp(quality, 14, 40);
+        switch (encoder)
+        {
+            case VideoHardwareEncoderKind.Nvenc:
+                sb.Append(ci, $"-c:v h264_nvenc -preset p4 -cq {q} -pix_fmt yuv420p ");
+                break;
+            case VideoHardwareEncoderKind.Amf:
+                sb.Append(ci, $"-c:v h264_amf -quality balanced -rc cqp -qp_i {q} -qp_p {q} -pix_fmt yuv420p ");
+                break;
+            case VideoHardwareEncoderKind.QuickSync:
+                sb.Append(ci, $"-c:v h264_qsv -preset medium -global_quality {q} -pix_fmt yuv420p ");
+                break;
+            default:
+                sb.Append("-c:v libx264 -preset veryfast -pix_fmt yuv420p ");
+                sb.Append(ci, $"-crf {q} ");
+                break;
+        }
     }
 
     private static int EvenClamp(int v)

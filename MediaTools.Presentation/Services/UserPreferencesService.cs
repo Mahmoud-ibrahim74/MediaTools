@@ -1,5 +1,8 @@
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using MediaTools.Application.DTOs;
+using MediaTools.Domain.Enums;
 
 namespace MediaTools.Presentation.Services;
 
@@ -8,12 +11,15 @@ public sealed class UserPreferencesService : IUserPreferencesService
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        WriteIndented = true
+        WriteIndented = true,
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
     };
 
     private readonly string _filePath;
     private string _saveFolderPath = string.Empty;
     private bool _toastNotificationsEnabled = true;
+    private VideoHardwareEncoderKind _videoHardwareEncoder = VideoHardwareEncoderKind.Software;
+    private VideoEncoderScanResult? _lastVideoEncoderScan;
 
     public UserPreferencesService()
     {
@@ -27,7 +33,13 @@ public sealed class UserPreferencesService : IUserPreferencesService
 
     public bool ToastNotificationsEnabled => _toastNotificationsEnabled;
 
+    public VideoHardwareEncoderKind PreferredVideoHardwareEncoder => _videoHardwareEncoder;
+
+    public VideoEncoderScanResult? LastVideoEncoderScan => _lastVideoEncoderScan;
+
     public event EventHandler? SaveFolderPathChanged;
+
+    public event EventHandler? VideoEncoderSettingsChanged;
 
     public void SetSaveFolderPath(string path)
     {
@@ -60,6 +72,30 @@ public sealed class UserPreferencesService : IUserPreferencesService
         Persist();
     }
 
+    public void SetVideoEncoderSettings(VideoHardwareEncoderKind preference, VideoEncoderScanResult scan)
+    {
+        _videoHardwareEncoder = CoercePreference(preference, scan);
+        _lastVideoEncoderScan = scan;
+        Persist();
+        VideoEncoderSettingsChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private static VideoHardwareEncoderKind CoercePreference(VideoHardwareEncoderKind preference, VideoEncoderScanResult scan)
+    {
+        if (preference == VideoHardwareEncoderKind.Software)
+        {
+            return VideoHardwareEncoderKind.Software;
+        }
+
+        return preference switch
+        {
+            VideoHardwareEncoderKind.Nvenc when scan.NvencAvailable => VideoHardwareEncoderKind.Nvenc,
+            VideoHardwareEncoderKind.Amf when scan.AmfAvailable => VideoHardwareEncoderKind.Amf,
+            VideoHardwareEncoderKind.QuickSync when scan.QuickSyncAvailable => VideoHardwareEncoderKind.QuickSync,
+            _ => VideoHardwareEncoderKind.Software
+        };
+    }
+
     private void LoadPreferencesOrCreateDefaults()
     {
         try
@@ -79,6 +115,19 @@ public sealed class UserPreferencesService : IUserPreferencesService
             }
 
             _toastNotificationsEnabled = dto.ToastNotificationsEnabled ?? true;
+
+            if (dto.EncoderScanNvenc is { } nv
+                && dto.EncoderScanAmf is { } amf
+                && dto.EncoderScanQsv is { } qsv)
+            {
+                _lastVideoEncoderScan = new VideoEncoderScanResult(nv, amf, qsv);
+            }
+
+            if (dto.VideoHardwareEncoder is { } enc)
+            {
+                var scanOrFallback = _lastVideoEncoderScan ?? new VideoEncoderScanResult(false, false, false);
+                _videoHardwareEncoder = CoercePreference(enc, scanOrFallback);
+            }
 
             if (string.IsNullOrWhiteSpace(dto.SaveFolderPath))
             {
@@ -113,7 +162,11 @@ public sealed class UserPreferencesService : IUserPreferencesService
             var dto = new PreferencesDto
             {
                 SaveFolderPath = _saveFolderPath,
-                ToastNotificationsEnabled = _toastNotificationsEnabled
+                ToastNotificationsEnabled = _toastNotificationsEnabled,
+                VideoHardwareEncoder = _videoHardwareEncoder,
+                EncoderScanNvenc = _lastVideoEncoderScan?.NvencAvailable,
+                EncoderScanAmf = _lastVideoEncoderScan?.AmfAvailable,
+                EncoderScanQsv = _lastVideoEncoderScan?.QuickSyncAvailable
             };
             var json = JsonSerializer.Serialize(dto, JsonOptions);
             File.WriteAllText(_filePath, json);
@@ -130,5 +183,13 @@ public sealed class UserPreferencesService : IUserPreferencesService
 
         /// <summary>Omitted in older settings files — treated as true.</summary>
         public bool? ToastNotificationsEnabled { get; set; }
+
+        public VideoHardwareEncoderKind? VideoHardwareEncoder { get; set; }
+
+        public bool? EncoderScanNvenc { get; set; }
+
+        public bool? EncoderScanAmf { get; set; }
+
+        public bool? EncoderScanQsv { get; set; }
     }
 }

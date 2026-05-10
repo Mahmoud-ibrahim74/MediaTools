@@ -28,6 +28,14 @@
             <TextBlock FontSize="26" FontWeight="SemiBold" Text="Screen Recorder" />
             <TextBlock Margin="0,6,0,0" FontSize="14" Foreground="#FF5F6B76" TextWrapping="Wrap"
                        Text="Capture your desktop or a custom region using the bundled FFmpeg. Add a microphone track, pick frame rate and quality, and export to MP4 or MKV." />
+            <TextBlock Margin="0,10,0,0"
+                       FontSize="13"
+                       Foreground="#FF5F6B76"
+                       TextWrapping="Wrap">
+              <Run Text="Video encoder: " />
+              <Run FontWeight="SemiBold" Foreground="{DynamicResource AccentPrimaryBrush}" Text="{Binding ExportVideoEncoderDisplay, Mode=OneWay}" />
+              <Run Text=" (from App settings → Hardware Encoder)." />
+            </TextBlock>
           </StackPanel>
 
           <Border Padding="16" Style="{DynamicResource CardBorderStyle}">

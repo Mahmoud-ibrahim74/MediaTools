@@ -1,6 +1,7 @@
 <Page x:Class="MediaTools.Presentation.Views.AppSettingsPage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:controls="http://metro.mahapps.com/winfx/xaml/controls"
       xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
       Title="App Settings"
       HorizontalAlignment="Stretch"
@@ -62,6 +63,123 @@
 
           <Border Margin="0,16,0,0" Padding="20" Style="{DynamicResource CardBorderStyle}">
             <StackPanel>
+              <TextBlock FontWeight="SemiBold" Text="Hardware Encoder" />
+              <TextBlock Margin="0,6,0,0"
+                         FontSize="12"
+                         Foreground="#FF5F6B76"
+                         TextWrapping="Wrap"
+                         Text="MediaTools will scan your system for available GPU encoders. Select the one that matches your hardware." />
+              <StackPanel Margin="0,16,0,0" Orientation="Horizontal">
+                <Button MinWidth="160"
+                        Command="{Binding DetectEncodersCommand}"
+                        Content="Detect Encoders"
+                        Style="{DynamicResource PrimaryButtonStyle}" />
+                <controls:ProgressRing Width="22"
+                                       Height="22"
+                                       Margin="14,0,0,0"
+                                       VerticalAlignment="Center"
+                                       IsActive="{Binding IsDetectingEncoders}" />
+              </StackPanel>
+
+              <Border Margin="0,16,0,0"
+                      Padding="12"
+                      Background="#FFFFF8E1"
+                      BorderBrush="#FFFFE082"
+                      BorderThickness="1"
+                      CornerRadius="8"
+                      Visibility="{Binding ShowNoGpuEncoderWarning, Converter={StaticResource BoolToVisibilityConverter}}">
+                <TextBlock Foreground="#FF6D4C41"
+                           TextWrapping="Wrap"
+                           Text="No GPU encoders detected. Software encoding will be used." />
+              </Border>
+
+              <ListBox Margin="0,16,0,0"
+                       Padding="0"
+                       Background="Transparent"
+                       BorderThickness="0"
+                       ItemsSource="{Binding EncoderRows}"
+                       SelectedItem="{Binding SelectedEncoderRow, Mode=TwoWay}">
+                <ListBox.ItemContainerStyle>
+                  <Style TargetType="ListBoxItem">
+                    <Setter Property="IsEnabled" Value="{Binding IsAvailable}" />
+                    <Setter Property="Padding" Value="0" />
+                    <Setter Property="Margin" Value="0,0,0,8" />
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                    <Setter Property="Template">
+                      <Setter.Value>
+                        <ControlTemplate TargetType="ListBoxItem">
+                          <Border x:Name="RowBd"
+                                  Padding="12"
+                                  Background="White"
+                                  BorderBrush="#FFE0E6EC"
+                                  BorderThickness="2"
+                                  CornerRadius="8">
+                            <ContentPresenter />
+                          </Border>
+                          <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                              <Setter TargetName="RowBd" Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                              <Setter Property="Opacity" Value="0.5" />
+                            </Trigger>
+                          </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                      </Setter.Value>
+                    </Setter>
+                  </Style>
+                </ListBox.ItemContainerStyle>
+                <ListBox.ItemTemplate>
+                  <DataTemplate>
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                      </Grid.ColumnDefinitions>
+                      <iconPacks:PackIconMaterial Grid.Column="0"
+                                                  Width="22"
+                                                  Height="22"
+                                                  Margin="0,2,12,0"
+                                                  VerticalAlignment="Top">
+                        <iconPacks:PackIconMaterial.Style>
+                          <Style TargetType="iconPacks:PackIconMaterial">
+                            <Setter Property="Kind" Value="Close" />
+                            <Setter Property="Foreground" Value="#FFB0BEC5" />
+                            <Style.Triggers>
+                              <DataTrigger Binding="{Binding IsAvailable}" Value="True">
+                                <Setter Property="Kind" Value="Check" />
+                                <Setter Property="Foreground" Value="#FF43A047" />
+                              </DataTrigger>
+                            </Style.Triggers>
+                          </Style>
+                        </iconPacks:PackIconMaterial.Style>
+                      </iconPacks:PackIconMaterial>
+                      <StackPanel Grid.Column="1">
+                        <TextBlock TextWrapping="Wrap">
+                          <Run FontWeight="SemiBold" Text="{Binding Title, Mode=OneWay}" /><Run Text=" — " /><Run Text="{Binding FullLabel, Mode=OneWay}" />
+                        </TextBlock>
+                        <TextBlock Margin="0,4,0,0"
+                                   FontSize="12"
+                                   Foreground="#FF5F6B76"
+                                   Text="{Binding Description, Mode=OneWay}"
+                                   TextWrapping="Wrap" />
+                      </StackPanel>
+                      <RadioButton Grid.Column="2"
+                                   Margin="12,0,0,0"
+                                   VerticalAlignment="Center"
+                                   Focusable="False"
+                                   IsHitTestVisible="False"
+                                   IsChecked="{Binding RelativeSource={RelativeSource AncestorType=ListBoxItem}, Path=IsSelected, Mode=OneWay}" />
+                    </Grid>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+            </StackPanel>
+          </Border>
+
+          <Border Margin="0,16,0,0" Padding="20" Style="{DynamicResource CardBorderStyle}">
+            <StackPanel>
               <TextBlock FontWeight="SemiBold" Text="Notifications" />
               <TextBlock Margin="0,6,0,0"
                          FontSize="12"
@@ -89,7 +207,7 @@
               <TextBlock Margin="10,0,0,0"
                          Foreground="#FF5F6B76"
                          TextWrapping="Wrap"
-                         Text="Settings (folder path and notification toggle) are stored under your user profile (AppData\Roaming\MediaTools\settings.json)." />
+                         Text="Settings (folder path, hardware encoder choice, scan results, and notification toggle) are stored under your user profile (AppData\Roaming\MediaTools\settings.json)." />
             </StackPanel>
           </Border>
         </StackPanel>

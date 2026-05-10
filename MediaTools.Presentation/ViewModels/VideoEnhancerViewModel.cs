@@ -115,6 +115,7 @@ public partial class VideoEnhancerViewModel : ObservableObject
         _preferences = preferences;
         _toastNotifications = toastNotifications;
         _preferences.SaveFolderPathChanged += OnSaveFolderPathChanged;
+        _preferences.VideoEncoderSettingsChanged += OnVideoEncoderSettingsChanged;
 
         SubtitleTracks.CollectionChanged += OnSubtitleTracksCollectionChanged;
 
@@ -138,6 +139,40 @@ public partial class VideoEnhancerViewModel : ObservableObject
     {
         StartCommand.NotifyCanExecuteChanged();
     }
+
+    private void OnVideoEncoderSettingsChanged(object? sender, EventArgs e) =>
+        OnPropertyChanged(nameof(ExportVideoEncoderDisplay));
+
+    private VideoHardwareEncoderKind ResolveEncoderForExport()
+    {
+        var pref = _preferences.PreferredVideoHardwareEncoder;
+        if (pref == VideoHardwareEncoderKind.Software)
+        {
+            return VideoHardwareEncoderKind.Software;
+        }
+
+        if (_preferences.LastVideoEncoderScan is not { } scan)
+        {
+            return VideoHardwareEncoderKind.Software;
+        }
+
+        return pref switch
+        {
+            VideoHardwareEncoderKind.Nvenc when scan.NvencAvailable => VideoHardwareEncoderKind.Nvenc,
+            VideoHardwareEncoderKind.Amf when scan.AmfAvailable => VideoHardwareEncoderKind.Amf,
+            VideoHardwareEncoderKind.QuickSync when scan.QuickSyncAvailable => VideoHardwareEncoderKind.QuickSync,
+            _ => VideoHardwareEncoderKind.Software
+        };
+    }
+
+    private static string FormatEncoderForUi(VideoHardwareEncoderKind k) =>
+        k switch
+        {
+            VideoHardwareEncoderKind.Nvenc => "NVENC — NVIDIA GPU Encoder",
+            VideoHardwareEncoderKind.Amf => "AMF — AMD GPU Encoder",
+            VideoHardwareEncoderKind.QuickSync => "QuickSync — Intel GPU Encoder",
+            _ => "Software (libx264) — CPU"
+        };
 
     public IEnumerable<VideoEnhanceOperation> Operations => Enum.GetValues<VideoEnhanceOperation>();
 
@@ -330,6 +365,8 @@ public partial class VideoEnhancerViewModel : ObservableObject
 
     /// <summary>False until a video is loaded; drop/browse targets stay enabled.</summary>
     public bool AreVideoToolsEnabled => ShowFileInfoCard;
+
+    public string ExportVideoEncoderDisplay => FormatEncoderForUi(ResolveEncoderForExport());
 
     public Uri? PreviewMediaUri =>
         string.IsNullOrWhiteSpace(SelectedFilePath)
@@ -930,7 +967,7 @@ public partial class VideoEnhancerViewModel : ObservableObject
 
     private bool TryBuildSettings(out VideoEnhanceSettings settings, out string? error)
     {
-        settings = new VideoEnhanceSettings(Operation, null, null, null, null, null, null);
+        settings = new VideoEnhanceSettings(Operation, ResolveEncoderForExport(), null, null, null, null, null, null);
         error = null;
 
         switch (Operation)

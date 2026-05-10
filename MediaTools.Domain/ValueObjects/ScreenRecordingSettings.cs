@@ -13,4 +13,5 @@ public sealed record ScreenRecordingSettings(
     bool CaptureCursor,
     bool IncludeMicrophone,
     string? MicrophoneDeviceName,
-    ScreenRecordingOutputFormat OutputFormat);
+    ScreenRecordingOutputFormat OutputFormat,
+    VideoHardwareEncoderKind VideoEncoder);

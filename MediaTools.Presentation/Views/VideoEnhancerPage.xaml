@@ -36,6 +36,14 @@
               <TextBlock FontSize="26" FontWeight="SemiBold" Text="Video tools" />
               <TextBlock Margin="0,6,0,0" FontSize="14" Foreground="#FF5F6B76" TextWrapping="Wrap"
                          Text="Load a video, pick an operation (including embedded subtitles), then export." />
+              <TextBlock Margin="0,10,0,0"
+                         FontSize="13"
+                         Foreground="#FF5F6B76"
+                         TextWrapping="Wrap">
+                <Run Text="Video export encoder: " />
+                <Run FontWeight="SemiBold" Foreground="{DynamicResource AccentPrimaryBrush}" Text="{Binding ExportVideoEncoderDisplay, Mode=OneWay}" />
+                <Run Text=" (change in App settings → Hardware Encoder)." />
+              </TextBlock>
             </StackPanel>
             <StackPanel Grid.Column="1"
                         Orientation="Horizontal"

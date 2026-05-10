@@ -4,6 +4,7 @@ namespace MediaTools.Domain.ValueObjects;
 
 public sealed record VideoEnhanceSettings(
     VideoEnhanceOperation Operation,
+    VideoHardwareEncoderKind VideoEncoder,
     VideoWatermarkSettings? Watermark,
     VideoSpeedSettings? Speed,
     VideoCropResizeSettings? CropResize,
