@@ -1,0 +1,502 @@
+using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.IO;
+using System.Windows;
+using System.Windows.Threading;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using MediaTools.Application.Abstractions;
+using MediaTools.Application.DTOs;
+using MediaTools.Application.UseCases;
+using MediaTools.Domain.Enums;
+using MediaTools.Domain.ValueObjects;
+using MediaTools.Presentation.Helpers;
+using MediaTools.Presentation.Services;
+
+namespace MediaTools.Presentation.ViewModels;
+
+public partial class ScreenRecorderViewModel : ObservableObject
+{
+    private readonly StartScreenRecordingUseCase _startScreenRecordingUseCase;
+    private readonly IScreenRecordingService _screenRecordingService;
+    private readonly IUserPreferencesService _preferences;
+    private readonly IWindowsToastNotificationService _toastNotifications;
+
+    private CancellationTokenSource? _stopCts;
+    private CancellationTokenSource? _hardCancelCts;
+    private DispatcherTimer? _elapsedTimer;
+    private DateTime _recordingStartedAt;
+    private bool _devicesLoaded;
+
+    public ScreenRecorderViewModel(
+        StartScreenRecordingUseCase startScreenRecordingUseCase,
+        IScreenRecordingService screenRecordingService,
+        IUserPreferencesService preferences,
+        IWindowsToastNotificationService toastNotifications)
+    {
+        _startScreenRecordingUseCase = startScreenRecordingUseCase;
+        _screenRecordingService = screenRecordingService;
+        _preferences = preferences;
+        _toastNotifications = toastNotifications;
+        _preferences.SaveFolderPathChanged += OnSaveFolderPathChanged;
+
+        ApplyPrimaryMonitorBounds();
+    }
+
+    private void OnSaveFolderPathChanged(object? sender, EventArgs e) =>
+        StartRecordingCommand.NotifyCanExecuteChanged();
+
+    public IEnumerable<ScreenRecordingRegion> Regions => Enum.GetValues<ScreenRecordingRegion>();
+
+    public IEnumerable<ScreenRecordingOutputFormat> OutputFormats => Enum.GetValues<ScreenRecordingOutputFormat>();
+
+    public IEnumerable<int> FrameRates => [15, 24, 30, 60];
+
+    public IEnumerable<int> StartDelays => [0, 3, 5, 10];
+
+    public ObservableCollection<AudioInputDeviceDto> MicrophoneDevices { get; } = [];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowCustomRegionEditor))]
+    [NotifyPropertyChangedFor(nameof(ShowPrimaryMonitorHint))]
+    private ScreenRecordingRegion _region = ScreenRecordingRegion.PrimaryMonitor;
+
+    [ObservableProperty]
+    private int _offsetX;
+
+    [ObservableProperty]
+    private int _offsetY;
+
+    [ObservableProperty]
+    private int _captureWidth = 1920;
+
+    [ObservableProperty]
+    private int _captureHeight = 1080;
+
+    [ObservableProperty]
+    private int _frameRate = 30;
+
+    [ObservableProperty]
+    private int _crf = 23;
+
+    [ObservableProperty]
+    private bool _captureCursor = true;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowMicrophonePicker))]
+    private bool _includeMicrophone;
+
+    [ObservableProperty]
+    private AudioInputDeviceDto? _selectedMicrophone;
+
+    [ObservableProperty]
+    private ScreenRecordingOutputFormat _outputFormat = ScreenRecordingOutputFormat.Mp4;
+
+    [ObservableProperty]
+    private int _startDelaySeconds;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowCountdown))]
+    private int _countdownSeconds;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowRecordingPanel))]
+    [NotifyPropertyChangedFor(nameof(ShowStartButton))]
+    [NotifyPropertyChangedFor(nameof(ShowStopButton))]
+    private bool _isRecording;
+
+    [ObservableProperty]
+    private string _elapsedDisplay = "00:00";
+
+    [ObservableProperty]
+    private string _statusText = "Idle";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowResultCard))]
+    private bool _succeeded;
+
+    [ObservableProperty]
+    private string _resultMessage = string.Empty;
+
+    [ObservableProperty]
+    private string? _lastOutputFilePath;
+
+    public bool ShowCustomRegionEditor => Region == ScreenRecordingRegion.Custom;
+
+    public bool ShowPrimaryMonitorHint => Region == ScreenRecordingRegion.PrimaryMonitor;
+
+    public bool ShowMicrophonePicker => IncludeMicrophone;
+
+    public bool ShowRecordingPanel => IsRecording || CountdownSeconds > 0;
+
+    public bool ShowCountdown => CountdownSeconds > 0;
+
+    public bool ShowStartButton => !IsRecording && CountdownSeconds == 0;
+
+    public bool ShowStopButton => IsRecording;
+
+    public bool ShowResultCard => Succeeded && !IsRecording;
+
+    private bool CanStartRecording() =>
+        !IsRecording
+        && CountdownSeconds == 0
+        && Directory.Exists(_preferences.SaveFolderPath);
+
+    private bool CanStopRecording() => IsRecording;
+
+    [RelayCommand]
+    private async Task LoadMicrophonesAsync()
+    {
+        if (_devicesLoaded)
+        {
+            return;
+        }
+
+        try
+        {
+            var devices = await _screenRecordingService.GetAudioInputDevicesAsync().ConfigureAwait(true);
+            MicrophoneDevices.Clear();
+            foreach (var d in devices)
+            {
+                MicrophoneDevices.Add(d);
+            }
+
+            SelectedMicrophone = MicrophoneDevices.FirstOrDefault();
+        }
+        catch (Exception)
+        {
+            MicrophoneDevices.Clear();
+        }
+        finally
+        {
+            _devicesLoaded = true;
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanStartRecording))]
+    private async Task StartRecordingAsync()
+    {
+        if (!CanStartRecording())
+        {
+            return;
+        }
+
+        if (Region == ScreenRecordingRegion.Custom
+            && (CaptureWidth < 16 || CaptureHeight < 16))
+        {
+            MessageBoxHelper.ShowWarning("Custom region must be at least 16×16 pixels.");
+            return;
+        }
+
+        if (IncludeMicrophone && SelectedMicrophone is null)
+        {
+            await LoadMicrophonesAsync().ConfigureAwait(true);
+            if (SelectedMicrophone is null)
+            {
+                MessageBoxHelper.ShowWarning("No microphone device was found. Disable microphone or connect a device.");
+                return;
+            }
+        }
+
+        if (StartDelaySeconds > 0)
+        {
+            CountdownSeconds = StartDelaySeconds;
+            try
+            {
+                while (CountdownSeconds > 0)
+                {
+                    await Task.Delay(1000).ConfigureAwait(true);
+                    CountdownSeconds--;
+                }
+            }
+            catch
+            {
+                CountdownSeconds = 0;
+            }
+        }
+
+        await BeginRecordingAsync().ConfigureAwait(true);
+    }
+
+    private async Task BeginRecordingAsync()
+    {
+        Succeeded = false;
+        ResultMessage = string.Empty;
+        LastOutputFilePath = null;
+
+        var settings = BuildSettings();
+        var ext = OutputFormat == ScreenRecordingOutputFormat.Mkv ? ".mkv" : ".mp4";
+        var stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+        var outputPath = Path.Combine(_preferences.SaveFolderPath, $"screen_recording_{stamp}{ext}");
+
+        var request = new StartScreenRecordingRequest(outputPath, settings);
+
+        _stopCts = new CancellationTokenSource();
+        _hardCancelCts = new CancellationTokenSource();
+
+        var dispatcher = global::System.Windows.Application.Current?.Dispatcher;
+
+        var progress = new Progress<ScreenRecordingProgressReport>(r =>
+        {
+            void Apply()
+            {
+                if (r.Elapsed > TimeSpan.Zero)
+                {
+                    ElapsedDisplay = FormatDuration(r.Elapsed);
+                }
+
+                if (!string.IsNullOrEmpty(r.StepDescription))
+                {
+                    StatusText = r.StepDescription;
+                }
+            }
+
+            if (dispatcher is null || dispatcher.CheckAccess())
+            {
+                Apply();
+            }
+            else
+            {
+                dispatcher.Invoke(Apply);
+            }
+        });
+
+        IsRecording = true;
+        StatusText = "Recording…";
+        ElapsedDisplay = "00:00";
+        _recordingStartedAt = DateTime.Now;
+        StartElapsedTimer();
+
+        string? toastTitle = null;
+        string? toastBody = null;
+        var toastSuccess = false;
+
+        try
+        {
+            var result = await _startScreenRecordingUseCase
+                .ExecuteAsync(request, progress, _stopCts.Token, _hardCancelCts.Token)
+                .ConfigureAwait(true);
+
+            if (result.IsCancelled)
+            {
+                StatusText = "Cancelled";
+                Succeeded = false;
+            }
+            else if (result.IsSuccess && result.OutputFilePath is not null)
+            {
+                Succeeded = true;
+                StatusText = "Saved";
+                LastOutputFilePath = result.OutputFilePath;
+                var size = result.OutputFileSizeBytes ?? 0;
+                ResultMessage = $"Saved to {result.OutputFilePath} ({FormatBytes(size)} · {FormatDuration(result.TotalDuration)})";
+                toastTitle = "Screen recording saved";
+                toastBody = $"{Path.GetFileName(result.OutputFilePath)} · {FormatBytes(size)}";
+                toastSuccess = true;
+            }
+            else
+            {
+                Succeeded = false;
+                StatusText = "Failed";
+                ResultMessage = result.ErrorMessage ?? "Recording failed.";
+                toastTitle = "Screen recording failed";
+                toastBody = ResultMessage;
+                toastSuccess = false;
+            }
+        }
+        finally
+        {
+            StopElapsedTimer();
+            IsRecording = false;
+            StartRecordingCommand.NotifyCanExecuteChanged();
+            StopRecordingCommand.NotifyCanExecuteChanged();
+            _stopCts?.Dispose();
+            _stopCts = null;
+            _hardCancelCts?.Dispose();
+            _hardCancelCts = null;
+
+            if (toastTitle is not null)
+            {
+                _toastNotifications.ShowToolFinished(
+                    toastTitle,
+                    toastBody ?? string.Empty,
+                    toastSuccess,
+                    "Screen Recorder");
+            }
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanStopRecording))]
+    private void StopRecording()
+    {
+        StatusText = "Finalizing…";
+        try
+        {
+            _stopCts?.Cancel();
+        }
+        catch
+        {
+            // ignore
+        }
+    }
+
+    [RelayCommand]
+    private void CancelRecording()
+    {
+        StatusText = "Cancelling…";
+        try
+        {
+            _hardCancelCts?.Cancel();
+        }
+        catch
+        {
+            // ignore
+        }
+    }
+
+    [RelayCommand]
+    private void OpenOutputFolder()
+    {
+        var folder = _preferences.SaveFolderPath;
+        if (!Directory.Exists(folder))
+        {
+            return;
+        }
+
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = folder,
+            UseShellExecute = true
+        });
+    }
+
+    [RelayCommand]
+    private void RefreshDevices()
+    {
+        _devicesLoaded = false;
+        _ = LoadMicrophonesAsync();
+    }
+
+    private ScreenRecordingSettings BuildSettings()
+    {
+        int offX = OffsetX;
+        int offY = OffsetY;
+        int width = CaptureWidth;
+        int height = CaptureHeight;
+
+        if (Region == ScreenRecordingRegion.PrimaryMonitor)
+        {
+            offX = 0;
+            offY = 0;
+            width = (int)Math.Round(SystemParameters.PrimaryScreenWidth);
+            height = (int)Math.Round(SystemParameters.PrimaryScreenHeight);
+        }
+        else if (Region == ScreenRecordingRegion.FullDesktop)
+        {
+            offX = (int)Math.Round(SystemParameters.VirtualScreenLeft);
+            offY = (int)Math.Round(SystemParameters.VirtualScreenTop);
+            width = (int)Math.Round(SystemParameters.VirtualScreenWidth);
+            height = (int)Math.Round(SystemParameters.VirtualScreenHeight);
+        }
+
+        return new ScreenRecordingSettings(
+            Region: Region,
+            OffsetX: offX,
+            OffsetY: offY,
+            CaptureWidth: Math.Max(16, width),
+            CaptureHeight: Math.Max(16, height),
+            FrameRate: FrameRate,
+            Crf: Crf,
+            CaptureCursor: CaptureCursor,
+            IncludeMicrophone: IncludeMicrophone,
+            MicrophoneDeviceName: IncludeMicrophone ? SelectedMicrophone?.Name : null,
+            OutputFormat: OutputFormat);
+    }
+
+    private void ApplyPrimaryMonitorBounds()
+    {
+        try
+        {
+            CaptureWidth = (int)Math.Round(SystemParameters.PrimaryScreenWidth);
+            CaptureHeight = (int)Math.Round(SystemParameters.PrimaryScreenHeight);
+        }
+        catch
+        {
+            // keep defaults
+        }
+    }
+
+    private void StartElapsedTimer()
+    {
+        StopElapsedTimer();
+        _elapsedTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+        _elapsedTimer.Tick += OnElapsedTick;
+        _elapsedTimer.Start();
+    }
+
+    private void StopElapsedTimer()
+    {
+        if (_elapsedTimer is null)
+        {
+            return;
+        }
+
+        _elapsedTimer.Stop();
+        _elapsedTimer.Tick -= OnElapsedTick;
+        _elapsedTimer = null;
+    }
+
+    private void OnElapsedTick(object? sender, EventArgs e)
+    {
+        var elapsed = DateTime.Now - _recordingStartedAt;
+        if (elapsed < TimeSpan.Zero)
+        {
+            elapsed = TimeSpan.Zero;
+        }
+
+        ElapsedDisplay = FormatDuration(elapsed);
+    }
+
+    partial void OnIsRecordingChanged(bool value)
+    {
+        StartRecordingCommand.NotifyCanExecuteChanged();
+        StopRecordingCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnRegionChanged(ScreenRecordingRegion value)
+    {
+        if (value == ScreenRecordingRegion.PrimaryMonitor)
+        {
+            ApplyPrimaryMonitorBounds();
+            OffsetX = 0;
+            OffsetY = 0;
+        }
+    }
+
+    partial void OnIncludeMicrophoneChanged(bool value)
+    {
+        if (value)
+        {
+            _ = LoadMicrophonesAsync();
+        }
+    }
+
+    private static string FormatDuration(TimeSpan ts) =>
+        ts.TotalHours >= 1
+            ? $"{(int)ts.TotalHours:D2}:{ts.Minutes:D2}:{ts.Seconds:D2}"
+            : $"{ts.Minutes:D2}:{ts.Seconds:D2}";
+
+    private static string FormatBytes(long bytes)
+    {
+        const long kb = 1024;
+        string[] units = ["B", "KB", "MB", "GB", "TB"];
+        double size = bytes;
+        var order = 0;
+        while (size >= kb && order < units.Length - 1)
+        {
+            size /= kb;
+            order++;
+        }
+
+        return $"{size:0.##} {units[order]}";
+    }
+}

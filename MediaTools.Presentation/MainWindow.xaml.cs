@@ -30,6 +30,7 @@ public partial class MainWindow : MetroWindow
             "AudioEnhancer" => _services.GetRequiredService<AudioEnhancerPage>(),
             "ThumbnailGenerator" => _services.GetRequiredService<ThumbnailGeneratorPage>(),
             "SubtitleExtractor" => _services.GetRequiredService<SubtitleExtractorPage>(),
+            "ScreenRecorder" => _services.GetRequiredService<ScreenRecorderPage>(),
             "AppSettings" => _services.GetRequiredService<AppSettingsPage>(),
             _ => null
         };

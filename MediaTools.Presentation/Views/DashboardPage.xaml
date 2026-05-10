@@ -239,6 +239,38 @@
             </StackPanel>
           </Grid>
         </Border>
+
+        <Border Margin="0,0,12,0"
+                Cursor="Hand"
+                Style="{DynamicResource CardBorderStyle}">
+          <Border.InputBindings>
+            <MouseBinding Command="{Binding GoToScreenRecorderCommand}"
+                          MouseAction="LeftClick" />
+          </Border.InputBindings>
+          <Border.Background>
+            <SolidColorBrush Color="White" />
+          </Border.Background>
+          <Grid Margin="4">
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <iconPacks:PackIconMaterial Width="26"
+                                            Height="26"
+                                            Foreground="{DynamicResource AccentPrimaryBrush}"
+                                            Kind="RecordRec" />
+                <TextBlock Margin="12,0,0,0"
+                           VerticalAlignment="Center"
+                           FontSize="18"
+                           FontWeight="SemiBold"
+                           Text="Screen Recorder" />
+              </StackPanel>
+              <TextBlock Margin="0,10,0,0"
+                         FontSize="13"
+                         Foreground="#FF5F6B76"
+                         TextWrapping="Wrap"
+                         Text="Capture your desktop with optional microphone audio — pick a region, frame rate, and quality." />
+            </StackPanel>
+          </Grid>
+        </Border>
       </UniformGrid>
     </StackPanel>
       </Grid>

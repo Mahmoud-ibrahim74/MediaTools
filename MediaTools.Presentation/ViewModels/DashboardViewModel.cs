@@ -65,6 +65,9 @@ public partial class DashboardViewModel : ObservableObject
     [RelayCommand]
     private void GoToSubtitleExtractor() => _shell.NavigateCommand.Execute("SubtitleExtractor");
 
+    [RelayCommand]
+    private void GoToScreenRecorder() => _shell.NavigateCommand.Execute("ScreenRecorder");
+
     private static string FormatBytes(long bytes)
     {
         const long kb = 1024;
