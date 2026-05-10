@@ -24,6 +24,7 @@ public partial class VideoCompressViewModel : ObservableObject
     private readonly CompressVideoUseCase _compressVideoUseCase;
     private readonly IVideoCompressionService _videoCompressionService;
     private readonly IUserPreferencesService _preferences;
+    private readonly IWindowsToastNotificationService _toastNotifications;
     private readonly UndoRedoHost<VideoCompressUndoSnapshot> _history;
     private CancellationTokenSource? _compressionCts;
     private long _sourceSizeBytes;
@@ -32,11 +33,13 @@ public partial class VideoCompressViewModel : ObservableObject
     public VideoCompressViewModel(
         CompressVideoUseCase compressVideoUseCase,
         IVideoCompressionService videoCompressionService,
-        IUserPreferencesService preferences)
+        IUserPreferencesService preferences,
+        IWindowsToastNotificationService toastNotifications)
     {
         _compressVideoUseCase = compressVideoUseCase;
         _videoCompressionService = videoCompressionService;
         _preferences = preferences;
+        _toastNotifications = toastNotifications;
         _preferences.SaveFolderPathChanged += OnSaveFolderPathChanged;
 
         foreach (var b in AudioBitrateOptions)
@@ -343,6 +346,10 @@ public partial class VideoCompressViewModel : ObservableObject
             }
         });
 
+        string? toastTitle = null;
+        string? toastBody = null;
+        var toastSuccess = false;
+
         try
         {
             var result = await _compressVideoUseCase
@@ -367,12 +374,18 @@ public partial class VideoCompressViewModel : ObservableObject
                     : "0%";
                 ResultSummaryText =
                     $"{ResultOriginalSizeDisplay} → {ResultCompressedSizeDisplay} ({SavedPercentDisplay} saved)";
+                toastTitle = "Video compression complete";
+                toastBody = $"{Path.GetFileName(outputPath)} · {ResultSummaryText}";
+                toastSuccess = true;
             }
             else
             {
                 ProgressStatusText = "Failed";
                 CompressionSucceeded = false;
                 ProgressDetailText = result.ErrorMessage ?? "Unknown error";
+                toastTitle = "Video compression failed";
+                toastBody = ProgressDetailText;
+                toastSuccess = false;
             }
         }
         finally
@@ -383,6 +396,15 @@ public partial class VideoCompressViewModel : ObservableObject
             UndoCommand.NotifyCanExecuteChanged();
             RedoCommand.NotifyCanExecuteChanged();
             _history.FlushPendingEdit();
+
+            if (toastTitle is not null)
+            {
+                _toastNotifications.ShowToolFinished(
+                    toastTitle,
+                    toastBody ?? string.Empty,
+                    toastSuccess,
+                    "Video Compress");
+            }
         }
     }
 

@@ -1,0 +1,324 @@
+<Page x:Class="MediaTools.Presentation.Views.AudioEnhancerPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
+      Title="Audio Converter"
+      AllowDrop="True"
+      Drop="OnDrop"
+      DragEnter="OnDragEnter"
+      DragLeave="OnDragLeave"
+      DragOver="OnDragOver"
+      HorizontalAlignment="Stretch"
+      VerticalAlignment="Stretch">
+  <Page.InputBindings>
+    <KeyBinding Key="Z" Modifiers="Control" Command="{Binding UndoCommand}" />
+    <KeyBinding Key="Y" Modifiers="Control" Command="{Binding RedoCommand}" />
+  </Page.InputBindings>
+  <Grid HorizontalAlignment="Stretch"
+        VerticalAlignment="Stretch"
+        Background="{DynamicResource ContentBackgroundBrush}">
+    <ScrollViewer x:Name="AudioEnhancerScroll"
+                  Padding="24"
+                  HorizontalAlignment="Stretch"
+                  VerticalAlignment="Stretch"
+                  HorizontalScrollBarVisibility="Disabled"
+                  VerticalScrollBarVisibility="Auto">
+      <Grid Width="{Binding ViewportWidth, ElementName=AudioEnhancerScroll}"
+            HorizontalAlignment="Stretch">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" MinWidth="280" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+
+        <StackPanel Grid.Column="0"
+                    Margin="0,0,24,0"
+                    HorizontalAlignment="Stretch">
+          <Grid Margin="0,0,0,20">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+              <TextBlock FontSize="26" FontWeight="SemiBold" Text="Audio Converter &amp; Enhancer" />
+              <TextBlock Margin="0,6,0,0" FontSize="14" Foreground="#FF5F6B76" TextWrapping="Wrap"
+                         Text="Convert between popular formats, tune bitrate and sample rate, and apply loudness normalization and clarity EQ — powered by FFmpeg on your device." />
+            </StackPanel>
+            <StackPanel Grid.Column="1"
+                        Orientation="Horizontal"
+                        VerticalAlignment="Top">
+              <Button Width="40"
+                      Height="40"
+                      Margin="0,0,8,0"
+                      Padding="0"
+                      Command="{Binding UndoCommand}"
+                      Style="{DynamicResource OutlinedButtonStyle}"
+                      ToolTip="Undo (Ctrl+Z)">
+                <iconPacks:PackIconMaterial Width="22"
+                                            Height="22"
+                                            Foreground="{DynamicResource AccentPrimaryBrush}"
+                                            Kind="Undo" />
+              </Button>
+              <Button Width="40"
+                      Height="40"
+                      Padding="0"
+                      Command="{Binding RedoCommand}"
+                      Style="{DynamicResource OutlinedButtonStyle}"
+                      ToolTip="Redo (Ctrl+Y)">
+                <iconPacks:PackIconMaterial Width="22"
+                                            Height="22"
+                                            Foreground="{DynamicResource AccentPrimaryBrush}"
+                                            Kind="Redo" />
+              </Button>
+            </StackPanel>
+          </Grid>
+
+          <Border Padding="20">
+            <Border.Style>
+              <Style BasedOn="{StaticResource CardBorderStyle}" TargetType="Border">
+                <Setter Property="BorderThickness" Value="2" />
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding IsDropHover}" Value="True">
+                    <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+                  </DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </Border.Style>
+            <StackPanel HorizontalAlignment="Center">
+              <iconPacks:PackIconMaterial Width="48" Height="48" HorizontalAlignment="Center"
+                                          Foreground="{DynamicResource AccentPrimaryBrush}" Kind="MusicNoteOutline" />
+              <TextBlock Margin="0,12,0,0" HorizontalAlignment="Center" FontWeight="SemiBold"
+                         Text="Drag &amp; drop an audio file here" />
+              <TextBlock Margin="0,6,0,0" HorizontalAlignment="Center" Foreground="#FF5F6B76" TextAlignment="Center"
+                         Text="MP3, WAV, FLAC, AAC, M4A, OGG, OPUS, and more" />
+              <Button Margin="0,16,0,0" HorizontalAlignment="Center" Command="{Binding BrowseFileCommand}"
+                      Content="Browse audio" Style="{DynamicResource OutlinedButtonStyle}" />
+            </StackPanel>
+          </Border>
+
+          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}"
+                  Visibility="{Binding ShowFileInfoCard, Converter={StaticResource BoolToVisibilityConverter}}">
+            <Grid>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+              </Grid.RowDefinitions>
+
+              <DockPanel Grid.Row="0" LastChildFill="True">
+                <Button Width="36"
+                        Height="36"
+                        Margin="12,0,0,0"
+                        Padding="0"
+                        VerticalAlignment="Top"
+                        Command="{Binding ClearFileCommand}"
+                        DockPanel.Dock="Right"
+                        Style="{DynamicResource OutlinedButtonStyle}">
+                  <iconPacks:PackIconMaterial Width="16" Height="16" Kind="Close" />
+                </Button>
+                <TextBlock VerticalAlignment="Center"
+                           FontWeight="SemiBold"
+                           Text="{Binding FileDisplayName}"
+                           TextWrapping="Wrap" />
+              </DockPanel>
+
+              <Grid Grid.Row="1" Margin="0,14,0,0">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0"
+                        Margin="0,0,8,0"
+                        Padding="16"
+                        Background="#FFF5F7FA"
+                        BorderBrush="{DynamicResource CardBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        MinHeight="160">
+                  <StackPanel VerticalAlignment="Center">
+                    <TextBlock FontSize="12"
+                               FontWeight="SemiBold"
+                               Foreground="#FF5F6B76"
+                               Text="Source track" />
+                    <iconPacks:PackIconMaterial Margin="0,12,0,0"
+                                                Width="40"
+                                                Height="40"
+                                                HorizontalAlignment="Center"
+                                                Foreground="{DynamicResource AccentPrimaryBrush}"
+                                                Kind="SineWave" />
+                    <TextBlock Margin="0,10,0,0"
+                               HorizontalAlignment="Center"
+                               FontSize="12"
+                               Foreground="#FF5F6B76"
+                               Text="Waveform preview is not available."
+                               TextAlignment="Center"
+                               TextWrapping="Wrap" />
+                  </StackPanel>
+                </Border>
+
+                <Border Grid.Column="1"
+                        Margin="8,0,0,0"
+                        Padding="16"
+                        Background="#FFF8FBFF"
+                        BorderBrush="{DynamicResource AccentPrimaryBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        MinHeight="160">
+                  <StackPanel VerticalAlignment="Center">
+                    <TextBlock FontSize="12"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource AccentPrimaryBrush}"
+                               Text="After export" />
+                    <iconPacks:PackIconMaterial Margin="0,12,0,0"
+                                                Width="40"
+                                                Height="40"
+                                                HorizontalAlignment="Center"
+                                                Foreground="{DynamicResource AccentPrimaryBrush}"
+                                                Kind="TuneVariant" />
+                    <TextBlock Margin="0,10,0,0"
+                               HorizontalAlignment="Center"
+                               FontSize="12"
+                               Foreground="#FF5F6B76"
+                               Text="Output reflects your format, bitrate, sample rate, and enhancement options."
+                               TextAlignment="Center"
+                               TextWrapping="Wrap" />
+                  </StackPanel>
+                </Border>
+              </Grid>
+
+              <StackPanel Grid.Row="2" Margin="0,14,0,0">
+                <UniformGrid Columns="3">
+                  <StackPanel Margin="0,0,12,0">
+                    <TextBlock FontSize="11" Foreground="#FF5F6B76" Text="Size" />
+                    <TextBlock Margin="0,4,0,0" Text="{Binding FileSizeDisplay}" />
+                  </StackPanel>
+                  <StackPanel Margin="0,0,12,0">
+                    <TextBlock FontSize="11" Foreground="#FF5F6B76" Text="Duration" />
+                    <TextBlock Margin="0,4,0,0" Text="{Binding DurationDisplay}" />
+                  </StackPanel>
+                  <StackPanel>
+                    <TextBlock FontSize="11" Foreground="#FF5F6B76" Text="Codec" />
+                    <TextBlock Margin="0,4,0,0" Text="{Binding CodecDisplay}" TextTrimming="CharacterEllipsis" />
+                  </StackPanel>
+                </UniformGrid>
+                <UniformGrid Margin="0,10,0,0" Columns="2">
+                  <StackPanel Margin="0,0,12,0">
+                    <TextBlock FontSize="11" Foreground="#FF5F6B76" Text="Sample rate" />
+                    <TextBlock Margin="0,4,0,0" Text="{Binding SampleRateDisplay}" />
+                  </StackPanel>
+                  <StackPanel>
+                    <TextBlock FontSize="11" Foreground="#FF5F6B76" Text="Channels" />
+                    <TextBlock Margin="0,4,0,0" Text="{Binding ChannelsDisplay}" />
+                  </StackPanel>
+                </UniformGrid>
+              </StackPanel>
+            </Grid>
+          </Border>
+
+          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">
+            <StackPanel>
+              <TextBlock Margin="0,0,0,12" FontWeight="SemiBold" Text="Output &amp; enhancement" />
+              <Grid Margin="0,0,0,12">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="12" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                  <TextBlock FontSize="12" Foreground="#FF5F6B76" Text="Export format" />
+                  <ComboBox Margin="0,6,0,0" ItemsSource="{Binding TargetFormats}" SelectedItem="{Binding TargetFormat}" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Visibility="{Binding ShowBitrateControls, Converter={StaticResource BoolToVisibilityConverter}}">
+                  <TextBlock FontSize="12" Foreground="#FF5F6B76" Text="Bitrate (lossy)" />
+                  <ComboBox Margin="0,6,0,0" ItemsSource="{Binding BitrateOptions}" SelectedItem="{Binding BitrateKbps}" />
+                </StackPanel>
+              </Grid>
+
+              <TextBlock Margin="0,0,0,6" FontSize="12" Foreground="#FF5F6B76" Text="Sample rate" />
+              <ComboBox Margin="0,0,0,12" ItemsSource="{Binding SampleRateOptions}" SelectedItem="{Binding SampleRate}" />
+
+              <TextBlock Margin="0,0,0,6" FontSize="12" Foreground="#FF5F6B76" Text="Output level (%)" />
+              <Slider Margin="0,0,0,4" Maximum="200" Minimum="25" TickFrequency="5" IsSnapToTickEnabled="False"
+                      Value="{Binding VolumePercent}" />
+              <TextBlock Margin="0,0,0,12" FontSize="11" Foreground="#FF5F6B76"
+                         Text="{Binding VolumePercent, StringFormat='{}{0}% — 100% is unchanged'}" />
+
+              <CheckBox Content="Loudness normalize (streaming-friendly target)"
+                        IsChecked="{Binding NormalizeLoudness}" />
+
+              <CheckBox Margin="0,8,0,0"
+                        Content="Clarity boost (gentle high-frequency emphasis)"
+                        IsChecked="{Binding ClarityBoost}" />
+            </StackPanel>
+          </Border>
+
+          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}"
+                  Visibility="{Binding ShowProgressCard, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel>
+              <TextBlock FontWeight="SemiBold" Text="{Binding ProgressStatusText}" />
+              <TextBlock Margin="0,6,0,0" Foreground="#FF5F6B76" Text="{Binding ProgressDetailText}" />
+              <Border Margin="0,16,0,0" CornerRadius="6" ClipToBounds="True" Background="#FFE8EEF4">
+                <ProgressBar Height="12" Maximum="100" Style="{DynamicResource MetroProgressBarRounded}"
+                             Value="{Binding ProgressPercentDisplay, Mode=OneWay}" />
+              </Border>
+              <TextBlock Margin="0,12,0,0" FontSize="28" FontWeight="SemiBold"
+                         Foreground="{DynamicResource AccentPrimaryBrush}"
+                         Text="{Binding ProgressPercentDisplay, Mode=OneWay, StringFormat={}{0}%}" />
+            </StackPanel>
+          </Border>
+
+          <Border Margin="0,16,0,0" Padding="16" BorderBrush="{DynamicResource StatusSuccessBrush}" BorderThickness="2"
+                  Background="{DynamicResource CardBackgroundBrush}"
+                  Visibility="{Binding ShowResultCard, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <iconPacks:PackIconMaterial Width="22" Height="22" Foreground="{DynamicResource StatusSuccessBrush}"
+                                            Kind="CheckCircleOutline" />
+                <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontWeight="SemiBold"
+                           Foreground="{DynamicResource StatusSuccessBrush}" Text="Saved successfully" />
+              </StackPanel>
+              <TextBlock Margin="0,10,0,0" Text="{Binding ResultMessage}" TextWrapping="Wrap" />
+              <Button Margin="0,14,0,0" HorizontalAlignment="Left" Command="{Binding OpenOutputFolderCommand}"
+                      Content="Open output folder" Style="{DynamicResource PrimaryButtonStyle}" />
+            </StackPanel>
+          </Border>
+
+          <StackPanel Margin="0,24,0,32" HorizontalAlignment="Right" Orientation="Horizontal">
+            <Button Margin="0,0,12,0" MinWidth="100" Command="{Binding CancelCommand}" Content="Cancel"
+                    Style="{DynamicResource OutlinedButtonStyle}"
+                    Visibility="{Binding ShowCancelButton, Converter={StaticResource BoolToVisibilityConverter}}" />
+            <Button MinWidth="220" Command="{Binding ProcessAudioCommand}" Content="Convert &amp; enhance"
+                    Style="{DynamicResource PrimaryButtonStyle}" />
+          </StackPanel>
+        </StackPanel>
+
+        <StackPanel Grid.Column="1"
+                    MinWidth="260"
+                    MaxWidth="400"
+                    HorizontalAlignment="Stretch">
+          <Border Padding="16" Style="{DynamicResource CardBorderStyle}">
+            <StackPanel>
+              <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Formats" />
+              <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
+                         Text="MP3 and AAC (M4A) are ideal for sharing. FLAC is lossless. Opus in OGG offers great quality at low bitrates. WAV is uncompressed PCM." />
+            </StackPanel>
+          </Border>
+          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">
+            <StackPanel>
+              <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Loudness &amp; clarity" />
+              <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
+                         Text="Normalization steers perceived loudness toward a streaming-style target. Clarity boost applies a light EQ lift — use sparingly on already bright masters." />
+            </StackPanel>
+          </Border>
+          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">
+            <StackPanel>
+              <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Output folder" />
+              <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
+                         Text="Files are written to the folder set in App settings, same as Video Compress and Photo Enhancer." />
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </Grid>
+    </ScrollViewer>
+  </Grid>
+</Page>

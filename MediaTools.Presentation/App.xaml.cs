@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using MediaTools.Application.Abstractions;
 using MediaTools.Application.UseCases;
 using MediaTools.Infrastructure;
@@ -24,16 +24,20 @@ public partial class App : System.Windows.Application
                 {
                     services.AddInfrastructure();
                     services.AddSingleton<IUserPreferencesService, UserPreferencesService>();
+                    services.AddSingleton<IWindowsToastNotificationService, WindowsToastNotificationService>();
                     services.AddSingleton<CompressVideoUseCase>();
                     services.AddSingleton<ProcessPhotoUseCase>();
+                    services.AddSingleton<ProcessAudioUseCase>();
                     services.AddSingleton<MainWindowViewModel>();
                     services.AddTransient<DashboardViewModel>();
                     services.AddTransient<VideoCompressViewModel>();
                     services.AddTransient<PhotoEnhancerViewModel>();
+                    services.AddTransient<AudioEnhancerViewModel>();
                     services.AddTransient<AppSettingsViewModel>();
                     services.AddTransient<DashboardPage>();
                     services.AddTransient<VideoCompressPage>();
                     services.AddTransient<PhotoEnhancerPage>();
+                    services.AddTransient<AudioEnhancerPage>();
                     services.AddTransient<AppSettingsPage>();
                     services.AddSingleton<MainWindow>();
                 })

@@ -25,7 +25,7 @@
                        FontSize="14"
                        Foreground="#FF5F6B76"
                        TextWrapping="Wrap"
-                       Text="Choose where Video Compress and Photo Enhancer save output files." />
+                       Text="Choose where Video Compress, Photo Enhancer, and Audio Converter save output files." />
           </StackPanel>
 
           <Border Padding="20" Style="{DynamicResource CardBorderStyle}">
@@ -35,7 +35,7 @@
                          FontSize="12"
                          Foreground="#FF5F6B76"
                          TextWrapping="Wrap"
-                         Text="All exports from the tools use this folder. It is created automatically if needed." />
+                         Text="All exports from those tools use this folder. It is created automatically if needed." />
               <Grid Margin="0,16,0,0">
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="*" />

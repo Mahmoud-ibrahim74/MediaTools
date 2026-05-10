@@ -27,6 +27,7 @@ public partial class PhotoEnhancerViewModel : ObservableObject
     private readonly ProcessPhotoUseCase _processPhotoUseCase;
     private readonly IImageProcessingService _imageProcessingService;
     private readonly IUserPreferencesService _preferences;
+    private readonly IWindowsToastNotificationService _toastNotifications;
     private readonly UndoRedoHost<PhotoEnhancerUndoSnapshot> _history;
     private CancellationTokenSource? _cts;
     private CancellationTokenSource? _previewCts;
@@ -36,11 +37,13 @@ public partial class PhotoEnhancerViewModel : ObservableObject
     public PhotoEnhancerViewModel(
         ProcessPhotoUseCase processPhotoUseCase,
         IImageProcessingService imageProcessingService,
-        IUserPreferencesService preferences)
+        IUserPreferencesService preferences,
+        IWindowsToastNotificationService toastNotifications)
     {
         _processPhotoUseCase = processPhotoUseCase;
         _imageProcessingService = imageProcessingService;
         _preferences = preferences;
+        _toastNotifications = toastNotifications;
         _preferences.SaveFolderPathChanged += OnSaveFolderPathChanged;
 
         foreach (var e in MaxEdgePresets)
@@ -324,6 +327,10 @@ public partial class PhotoEnhancerViewModel : ObservableObject
             }
         });
 
+        string? toastTitle = null;
+        string? toastBody = null;
+        var toastSuccess = false;
+
         try
         {
             var result = await _processPhotoUseCase.ExecuteAsync(request, progress, token).ConfigureAwait(true);
@@ -340,6 +347,19 @@ public partial class PhotoEnhancerViewModel : ObservableObject
                 ProgressPercent01 = 1;
                 var len = new FileInfo(outputPath).Length;
                 ResultMessage = $"Saved to {outputPath} ({FormatBytes(len)})";
+                toastTitle = "Photo enhancement complete";
+                toastBody = $"{Path.GetFileName(outputPath)} · {FormatBytes(len)}";
+                toastSuccess = true;
+            }
+            else if (result.IsSuccess)
+            {
+                Succeeded = false;
+                ProgressStatusText = "Failed";
+                ProgressDetailText = "Output file was not created.";
+                ResultMessage = ProgressDetailText;
+                toastTitle = "Photo enhancement failed";
+                toastBody = ResultMessage;
+                toastSuccess = false;
             }
             else
             {
@@ -347,6 +367,9 @@ public partial class PhotoEnhancerViewModel : ObservableObject
                 ProgressStatusText = "Failed";
                 ProgressDetailText = result.ErrorMessage ?? "Unknown error";
                 ResultMessage = result.ErrorMessage ?? "Processing failed.";
+                toastTitle = "Photo enhancement failed";
+                toastBody = ResultMessage;
+                toastSuccess = false;
             }
         }
         finally
@@ -358,6 +381,15 @@ public partial class PhotoEnhancerViewModel : ObservableObject
             RedoCommand.NotifyCanExecuteChanged();
             _history.FlushPendingEdit();
             RequestEditedPreviewRefresh();
+
+            if (toastTitle is not null)
+            {
+                _toastNotifications.ShowToolFinished(
+                    toastTitle,
+                    toastBody ?? string.Empty,
+                    toastSuccess,
+                    "Photo Enhancer");
+            }
         }
     }
 

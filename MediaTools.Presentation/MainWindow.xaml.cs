@@ -1,4 +1,4 @@
-﻿using System.Windows.Controls;
+using System.Windows.Controls;
 using MahApps.Metro.Controls;
 using MediaTools.Presentation.ViewModels;
 using MediaTools.Presentation.Views;
@@ -27,6 +27,7 @@ public partial class MainWindow : MetroWindow
             "Dashboard" => _services.GetRequiredService<DashboardPage>(),
             "VideoCompress" => _services.GetRequiredService<VideoCompressPage>(),
             "PhotoEnhancer" => _services.GetRequiredService<PhotoEnhancerPage>(),
+            "AudioEnhancer" => _services.GetRequiredService<AudioEnhancerPage>(),
             "AppSettings" => _services.GetRequiredService<AppSettingsPage>(),
             _ => null
         };
