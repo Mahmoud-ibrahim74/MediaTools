@@ -1,0 +1,733 @@
+<Page x:Class="MediaTools.Presentation.Views.VideoEnhancerPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:domainEnums="clr-namespace:MediaTools.Domain.Enums;assembly=MediaTools.Domain"
+      xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
+      Title="Video tools"
+      HorizontalAlignment="Stretch"
+      VerticalAlignment="Stretch">
+  <Page.InputBindings>
+    <KeyBinding Key="Z" Modifiers="Control" Command="{Binding UndoCommand}" />
+    <KeyBinding Key="Y" Modifiers="Control" Command="{Binding RedoCommand}" />
+  </Page.InputBindings>
+  <Grid HorizontalAlignment="Stretch"
+        VerticalAlignment="Stretch"
+        Background="{DynamicResource ContentBackgroundBrush}">
+    <ScrollViewer x:Name="VideoEnhancerScroll"
+                  Padding="24"
+                  HorizontalAlignment="Stretch"
+                  VerticalAlignment="Stretch"
+                  HorizontalScrollBarVisibility="Disabled"
+                  VerticalScrollBarVisibility="Auto">
+      <Grid Width="{Binding ViewportWidth, ElementName=VideoEnhancerScroll}"
+            HorizontalAlignment="Stretch">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" MinWidth="280" />
+          <ColumnDefinition Width="Auto" MinWidth="300" />
+        </Grid.ColumnDefinitions>
+
+        <StackPanel Grid.Column="0" Margin="0,0,24,0" HorizontalAlignment="Stretch">
+          <Grid Margin="0,0,0,20">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+              <TextBlock FontSize="26" FontWeight="SemiBold" Text="Video tools" />
+              <TextBlock Margin="0,6,0,0" FontSize="14" Foreground="#FF5F6B76" TextWrapping="Wrap"
+                         Text="Extract embedded subtitles and enhance video — watermark, speed, reverse, stabilize, color, crop &amp; resize, and audio export." />
+            </StackPanel>
+            <StackPanel Grid.Column="1"
+                        Orientation="Horizontal"
+                        VerticalAlignment="Top">
+              <Button Width="40"
+                      Height="40"
+                      Margin="0,0,8,0"
+                      Padding="0"
+                      Command="{Binding UndoCommand}"
+                      Style="{DynamicResource OutlinedButtonStyle}"
+                      ToolTip="Undo (Ctrl+Z)">
+                <iconPacks:PackIconMaterial Width="22"
+                                            Height="22"
+                                            Foreground="{DynamicResource AccentPrimaryBrush}"
+                                            Kind="Undo" />
+              </Button>
+              <Button Width="40"
+                      Height="40"
+                      Padding="0"
+                      Command="{Binding RedoCommand}"
+                      Style="{DynamicResource OutlinedButtonStyle}"
+                      ToolTip="Redo (Ctrl+Y)">
+                <iconPacks:PackIconMaterial Width="22"
+                                            Height="22"
+                                            Foreground="{DynamicResource AccentPrimaryBrush}"
+                                            Kind="Redo" />
+              </Button>
+            </StackPanel>
+          </Grid>
+
+          <!-- Subtitle extraction -->
+          <TextBlock Margin="0,8,0,12" FontSize="18" FontWeight="SemiBold" Text="Subtitle extraction" />
+          <Border Padding="20"
+                  AllowDrop="True"
+                  DragEnter="OnSubtitleDragOver"
+                  DragLeave="OnSubtitleDragLeave"
+                  DragOver="OnSubtitleDragOver"
+                  Drop="OnSubtitleDrop">
+            <Border.Style>
+              <Style BasedOn="{StaticResource CardBorderStyle}" TargetType="Border">
+                <Setter Property="BorderThickness" Value="2" />
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding SubIsDropHover}" Value="True">
+                    <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+                  </DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </Border.Style>
+            <StackPanel HorizontalAlignment="Center">
+              <iconPacks:PackIconMaterial Width="48" Height="48" HorizontalAlignment="Center"
+                                          Foreground="{DynamicResource AccentPrimaryBrush}" Kind="SubtitlesOutline" />
+              <TextBlock Margin="0,12,0,0" HorizontalAlignment="Center" FontWeight="SemiBold"
+                         Text="Drag &amp; drop a video for subtitles" />
+              <TextBlock Margin="0,6,0,0" HorizontalAlignment="Center" Foreground="#FF5F6B76" TextAlignment="Center"
+                         Text="MP4, MKV, MOV, AVI, WebM, and more" />
+              <Button Margin="0,16,0,0" HorizontalAlignment="Center" Command="{Binding BrowseSubtitleFileCommand}"
+                      Content="Browse video" Style="{DynamicResource OutlinedButtonStyle}" />
+            </StackPanel>
+          </Border>
+
+          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}"
+                  Visibility="{Binding ShowSubFileInfoCard, Converter={StaticResource BoolToVisibilityConverter}}">
+            <Grid>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+              </Grid.RowDefinitions>
+              <DockPanel Grid.Row="0" LastChildFill="True">
+                <Button Width="36" Height="36" Margin="12,0,0,0" Padding="0" VerticalAlignment="Top"
+                        Command="{Binding ClearSubtitleFileCommand}" DockPanel.Dock="Right"
+                        Style="{DynamicResource OutlinedButtonStyle}">
+                  <iconPacks:PackIconMaterial Width="16" Height="16" Kind="Close" />
+                </Button>
+                <TextBlock VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding SubFileDisplayName}" TextWrapping="Wrap" />
+              </DockPanel>
+              <StackPanel Grid.Row="1" Margin="0,14,0,0">
+                <TextBlock Visibility="{Binding SubIsAnalyzing, Converter={StaticResource BoolToVisibilityConverter}}"
+                           Foreground="#FF5F6B76" Text="Scanning for subtitle tracks…" />
+                <Border Padding="16" Background="#FFFFF8E1" BorderBrush="#FFFFE082" BorderThickness="1" CornerRadius="8"
+                        Visibility="{Binding ShowNoSubtitleTracksWarning, Converter={StaticResource BoolToVisibilityConverter}}">
+                  <TextBlock Foreground="#FF6D4C41" TextWrapping="Wrap"
+                             Text="No embedded subtitle tracks were found in this file." />
+                </Border>
+              </StackPanel>
+              <StackPanel Grid.Row="2" Margin="0,14,0,0"
+                          Visibility="{Binding ShowSubtitleTrackPicker, Converter={StaticResource BoolToVisibilityConverter}}">
+                <TextBlock FontSize="12" FontWeight="SemiBold" Foreground="#FF5F6B76" Text="Subtitle track" />
+                <ComboBox Margin="0,6,0,0" DisplayMemberPath="DisplayLabel"
+                          ItemsSource="{Binding SubtitleTracks}" SelectedItem="{Binding SubSelectedTrack}" />
+              </StackPanel>
+              <UniformGrid Grid.Row="3" Margin="0,14,0,0" Columns="3">
+                <StackPanel Margin="0,0,12,0">
+                  <TextBlock FontSize="11" Foreground="#FF5F6B76" Text="Size" />
+                  <TextBlock Margin="0,4,0,0" Text="{Binding SubFileSizeDisplay}" />
+                </StackPanel>
+                <StackPanel Margin="0,0,12,0">
+                  <TextBlock FontSize="11" Foreground="#FF5F6B76" Text="Duration" />
+                  <TextBlock Margin="0,4,0,0" Text="{Binding SubDurationDisplay}" />
+                </StackPanel>
+                <StackPanel>
+                  <TextBlock FontSize="11" Foreground="#FF5F6B76" Text="Video / hint" />
+                  <TextBlock Margin="0,4,0,0" Text="{Binding SubFormatDisplay}" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+              </UniformGrid>
+            </Grid>
+          </Border>
+
+          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">
+            <StackPanel>
+              <TextBlock Margin="0,0,0,12" FontWeight="SemiBold" Text="Subtitle export" />
+              <TextBlock Margin="0,0,0,6" FontSize="12" Foreground="#FF5F6B76" Text="Output format" />
+              <ComboBox Margin="0,0,0,12" ItemsSource="{Binding SubtitleExportFormats}" SelectedItem="{Binding SubExportFormat}" />
+              <TextBlock FontSize="12" Foreground="#FF5F6B76" TextWrapping="Wrap"
+                         Text="SubRip, WebVTT, and ASS re-encode when needed. Copy keeps the original bitstream; the file extension follows the codec." />
+            </StackPanel>
+          </Border>
+
+          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}"
+                  Visibility="{Binding ShowSubProgressCard, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel>
+              <TextBlock FontWeight="SemiBold" Text="{Binding SubProgressStatusText}" />
+              <TextBlock Margin="0,6,0,0" Foreground="#FF5F6B76" Text="{Binding SubProgressDetailText}" />
+              <Border Margin="0,16,0,0" CornerRadius="6" ClipToBounds="True" Background="#FFE8EEF4">
+                <ProgressBar Height="12" Maximum="100" Style="{DynamicResource MetroProgressBarRounded}"
+                             Value="{Binding SubProgressPercentDisplay, Mode=OneWay}" />
+              </Border>
+              <TextBlock Margin="0,12,0,0" FontSize="28" FontWeight="SemiBold"
+                         Foreground="{DynamicResource AccentPrimaryBrush}"
+                         Text="{Binding SubProgressPercentDisplay, Mode=OneWay, StringFormat={}{0}%}" />
+            </StackPanel>
+          </Border>
+
+          <Border Margin="0,16,0,0" Padding="16" BorderBrush="{DynamicResource StatusSuccessBrush}" BorderThickness="2"
+                  Background="{DynamicResource CardBackgroundBrush}"
+                  Visibility="{Binding ShowSubResultCard, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <iconPacks:PackIconMaterial Width="22" Height="22" Foreground="{DynamicResource StatusSuccessBrush}" Kind="CheckCircleOutline" />
+                <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontWeight="SemiBold"
+                           Foreground="{DynamicResource StatusSuccessBrush}" Text="Saved successfully" />
+              </StackPanel>
+              <TextBlock Margin="0,10,0,0" Text="{Binding SubResultMessage}" TextWrapping="Wrap" />
+              <Button Margin="0,14,0,0" HorizontalAlignment="Left" Command="{Binding OpenOutputFolderCommand}"
+                      Content="Open output folder" Style="{DynamicResource PrimaryButtonStyle}" />
+            </StackPanel>
+          </Border>
+
+          <StackPanel Margin="0,16,0,32" HorizontalAlignment="Right" Orientation="Horizontal">
+            <Button Margin="0,0,12,0" MinWidth="100" Command="{Binding SubCancelCommand}" Content="Cancel"
+                    Style="{DynamicResource OutlinedButtonStyle}"
+                    Visibility="{Binding ShowSubCancelButton, Converter={StaticResource BoolToVisibilityConverter}}" />
+            <Button MinWidth="220" Command="{Binding ExtractSubtitleCommand}" Content="Extract subtitle"
+                    Style="{DynamicResource PrimaryButtonStyle}" />
+          </StackPanel>
+
+          <TextBlock Margin="0,8,0,12" FontSize="18" FontWeight="SemiBold" Text="Video enhancement" />
+
+          <!-- Enhancer drop zone -->
+          <Border Padding="20"
+                  AllowDrop="True"
+                  DragEnter="OnEnhancerDragOver"
+                  DragLeave="OnEnhancerDragLeave"
+                  DragOver="OnEnhancerDragOver"
+                  Drop="OnEnhancerDrop">
+            <Border.Style>
+              <Style BasedOn="{StaticResource CardBorderStyle}" TargetType="Border">
+                <Setter Property="BorderThickness" Value="2" />
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding IsDropHover}" Value="True">
+                    <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+                  </DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </Border.Style>
+            <StackPanel HorizontalAlignment="Center">
+              <iconPacks:PackIconMaterial Width="48" Height="48" HorizontalAlignment="Center"
+                                          Foreground="{DynamicResource AccentPrimaryBrush}" Kind="MovieEditOutline" />
+              <TextBlock Margin="0,12,0,0" HorizontalAlignment="Center" FontWeight="SemiBold"
+                         Text="Drag &amp; drop a video here (enhancer)" />
+              <TextBlock Margin="0,6,0,0" HorizontalAlignment="Center" Foreground="#FF5F6B76" TextAlignment="Center"
+                         Text="MP4, MKV, MOV, AVI, WebM, and more" />
+              <Button Margin="0,16,0,0" HorizontalAlignment="Center" Command="{Binding BrowseFileCommand}"
+                      Content="Browse video" Style="{DynamicResource OutlinedButtonStyle}" />
+            </StackPanel>
+          </Border>
+
+          <!-- File info -->
+          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}"
+                  Visibility="{Binding ShowFileInfoCard, Converter={StaticResource BoolToVisibilityConverter}}">
+            <Grid>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+              </Grid.RowDefinitions>
+
+              <DockPanel Grid.Row="0" LastChildFill="True">
+                <Button Width="36" Height="36" Margin="12,0,0,0" Padding="0" VerticalAlignment="Top"
+                        Command="{Binding ClearFileCommand}" DockPanel.Dock="Right"
+                        Style="{DynamicResource OutlinedButtonStyle}">
+                  <iconPacks:PackIconMaterial Width="16" Height="16" Kind="Close" />
+                </Button>
+                <TextBlock VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding FileDisplayName}" TextWrapping="Wrap" />
+              </DockPanel>
+
+              <UniformGrid Grid.Row="1" Margin="0,14,0,0" Columns="4">
+                <StackPanel Margin="0,0,12,0">
+                  <TextBlock FontSize="11" Foreground="#FF5F6B76" Text="Size" />
+                  <TextBlock Margin="0,4,0,0" Text="{Binding FileSizeDisplay}" />
+                </StackPanel>
+                <StackPanel Margin="0,0,12,0">
+                  <TextBlock FontSize="11" Foreground="#FF5F6B76" Text="Duration" />
+                  <TextBlock Margin="0,4,0,0" Text="{Binding DurationDisplay}" />
+                </StackPanel>
+                <StackPanel Margin="0,0,12,0">
+                  <TextBlock FontSize="11" Foreground="#FF5F6B76" Text="Dimensions" />
+                  <TextBlock Margin="0,4,0,0" Text="{Binding DimensionsDisplay}" />
+                </StackPanel>
+                <StackPanel>
+                  <TextBlock FontSize="11" Foreground="#FF5F6B76" Text="Video codec" />
+                  <TextBlock Margin="0,4,0,0" Text="{Binding CodecDisplay}" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+              </UniformGrid>
+            </Grid>
+          </Border>
+
+          <!-- Operation buttons -->
+          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">
+            <StackPanel>
+              <TextBlock Margin="0,0,0,10" FontWeight="SemiBold" Text="Operation" />
+              <WrapPanel Orientation="Horizontal">
+                <Button Margin="0,0,8,8" MinWidth="132" Padding="10,8" Content="Watermark" FontSize="12"
+                        Command="{Binding SelectOperationCommand}"
+                        CommandParameter="{x:Static domainEnums:VideoEnhanceOperation.Watermark}">
+                  <Button.Style>
+                    <Style BasedOn="{StaticResource OutlinedButtonStyle}" TargetType="Button">
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding Operation}" Value="{x:Static domainEnums:VideoEnhanceOperation.Watermark}">
+                          <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+                          <Setter Property="FontWeight" Value="SemiBold" />
+                          <Setter Property="Background" Value="#FFF0F7FF" />
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </Button.Style>
+                </Button>
+                <Button Margin="0,0,8,8" MinWidth="132" Padding="10,8" Content="Speed" FontSize="12"
+                        Command="{Binding SelectOperationCommand}"
+                        CommandParameter="{x:Static domainEnums:VideoEnhanceOperation.SpeedChange}">
+                  <Button.Style>
+                    <Style BasedOn="{StaticResource OutlinedButtonStyle}" TargetType="Button">
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding Operation}" Value="{x:Static domainEnums:VideoEnhanceOperation.SpeedChange}">
+                          <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+                          <Setter Property="FontWeight" Value="SemiBold" />
+                          <Setter Property="Background" Value="#FFF0F7FF" />
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </Button.Style>
+                </Button>
+                <Button Margin="0,0,8,8" MinWidth="132" Padding="10,8" Content="Reverse" FontSize="12"
+                        Command="{Binding SelectOperationCommand}"
+                        CommandParameter="{x:Static domainEnums:VideoEnhanceOperation.Reverse}">
+                  <Button.Style>
+                    <Style BasedOn="{StaticResource OutlinedButtonStyle}" TargetType="Button">
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding Operation}" Value="{x:Static domainEnums:VideoEnhanceOperation.Reverse}">
+                          <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+                          <Setter Property="FontWeight" Value="SemiBold" />
+                          <Setter Property="Background" Value="#FFF0F7FF" />
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </Button.Style>
+                </Button>
+                <Button Margin="0,0,8,8" MinWidth="132" Padding="10,8" Content="Stabilize" FontSize="12"
+                        Command="{Binding SelectOperationCommand}"
+                        CommandParameter="{x:Static domainEnums:VideoEnhanceOperation.Stabilize}">
+                  <Button.Style>
+                    <Style BasedOn="{StaticResource OutlinedButtonStyle}" TargetType="Button">
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding Operation}" Value="{x:Static domainEnums:VideoEnhanceOperation.Stabilize}">
+                          <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+                          <Setter Property="FontWeight" Value="SemiBold" />
+                          <Setter Property="Background" Value="#FFF0F7FF" />
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </Button.Style>
+                </Button>
+                <Button Margin="0,0,8,8" MinWidth="132" Padding="10,8" Content="Color" FontSize="12"
+                        Command="{Binding SelectOperationCommand}"
+                        CommandParameter="{x:Static domainEnums:VideoEnhanceOperation.ColorGrading}">
+                  <Button.Style>
+                    <Style BasedOn="{StaticResource OutlinedButtonStyle}" TargetType="Button">
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding Operation}" Value="{x:Static domainEnums:VideoEnhanceOperation.ColorGrading}">
+                          <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+                          <Setter Property="FontWeight" Value="SemiBold" />
+                          <Setter Property="Background" Value="#FFF0F7FF" />
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </Button.Style>
+                </Button>
+                <Button Margin="0,0,8,8" MinWidth="132" Padding="10,8" Content="Crop &amp; resize" FontSize="12"
+                        Command="{Binding SelectOperationCommand}"
+                        CommandParameter="{x:Static domainEnums:VideoEnhanceOperation.CropAndResize}">
+                  <Button.Style>
+                    <Style BasedOn="{StaticResource OutlinedButtonStyle}" TargetType="Button">
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding Operation}" Value="{x:Static domainEnums:VideoEnhanceOperation.CropAndResize}">
+                          <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+                          <Setter Property="FontWeight" Value="SemiBold" />
+                          <Setter Property="Background" Value="#FFF0F7FF" />
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </Button.Style>
+                </Button>
+                <Button Margin="0,0,8,8" MinWidth="132" Padding="10,8" Content="To audio" FontSize="12"
+                        Command="{Binding SelectOperationCommand}"
+                        CommandParameter="{x:Static domainEnums:VideoEnhanceOperation.ExtractAudio}">
+                  <Button.Style>
+                    <Style BasedOn="{StaticResource OutlinedButtonStyle}" TargetType="Button">
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding Operation}" Value="{x:Static domainEnums:VideoEnhanceOperation.ExtractAudio}">
+                          <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+                          <Setter Property="FontWeight" Value="SemiBold" />
+                          <Setter Property="Background" Value="#FFF0F7FF" />
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </Button.Style>
+                </Button>
+              </WrapPanel>
+            </StackPanel>
+          </Border>
+
+          <!-- Watermark -->
+          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}"
+                  Visibility="{Binding ShowWatermarkPanel, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel>
+              <TextBlock Margin="0,0,0,12" FontWeight="SemiBold" Text="Watermark" />
+
+              <TextBlock FontSize="12" Foreground="#FF5F6B76" Text="Source" />
+              <ComboBox Margin="0,4,0,0" ItemsSource="{Binding WatermarkSourceKinds}" SelectedItem="{Binding WatermarkKind}" />
+
+              <StackPanel Margin="0,12,0,0"
+                          Visibility="{Binding IsWatermarkImage, Converter={StaticResource BoolToVisibilityConverter}}">
+                <TextBlock FontSize="12" Foreground="#FF5F6B76" Text="Watermark image" />
+                <Grid Margin="0,4,0,0">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <TextBox MinHeight="34" VerticalContentAlignment="Center" IsReadOnly="True"
+                           Text="{Binding WatermarkImagePath, Mode=OneWay}" />
+                  <Button Grid.Column="1" Margin="10,0,0,0" MinWidth="100"
+                          Command="{Binding BrowseWatermarkImageCommand}"
+                          Content="Browse…" Style="{DynamicResource OutlinedButtonStyle}" />
+                </Grid>
+                <TextBlock Margin="0,6,0,0" FontSize="11" Foreground="#FF5F6B76"
+                           Text="PNG with transparency works best for logos." />
+              </StackPanel>
+
+              <StackPanel Margin="0,12,0,0"
+                          Visibility="{Binding IsWatermarkText, Converter={StaticResource BoolToVisibilityConverter}}">
+                <TextBlock FontSize="12" Foreground="#FF5F6B76" Text="Watermark text" />
+                <TextBox Margin="0,4,0,0" MinHeight="34" VerticalContentAlignment="Center"
+                         Text="{Binding WatermarkText, UpdateSourceTrigger=PropertyChanged}" />
+              </StackPanel>
+
+              <Grid Margin="0,12,0,0">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                  <TextBlock FontSize="12" Foreground="#FF5F6B76" Text="Position" />
+                  <ComboBox Margin="0,4,0,0" ItemsSource="{Binding WatermarkPositions}" SelectedItem="{Binding WatermarkPosition}" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                  <TextBlock FontSize="12" Foreground="#FF5F6B76">
+                    <Run Text="Size: " /><Run Text="{Binding WatermarkSizePercent}" /><Run Text="%" />
+                  </TextBlock>
+                  <Slider Margin="0,6,0,0" Minimum="5" Maximum="60" SmallChange="1" LargeChange="5"
+                          IsSnapToTickEnabled="True" TickFrequency="1"
+                          Value="{Binding WatermarkSizePercent}" />
+                </StackPanel>
+              </Grid>
+
+              <TextBlock Margin="0,12,0,0" FontSize="12" Foreground="#FF5F6B76">
+                <Run Text="Opacity: " /><Run Text="{Binding WatermarkOpacityPercent}" /><Run Text="%" />
+              </TextBlock>
+              <Slider Margin="0,6,0,0" Minimum="10" Maximum="100" SmallChange="5" LargeChange="10"
+                      IsSnapToTickEnabled="True" TickFrequency="5"
+                      Value="{Binding WatermarkOpacityPercent}" />
+            </StackPanel>
+          </Border>
+
+          <!-- Speed -->
+          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}"
+                  Visibility="{Binding ShowSpeedPanel, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel>
+              <TextBlock Margin="0,0,0,12" FontWeight="SemiBold" Text="Speed" />
+              <TextBlock FontSize="12" Foreground="#FF5F6B76">
+                <Run Text="Factor: " /><Run Text="{Binding SpeedFactor, StringFormat={}{0:0.00}}" /><Run Text="x" />
+              </TextBlock>
+              <Slider Margin="0,6,0,0" Minimum="0.25" Maximum="4" SmallChange="0.05" LargeChange="0.25"
+                      TickFrequency="0.25" IsSnapToTickEnabled="False"
+                      Value="{Binding SpeedFactor}" />
+              <CheckBox Margin="0,12,0,0" Content="Preserve audio pitch (atempo)" IsChecked="{Binding SpeedPreservePitch}" />
+              <TextBlock Margin="0,8,0,0" FontSize="11" Foreground="#FF5F6B76" TextWrapping="Wrap"
+                         Text="Above ~2x or below ~0.5x audio is chained internally; very extreme factors may sound artifacted." />
+            </StackPanel>
+          </Border>
+
+          <!-- Reverse -->
+          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}"
+                  Visibility="{Binding ShowReversePanel, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel>
+              <TextBlock Margin="0,0,0,12" FontWeight="SemiBold" Text="Reverse" />
+              <TextBlock FontSize="13" Foreground="#FF5F6B76" TextWrapping="Wrap"
+                         Text="Plays the video and audio backward end-to-end. Long clips may need plenty of free disk space (FFmpeg buffers frames)." />
+            </StackPanel>
+          </Border>
+
+          <!-- Stabilize -->
+          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}"
+                  Visibility="{Binding ShowStabilizePanel, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel>
+              <TextBlock Margin="0,0,0,12" FontWeight="SemiBold" Text="Stabilize (vidstab)" />
+              <TextBlock FontSize="12" Foreground="#FF5F6B76">
+                <Run Text="Smoothing: " /><Run Text="{Binding StabilizerSmoothing}" /><Run Text=" frames" />
+              </TextBlock>
+              <Slider Margin="0,6,0,0" Minimum="1" Maximum="60" SmallChange="1" LargeChange="5"
+                      IsSnapToTickEnabled="True" TickFrequency="1"
+                      Value="{Binding StabilizerSmoothing}" />
+              <TextBlock Margin="0,12,0,0" FontSize="12" Foreground="#FF5F6B76">
+                <Run Text="Zoom: " /><Run Text="{Binding StabilizerZoom, StringFormat={}{0:0.00}}" />
+              </TextBlock>
+              <Slider Margin="0,6,0,0" Minimum="0" Maximum="3" SmallChange="0.1" LargeChange="0.5"
+                      TickFrequency="0.1"
+                      Value="{Binding StabilizerZoom}" />
+              <TextBlock Margin="0,8,0,0" FontSize="11" Foreground="#FF5F6B76" TextWrapping="Wrap"
+                         Text="Two-pass: motion is detected first, then transforms applied. Higher smoothing = stiller frame, but more cropping at the edges." />
+            </StackPanel>
+          </Border>
+
+          <!-- Color grading -->
+          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}"
+                  Visibility="{Binding ShowColorPanel, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel>
+              <TextBlock Margin="0,0,0,12" FontWeight="SemiBold" Text="Color grading" />
+
+              <TextBlock FontSize="12" Foreground="#FF5F6B76">
+                <Run Text="Brightness: " /><Run Text="{Binding ColorBrightness, StringFormat={}{0:+0.00;-0.00;0.00}}" />
+              </TextBlock>
+              <Slider Margin="0,6,0,0" Minimum="-1" Maximum="1" TickFrequency="0.05" Value="{Binding ColorBrightness}" />
+
+              <TextBlock Margin="0,12,0,0" FontSize="12" Foreground="#FF5F6B76">
+                <Run Text="Contrast: " /><Run Text="{Binding ColorContrast, StringFormat={}{0:0.00}}" />
+              </TextBlock>
+              <Slider Margin="0,6,0,0" Minimum="0" Maximum="2" TickFrequency="0.05" Value="{Binding ColorContrast}" />
+
+              <TextBlock Margin="0,12,0,0" FontSize="12" Foreground="#FF5F6B76">
+                <Run Text="Saturation: " /><Run Text="{Binding ColorSaturation, StringFormat={}{0:0.00}}" />
+              </TextBlock>
+              <Slider Margin="0,6,0,0" Minimum="0" Maximum="3" TickFrequency="0.05" Value="{Binding ColorSaturation}" />
+
+              <TextBlock Margin="0,12,0,0" FontSize="12" Foreground="#FF5F6B76">
+                <Run Text="Gamma: " /><Run Text="{Binding ColorGamma, StringFormat={}{0:0.00}}" />
+              </TextBlock>
+              <Slider Margin="0,6,0,0" Minimum="0.1" Maximum="4" TickFrequency="0.05" Value="{Binding ColorGamma}" />
+
+              <TextBlock Margin="0,12,0,0" FontSize="12" Foreground="#FF5F6B76">
+                <Run Text="Hue shift: " /><Run Text="{Binding ColorHue, StringFormat={}{0:0}}" /><Run Text="°" />
+              </TextBlock>
+              <Slider Margin="0,6,0,0" Minimum="-180" Maximum="180" TickFrequency="1"
+                      IsSnapToTickEnabled="True" Value="{Binding ColorHue}" />
+            </StackPanel>
+          </Border>
+
+          <!-- Crop & resize -->
+          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}"
+                  Visibility="{Binding ShowCropResizePanel, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel>
+              <TextBlock Margin="0,0,0,12" FontWeight="SemiBold" Text="Crop &amp; resize" />
+
+              <CheckBox Content="Enable crop" IsChecked="{Binding CropEnabled}" />
+              <UniformGrid Margin="0,8,0,0" Columns="4" IsEnabled="{Binding CropEnabled}">
+                <StackPanel Margin="0,0,8,0">
+                  <TextBlock FontSize="11" Foreground="#FF5F6B76" Text="X" />
+                  <TextBox Margin="0,4,0,0" Text="{Binding CropX, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
+                <StackPanel Margin="0,0,8,0">
+                  <TextBlock FontSize="11" Foreground="#FF5F6B76" Text="Y" />
+                  <TextBox Margin="0,4,0,0" Text="{Binding CropY, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
+                <StackPanel Margin="0,0,8,0">
+                  <TextBlock FontSize="11" Foreground="#FF5F6B76" Text="Width" />
+                  <TextBox Margin="0,4,0,0" Text="{Binding CropWidth, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
+                <StackPanel>
+                  <TextBlock FontSize="11" Foreground="#FF5F6B76" Text="Height" />
+                  <TextBox Margin="0,4,0,0" Text="{Binding CropHeight, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
+              </UniformGrid>
+
+              <CheckBox Margin="0,16,0,0" Content="Enable resize" IsChecked="{Binding ResizeEnabled}" />
+              <UniformGrid Margin="0,8,0,0" Columns="2" IsEnabled="{Binding ResizeEnabled}">
+                <StackPanel Margin="0,0,8,0">
+                  <TextBlock FontSize="11" Foreground="#FF5F6B76" Text="Width" />
+                  <TextBox Margin="0,4,0,0" Text="{Binding ResizeWidth, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
+                <StackPanel>
+                  <TextBlock FontSize="11" Foreground="#FF5F6B76" Text="Height" />
+                  <TextBox Margin="0,4,0,0" Text="{Binding ResizeHeight, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
+              </UniformGrid>
+
+              <TextBlock Margin="0,10,0,0" FontSize="11" Foreground="#FF5F6B76" TextWrapping="Wrap"
+                         Text="Crop is applied first, then resize. Odd dimensions are snapped to the nearest even value to keep H.264 happy." />
+            </StackPanel>
+          </Border>
+
+          <!-- Extract audio -->
+          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}"
+                  Visibility="{Binding ShowExtractAudioPanel, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel>
+              <TextBlock Margin="0,0,0,12" FontWeight="SemiBold" Text="Extract audio (Video → Audio)" />
+              <TextBlock FontSize="12" Foreground="#FF5F6B76" Text="Format" />
+              <ComboBox Margin="0,4,0,12" ItemsSource="{Binding AudioFormats}" SelectedItem="{Binding AudioFormat}" />
+              <TextBlock FontSize="12" Foreground="#FF5F6B76">
+                <Run Text="Bitrate: " /><Run Text="{Binding AudioBitrateKbps}" /><Run Text=" kbps" />
+              </TextBlock>
+              <Slider Margin="0,6,0,0" Minimum="64" Maximum="320" SmallChange="32" LargeChange="32"
+                      IsSnapToTickEnabled="True" TickFrequency="32"
+                      Value="{Binding AudioBitrateKbps}" />
+              <TextBlock Margin="0,8,0,0" FontSize="11" Foreground="#FF5F6B76" TextWrapping="Wrap"
+                         Text="FLAC and WAV ignore the bitrate slider (lossless). MP3, AAC, and Opus use it." />
+            </StackPanel>
+          </Border>
+
+          <!-- Progress -->
+          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}"
+                  Visibility="{Binding ShowProgressCard, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel>
+              <TextBlock FontWeight="SemiBold" Text="{Binding ProgressStatusText}" />
+              <TextBlock Margin="0,6,0,0" Foreground="#FF5F6B76" Text="{Binding ProgressDetailText}" />
+              <Border Margin="0,16,0,0" CornerRadius="6" ClipToBounds="True" Background="#FFE8EEF4">
+                <ProgressBar Height="12" Maximum="100" Style="{DynamicResource MetroProgressBarRounded}"
+                             Value="{Binding ProgressPercentDisplay, Mode=OneWay}" />
+              </Border>
+              <TextBlock Margin="0,12,0,0" FontSize="28" FontWeight="SemiBold"
+                         Foreground="{DynamicResource AccentPrimaryBrush}"
+                         Text="{Binding ProgressPercentDisplay, Mode=OneWay, StringFormat={}{0}%}" />
+            </StackPanel>
+          </Border>
+
+          <!-- Result -->
+          <Border Margin="0,16,0,0" Padding="16" BorderBrush="{DynamicResource StatusSuccessBrush}" BorderThickness="2"
+                  Background="{DynamicResource CardBackgroundBrush}"
+                  Visibility="{Binding ShowResultCard, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <iconPacks:PackIconMaterial Width="22" Height="22" Foreground="{DynamicResource StatusSuccessBrush}" Kind="CheckCircleOutline" />
+                <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontWeight="SemiBold"
+                           Foreground="{DynamicResource StatusSuccessBrush}" Text="Saved successfully" />
+              </StackPanel>
+              <TextBlock Margin="0,10,0,0" Text="{Binding ResultMessage}" TextWrapping="Wrap" />
+              <Button Margin="0,14,0,0" HorizontalAlignment="Left" Command="{Binding OpenOutputFolderCommand}"
+                      Content="Open output folder" Style="{DynamicResource PrimaryButtonStyle}" />
+            </StackPanel>
+          </Border>
+
+          <!-- Actions -->
+          <StackPanel Margin="0,24,0,32" HorizontalAlignment="Right" Orientation="Horizontal">
+            <Button Margin="0,0,12,0" MinWidth="100" Command="{Binding CancelCommand}" Content="Cancel"
+                    Style="{DynamicResource OutlinedButtonStyle}"
+                    Visibility="{Binding ShowCancelButton, Converter={StaticResource BoolToVisibilityConverter}}" />
+            <Button MinWidth="220" Command="{Binding StartCommand}" Content="Apply &amp; export"
+                    Style="{DynamicResource PrimaryButtonStyle}" />
+          </StackPanel>
+        </StackPanel>
+
+        <!-- Right column: hints + live source preview -->
+        <StackPanel Grid.Column="1" MinWidth="300" MaxWidth="480" HorizontalAlignment="Stretch">
+          <Border Padding="16" Style="{DynamicResource CardBorderStyle}">
+            <StackPanel>
+              <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Subtitle tracks" />
+              <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
+                         Text="Each entry is an embedded stream FFmpeg can map. If extraction fails, try Copy or another format." />
+            </StackPanel>
+          </Border>
+          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">
+            <StackPanel>
+              <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Subtitle limitations" />
+              <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
+                         Text="Bitmap subtitles (e.g. PGS) cannot become SRT without OCR. Re-encoding to SubRip may fail — use copy mode instead." />
+            </StackPanel>
+          </Border>
+          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}"
+                  Visibility="{Binding ShowFileInfoCard, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel>
+              <TextBlock FontWeight="SemiBold" Text="Source preview" />
+              <TextBlock Margin="0,6,0,0" FontSize="12" Foreground="#FF5F6B76" TextWrapping="Wrap"
+                         Text="Plays the original file (live). Export still applies your chosen operation." />
+              <Border Margin="0,12,0,0"
+                      Background="#FF101418"
+                      CornerRadius="8"
+                      ClipToBounds="True"
+                      MaxHeight="280">
+                <MediaElement x:Name="SourcePreviewPlayer"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"
+                              LoadedBehavior="Manual"
+                              IsMuted="{Binding PreviewMuted}"
+                              MediaEnded="OnSourcePreviewMediaEnded"
+                              MediaOpened="OnSourcePreviewMediaOpened"
+                              ScrubbingEnabled="True"
+                              Stretch="Uniform"
+                              UnloadedBehavior="Close"
+                              Volume="1"
+                              Source="{Binding PreviewMediaUri}" />
+              </Border>
+              <CheckBox Margin="0,10,0,0" Content="Mute audio" IsChecked="{Binding PreviewMuted}" />
+
+              <Border Margin="0,20,0,0"
+                      Padding="12"
+                      Background="#FFF5F7FA"
+                      BorderBrush="{DynamicResource CardBorderBrush}"
+                      BorderThickness="1"
+                      CornerRadius="8"
+                      Visibility="{Binding ShowEffectStillPreviewSection, Converter={StaticResource BoolToVisibilityConverter}}">
+                <StackPanel>
+                  <TextBlock FontWeight="SemiBold" Text="Effect preview (still)" />
+                  <TextBlock Margin="0,4,0,0" FontSize="11" Foreground="#FF5F6B76" TextWrapping="Wrap"
+                             Text="Single frame ~1 s into the clip, updates after you pause adjusting sliders." />
+                  <Grid Margin="0,10,0,0" MaxHeight="240">
+                    <Border Background="#FF101418" CornerRadius="6" ClipToBounds="True">
+                      <Image HorizontalAlignment="Center"
+                             VerticalAlignment="Center"
+                             Source="{Binding EffectPreviewImage}"
+                             Stretch="Uniform" />
+                    </Border>
+                    <Border Background="#AA000000"
+                            CornerRadius="6"
+                            Visibility="{Binding IsEffectPreviewBusy, Converter={StaticResource BoolToVisibilityConverter}}">
+                      <TextBlock Margin="12"
+                                 HorizontalAlignment="Center"
+                                 VerticalAlignment="Center"
+                                 FontWeight="SemiBold"
+                                 Foreground="White"
+                                 Text="Rendering preview…" />
+                    </Border>
+                  </Grid>
+                </StackPanel>
+              </Border>
+
+              <Border Margin="0,16,0,0"
+                      Padding="12"
+                      Background="#FFFFF8E1"
+                      BorderBrush="#FFFFE082"
+                      BorderThickness="1"
+                      CornerRadius="8"
+                      Visibility="{Binding ShowNonStillPreviewHint, Converter={StaticResource BoolToVisibilityConverter}}">
+                <TextBlock FontSize="12" Foreground="#FF6D4C41" TextWrapping="Wrap"
+                           Text="This mode needs a full FFmpeg run to preview accurately. Use the source player above for timing, then export to see the result." />
+              </Border>
+            </StackPanel>
+          </Border>
+
+          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">
+            <StackPanel>
+              <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Operations" />
+              <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
+                         Text="• Watermark — image (PNG with alpha) or text overlay&#x0a;• Speed change — 0.25x to 4x with optional pitch preservation&#x0a;• Reverse — full backward play of video and audio&#x0a;• Stabilize — two-pass libvidstab smoothing&#x0a;• Color grading — brightness, contrast, saturation, gamma, hue&#x0a;• Crop &amp; resize — pixel-precise cropping then scaling&#x0a;• Video → Audio — strip the audio to MP3, AAC, FLAC, Opus, or WAV" />
+            </StackPanel>
+          </Border>
+          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">
+            <StackPanel>
+              <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Output" />
+              <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
+                         Text="Files are written next to your other tools' exports (App settings → Saved files folder). Names are auto-suffixed so existing files are never overwritten." />
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </Grid>
+    </ScrollViewer>
+  </Grid>
+</Page>

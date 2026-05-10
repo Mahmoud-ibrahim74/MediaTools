@@ -25,7 +25,7 @@
                        FontSize="14"
                        Foreground="#FF5F6B76"
                        TextWrapping="Wrap"
-                       Text="Choose where Video Compress, Photo Enhancer, Audio Converter, Thumbnail Generator, Subtitle Extractor, and Screen Recorder save output files." />
+                       Text="Choose where Video Compress, Photo Enhancer, Audio Converter, Thumbnail Generator, Screen Recorder, and Video tools save output files." />
           </StackPanel>
 
           <Border Padding="20" Style="{DynamicResource CardBorderStyle}">

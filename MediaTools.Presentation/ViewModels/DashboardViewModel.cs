@@ -63,10 +63,10 @@ public partial class DashboardViewModel : ObservableObject
     private void GoToThumbnailGenerator() => _shell.NavigateCommand.Execute("ThumbnailGenerator");
 
     [RelayCommand]
-    private void GoToSubtitleExtractor() => _shell.NavigateCommand.Execute("SubtitleExtractor");
+    private void GoToScreenRecorder() => _shell.NavigateCommand.Execute("ScreenRecorder");
 
     [RelayCommand]
-    private void GoToScreenRecorder() => _shell.NavigateCommand.Execute("ScreenRecorder");
+    private void GoToVideoEnhancer() => _shell.NavigateCommand.Execute("VideoEnhancer");
 
     private static string FormatBytes(long bytes)
     {

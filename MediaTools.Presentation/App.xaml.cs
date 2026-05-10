@@ -31,22 +31,23 @@ public partial class App : System.Windows.Application
                     services.AddSingleton<ProcessThumbnailUseCase>();
                     services.AddSingleton<ProcessSubtitleExtractUseCase>();
                     services.AddSingleton<StartScreenRecordingUseCase>();
+                    services.AddSingleton<ProcessVideoEnhanceUseCase>();
                     services.AddSingleton<MainWindowViewModel>();
                     services.AddTransient<DashboardViewModel>();
                     services.AddTransient<VideoCompressViewModel>();
                     services.AddTransient<PhotoEnhancerViewModel>();
                     services.AddTransient<AudioEnhancerViewModel>();
                     services.AddTransient<ThumbnailGeneratorViewModel>();
-                    services.AddTransient<SubtitleExtractorViewModel>();
                     services.AddTransient<ScreenRecorderViewModel>();
+                    services.AddTransient<VideoEnhancerViewModel>();
                     services.AddTransient<AppSettingsViewModel>();
                     services.AddTransient<DashboardPage>();
                     services.AddTransient<VideoCompressPage>();
                     services.AddTransient<PhotoEnhancerPage>();
                     services.AddTransient<AudioEnhancerPage>();
                     services.AddTransient<ThumbnailGeneratorPage>();
-                    services.AddTransient<SubtitleExtractorPage>();
                     services.AddTransient<ScreenRecorderPage>();
+                    services.AddTransient<VideoEnhancerPage>();
                     services.AddTransient<AppSettingsPage>();
                     services.AddSingleton<MainWindow>();
                 })
