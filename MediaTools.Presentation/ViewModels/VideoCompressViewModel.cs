@@ -8,6 +8,7 @@ using MediaTools.Application.DTOs;
 using MediaTools.Application.UseCases;
 using MediaTools.Domain.Enums;
 using MediaTools.Domain.ValueObjects;
+using MediaTools.Presentation.Helpers;
 using MediaTools.Presentation.Services;
 using MediaTools.Presentation.Undo;
 
@@ -496,11 +497,7 @@ public partial class VideoCompressViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            global::System.Windows.MessageBox.Show(
-                $"Could not read media file: {ex.Message}",
-                "MediaTools",
-                global::System.Windows.MessageBoxButton.OK,
-                global::System.Windows.MessageBoxImage.Warning);
+            MessageBoxHelper.ShowWarning($"Could not read media file: {ex.Message}");
             return false;
         }
     }

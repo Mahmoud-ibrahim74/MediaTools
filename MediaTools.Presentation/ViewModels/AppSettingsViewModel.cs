@@ -1,6 +1,7 @@
 using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using MediaTools.Presentation.Helpers;
 using MediaTools.Presentation.Services;
 using Ookii.Dialogs.Wpf;
 
@@ -49,11 +50,7 @@ public partial class AppSettingsViewModel : ObservableObject
         var trimmed = SaveFolderPathDraft.Trim();
         if (string.IsNullOrWhiteSpace(trimmed))
         {
-            global::System.Windows.MessageBox.Show(
-                "Please enter a folder path.",
-                "MediaTools",
-                global::System.Windows.MessageBoxButton.OK,
-                global::System.Windows.MessageBoxImage.Information);
+            MessageBoxHelper.ShowInformation("Please enter a folder path.");
             return;
         }
 
@@ -61,19 +58,11 @@ public partial class AppSettingsViewModel : ObservableObject
         {
             _preferences.SetSaveFolderPath(trimmed);
             SaveFolderPathDraft = _preferences.SaveFolderPath;
-            global::System.Windows.MessageBox.Show(
-                "Settings saved.",
-                "MediaTools",
-                global::System.Windows.MessageBoxButton.OK,
-                global::System.Windows.MessageBoxImage.Information);
+            MessageBoxHelper.ShowInformation("Settings saved.");
         }
         catch (Exception ex)
         {
-            global::System.Windows.MessageBox.Show(
-                $"Could not save folder: {ex.Message}",
-                "MediaTools",
-                global::System.Windows.MessageBoxButton.OK,
-                global::System.Windows.MessageBoxImage.Warning);
+            MessageBoxHelper.ShowWarning($"Could not save folder: {ex.Message}");
         }
     }
 }

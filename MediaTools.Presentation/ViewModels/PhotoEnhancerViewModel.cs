@@ -11,6 +11,7 @@ using MediaTools.Application.DTOs;
 using MediaTools.Application.UseCases;
 using MediaTools.Domain.Enums;
 using MediaTools.Domain.ValueObjects;
+using MediaTools.Presentation.Helpers;
 using MediaTools.Presentation.Services;
 using MediaTools.Presentation.Undo;
 
@@ -450,11 +451,7 @@ public partial class PhotoEnhancerViewModel : ObservableObject
         {
             OriginalPreviewImage = null;
             EditedPreviewImage = null;
-            global::System.Windows.MessageBox.Show(
-                $"Could not read image: {ex.Message}",
-                "MediaTools",
-                global::System.Windows.MessageBoxButton.OK,
-                global::System.Windows.MessageBoxImage.Warning);
+            MessageBoxHelper.ShowWarning($"Could not read image: {ex.Message}");
             return false;
         }
     }
