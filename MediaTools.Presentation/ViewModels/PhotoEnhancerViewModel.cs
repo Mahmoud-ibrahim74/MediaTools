@@ -11,6 +11,7 @@ using MediaTools.Application.DTOs;
 using MediaTools.Application.UseCases;
 using MediaTools.Domain.Enums;
 using MediaTools.Domain.ValueObjects;
+using MediaTools.Presentation.Undo;
 
 namespace MediaTools.Presentation.ViewModels;
 
@@ -23,21 +24,30 @@ public partial class PhotoEnhancerViewModel : ObservableObject
 
     private readonly ProcessPhotoUseCase _processPhotoUseCase;
     private readonly IImageProcessingService _imageProcessingService;
+    private readonly UndoRedoHost<PhotoEnhancerUndoSnapshot> _history;
     private CancellationTokenSource? _cts;
     private CancellationTokenSource? _previewCts;
     private int _previewVersion;
+    private bool _suppressUndoNotification;
 
     public PhotoEnhancerViewModel(ProcessPhotoUseCase processPhotoUseCase, IImageProcessingService imageProcessingService)
     {
         _processPhotoUseCase = processPhotoUseCase;
         _imageProcessingService = imageProcessingService;
-        OutputDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "MediaTools Export");
+
+        // Assign backing field only: the property setter runs OnOutputDirectoryChanged → undo before _history exists.
+        _outputDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "MediaTools Export");
         foreach (var e in MaxEdgePresets)
         {
             MaxEdgeOptions.Add(e);
         }
 
-        Directory.CreateDirectory(OutputDirectory);
+        Directory.CreateDirectory(_outputDirectory);
+        _history = new UndoRedoHost<PhotoEnhancerUndoSnapshot>(
+            CapturePhotoSnapshot,
+            ApplyPhotoSnapshot,
+            CapturePhotoSnapshot(),
+            OnUndoRedoHistoryChanged);
     }
 
     public IEnumerable<double> ScaleFactorOptions => [1, 1.25, 1.5, 2, 2.5, 3, 4];
@@ -151,6 +161,32 @@ public partial class PhotoEnhancerViewModel : ObservableObject
         && Directory.Exists(OutputDirectory)
         && !IsRunning;
 
+    private bool CanUndoOperation() => _history.CanUndo && !IsRunning;
+
+    private bool CanRedoOperation() => _history.CanRedo && !IsRunning;
+
+    private void OnUndoRedoHistoryChanged()
+    {
+        UndoCommand.NotifyCanExecuteChanged();
+        RedoCommand.NotifyCanExecuteChanged();
+    }
+
+    private void NotifyUndoableEdit()
+    {
+        if (_suppressUndoNotification || _history.IsApplyingHistory)
+        {
+            return;
+        }
+
+        _history.NotifyEdit();
+    }
+
+    private void OnSettingsChangedForPreview()
+    {
+        NotifyUndoableEdit();
+        RequestEditedPreviewRefresh();
+    }
+
     public void HandleDrop(IEnumerable<string> paths)
     {
         foreach (var path in paths)
@@ -163,7 +199,7 @@ public partial class PhotoEnhancerViewModel : ObservableObject
 
             if (AllowedExtensions.Contains(ext.ToLowerInvariant()))
             {
-                _ = LoadFileAsync(path);
+                _ = LoadFromDropWithUndoAsync(path);
                 break;
             }
         }
@@ -177,9 +213,30 @@ public partial class PhotoEnhancerViewModel : ObservableObject
             Filter = "Images|*.png;*.jpg;*.jpeg;*.webp;*.bmp;*.tif;*.tiff;*.gif|All files|*.*"
         };
 
-        if (dlg.ShowDialog() == true)
+        if (dlg.ShowDialog() != true)
         {
-            await LoadFileAsync(dlg.FileName).ConfigureAwait(true);
+            return;
+        }
+
+        _history.BeginUndoGroup();
+        _suppressUndoNotification = true;
+        bool loaded;
+        try
+        {
+            loaded = await LoadFileAsync(dlg.FileName).ConfigureAwait(true);
+        }
+        finally
+        {
+            _suppressUndoNotification = false;
+        }
+
+        if (loaded)
+        {
+            _history.EndUndoGroup();
+        }
+        else
+        {
+            _history.CancelUndoGroup();
         }
     }
 
@@ -195,31 +252,43 @@ public partial class PhotoEnhancerViewModel : ObservableObject
             Description = "Choose output folder"
         };
 
-        if (dlg.ShowDialog() == true && !string.IsNullOrWhiteSpace(dlg.SelectedPath))
+        if (dlg.ShowDialog() != true || string.IsNullOrWhiteSpace(dlg.SelectedPath))
         {
-            OutputDirectory = dlg.SelectedPath;
+            return;
         }
+
+        var path = dlg.SelectedPath;
+        _history.PushUndoFrameAnd(() => OutputDirectory = path);
     }
 
     [RelayCommand]
     private void ClearFile()
     {
-        SelectedFilePath = null;
-        FileDisplayName = string.Empty;
-        FileSizeDisplay = string.Empty;
-        DimensionsDisplay = string.Empty;
-        FormatDisplay = string.Empty;
-        _previewCts?.Cancel();
-        OriginalPreviewImage = null;
-        EditedPreviewImage = null;
-        IsEditedPreviewBusy = false;
-        FinishedAttempt = false;
-        Succeeded = false;
-        ProgressPercent01 = 0;
-        ProgressStatusText = string.Empty;
-        ProgressDetailText = string.Empty;
-        ResultMessage = string.Empty;
+        _history.PushUndoFrameAnd(() =>
+        {
+            _previewCts?.Cancel();
+            SelectedFilePath = null;
+            FileDisplayName = string.Empty;
+            FileSizeDisplay = string.Empty;
+            DimensionsDisplay = string.Empty;
+            FormatDisplay = string.Empty;
+            OriginalPreviewImage = null;
+            EditedPreviewImage = null;
+            IsEditedPreviewBusy = false;
+            FinishedAttempt = false;
+            Succeeded = false;
+            ProgressPercent01 = 0;
+            ProgressStatusText = string.Empty;
+            ProgressDetailText = string.Empty;
+            ResultMessage = string.Empty;
+        });
     }
+
+    [RelayCommand(CanExecute = nameof(CanUndoOperation))]
+    private void Undo() => _history.TryUndo();
+
+    [RelayCommand(CanExecute = nameof(CanRedoOperation))]
+    private void Redo() => _history.TryRedo();
 
     [RelayCommand(CanExecute = nameof(CanStartProcess))]
     private async Task ProcessPhotoAsync()
@@ -301,6 +370,9 @@ public partial class PhotoEnhancerViewModel : ObservableObject
             IsRunning = false;
             FinishedAttempt = true;
             ProcessPhotoCommand.NotifyCanExecuteChanged();
+            UndoCommand.NotifyCanExecuteChanged();
+            RedoCommand.NotifyCanExecuteChanged();
+            _history.FlushPendingEdit();
             RequestEditedPreviewRefresh();
         }
     }
@@ -321,6 +393,30 @@ public partial class PhotoEnhancerViewModel : ObservableObject
             FileName = OutputDirectory,
             UseShellExecute = true
         });
+    }
+
+    private async Task LoadFromDropWithUndoAsync(string path)
+    {
+        _history.BeginUndoGroup();
+        _suppressUndoNotification = true;
+        bool loaded;
+        try
+        {
+            loaded = await LoadFileAsync(path).ConfigureAwait(true);
+        }
+        finally
+        {
+            _suppressUndoNotification = false;
+        }
+
+        if (loaded)
+        {
+            _history.EndUndoGroup();
+        }
+        else
+        {
+            _history.CancelUndoGroup();
+        }
     }
 
     private PhotoEnhanceSettings BuildSettings()
@@ -346,10 +442,11 @@ public partial class PhotoEnhancerViewModel : ObservableObject
             RasterImageFormat.Webp => ".webp",
             RasterImageFormat.Bmp => ".bmp",
             RasterImageFormat.Tiff => ".tif",
+            RasterImageFormat.Ico => ".ico",
             _ => ".png"
         };
 
-    private async Task LoadFileAsync(string path)
+    private async Task<bool> LoadFileAsync(string path)
     {
         try
         {
@@ -363,6 +460,7 @@ public partial class PhotoEnhancerViewModel : ObservableObject
             FinishedAttempt = false;
             Succeeded = false;
             RequestEditedPreviewRefresh();
+            return true;
         }
         catch (Exception ex)
         {
@@ -373,30 +471,89 @@ public partial class PhotoEnhancerViewModel : ObservableObject
                 "MediaTools",
                 global::System.Windows.MessageBoxButton.OK,
                 global::System.Windows.MessageBoxImage.Warning);
+            return false;
         }
+    }
+
+    private PhotoEnhancerUndoSnapshot CapturePhotoSnapshot() =>
+        new(
+            SelectedFilePath,
+            FileDisplayName,
+            FileSizeDisplay,
+            DimensionsDisplay,
+            FormatDisplay,
+            TargetFormat,
+            EncodingQuality,
+            ResizeIntent,
+            ScaleFactor,
+            SelectedMaxEdge,
+            UpscaleQualityMode,
+            SelectedFilter,
+            OutputDirectory,
+            ProgressPercent01,
+            ProgressStatusText,
+            ProgressDetailText,
+            FinishedAttempt,
+            Succeeded,
+            ResultMessage);
+
+    private void ApplyPhotoSnapshot(PhotoEnhancerUndoSnapshot s)
+    {
+        SelectedFilePath = s.SelectedFilePath;
+        FileDisplayName = s.FileDisplayName;
+        FileSizeDisplay = s.FileSizeDisplay;
+        DimensionsDisplay = s.DimensionsDisplay;
+        FormatDisplay = s.FormatDisplay;
+        TargetFormat = s.TargetFormat;
+        EncodingQuality = s.EncodingQuality;
+        ResizeIntent = s.ResizeIntent;
+        ScaleFactor = s.ScaleFactor;
+        SelectedMaxEdge = s.SelectedMaxEdge;
+        UpscaleQualityMode = s.UpscaleQualityMode;
+        SelectedFilter = s.SelectedFilter;
+        OutputDirectory = s.OutputDirectory;
+        ProgressPercent01 = s.ProgressPercent01;
+        ProgressStatusText = s.ProgressStatusText;
+        ProgressDetailText = s.ProgressDetailText;
+        FinishedAttempt = s.FinishedAttempt;
+        Succeeded = s.Succeeded;
+        ResultMessage = s.ResultMessage;
+
+        OriginalPreviewImage = string.IsNullOrWhiteSpace(s.SelectedFilePath)
+            ? null
+            : CreatePreviewSource(s.SelectedFilePath);
+        EditedPreviewImage = null;
+        IsEditedPreviewBusy = false;
+
+        global::System.Windows.Application.Current?.Dispatcher.BeginInvoke(
+            RequestEditedPreviewRefresh,
+            global::System.Windows.Threading.DispatcherPriority.Background);
     }
 
     partial void OnResizeIntentChanged(PhotoResizeIntent value)
     {
         OnPropertyChanged(nameof(ShowScaleControls));
         OnPropertyChanged(nameof(ShowMaxEdgeControls));
-        RequestEditedPreviewRefresh();
+        OnSettingsChangedForPreview();
     }
 
-    partial void OnTargetFormatChanged(RasterImageFormat value) => RequestEditedPreviewRefresh();
+    partial void OnTargetFormatChanged(RasterImageFormat value) => OnSettingsChangedForPreview();
 
-    partial void OnEncodingQualityChanged(int value) => RequestEditedPreviewRefresh();
+    partial void OnEncodingQualityChanged(int value) => OnSettingsChangedForPreview();
 
-    partial void OnScaleFactorChanged(double value) => RequestEditedPreviewRefresh();
+    partial void OnScaleFactorChanged(double value) => OnSettingsChangedForPreview();
 
-    partial void OnSelectedMaxEdgeChanged(int value) => RequestEditedPreviewRefresh();
+    partial void OnSelectedMaxEdgeChanged(int value) => OnSettingsChangedForPreview();
 
-    partial void OnUpscaleQualityModeChanged(UpscaleQualityMode value) => RequestEditedPreviewRefresh();
+    partial void OnUpscaleQualityModeChanged(UpscaleQualityMode value) => OnSettingsChangedForPreview();
 
-    partial void OnSelectedFilterChanged(PhotoFilterKind value) => RequestEditedPreviewRefresh();
+    partial void OnSelectedFilterChanged(PhotoFilterKind value) => OnSettingsChangedForPreview();
 
-    partial void OnOutputDirectoryChanged(string value) =>
+    partial void OnOutputDirectoryChanged(string value)
+    {
         ProcessPhotoCommand.NotifyCanExecuteChanged();
+        OnSettingsChangedForPreview();
+    }
 
     partial void OnSelectedFilePathChanged(string? value) =>
         ProcessPhotoCommand.NotifyCanExecuteChanged();
@@ -404,6 +561,8 @@ public partial class PhotoEnhancerViewModel : ObservableObject
     partial void OnIsRunningChanged(bool value)
     {
         ProcessPhotoCommand.NotifyCanExecuteChanged();
+        UndoCommand.NotifyCanExecuteChanged();
+        RedoCommand.NotifyCanExecuteChanged();
         if (value)
         {
             _previewCts?.Cancel();

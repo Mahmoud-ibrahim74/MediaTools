@@ -6,5 +6,6 @@ public enum RasterImageFormat
     Jpeg,
     Webp,
     Bmp,
-    Tiff
+    Tiff,
+    Ico
 }

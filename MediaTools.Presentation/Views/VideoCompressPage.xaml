@@ -13,6 +13,10 @@
       DragOver="OnDragOver"
       HorizontalAlignment="Stretch"
       VerticalAlignment="Stretch">
+  <Page.InputBindings>
+    <KeyBinding Key="Z" Modifiers="Control" Command="{Binding UndoCommand}" />
+    <KeyBinding Key="Y" Modifiers="Control" Command="{Binding RedoCommand}" />
+  </Page.InputBindings>
   <Grid HorizontalAlignment="Stretch"
         VerticalAlignment="Stretch"
         Background="{DynamicResource ContentBackgroundBrush}">
@@ -32,15 +36,48 @@
         <StackPanel Grid.Column="0"
                     Margin="0,0,24,0"
                     HorizontalAlignment="Stretch">
-          <StackPanel Margin="0,0,0,20">
-            <TextBlock FontSize="26"
-                       FontWeight="SemiBold"
-                       Text="Video Compress" />
-            <TextBlock Margin="0,6,0,0"
-                       FontSize="14"
-                       Foreground="#FF5F6B76"
-                       Text="Reduce file size while keeping great visual quality using modern codecs and tuned presets." />
-          </StackPanel>
+          <Grid Margin="0,0,0,20">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+              <TextBlock FontSize="26"
+                         FontWeight="SemiBold"
+                         Text="Video Compress" />
+              <TextBlock Margin="0,6,0,0"
+                         FontSize="14"
+                         Foreground="#FF5F6B76"
+                         Text="Reduce file size while keeping great visual quality using modern codecs and tuned presets." />
+            </StackPanel>
+            <StackPanel Grid.Column="1"
+                        Orientation="Horizontal"
+                        VerticalAlignment="Top">
+              <Button Width="40"
+                      Height="40"
+                      Margin="0,0,8,0"
+                      Padding="0"
+                      Command="{Binding UndoCommand}"
+                      Style="{DynamicResource OutlinedButtonStyle}"
+                      ToolTip="Undo (Ctrl+Z)">
+                <iconPacks:PackIconMaterial Width="22"
+                                            Height="22"
+                                            Foreground="{DynamicResource AccentPrimaryBrush}"
+                                            Kind="Undo" />
+              </Button>
+              <Button Width="40"
+                      Height="40"
+                      Padding="0"
+                      Command="{Binding RedoCommand}"
+                      Style="{DynamicResource OutlinedButtonStyle}"
+                      ToolTip="Redo (Ctrl+Y)">
+                <iconPacks:PackIconMaterial Width="22"
+                                            Height="22"
+                                            Foreground="{DynamicResource AccentPrimaryBrush}"
+                                            Kind="Redo" />
+              </Button>
+            </StackPanel>
+          </Grid>
 
           <Border Padding="20">
             <Border.Style>

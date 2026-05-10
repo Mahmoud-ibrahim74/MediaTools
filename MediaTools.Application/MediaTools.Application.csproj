@@ -5,7 +5,12 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>MediaTools.Application</RootNamespace>
+    <ApplicationIcon>tool_enhanced.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="tool_enhanced.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\MediaTools.Domain\MediaTools.Domain.csproj" />

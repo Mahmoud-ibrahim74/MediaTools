@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using MediaTools.Application.Abstractions;
 using MediaTools.Application.DTOs;
 using MediaTools.Domain.Entities;
@@ -279,8 +280,77 @@ public sealed class ImageSharpPhotoProcessingService : IImageProcessingService
                 await image.SaveAsTiffAsync(outputPath, cancellationToken).ConfigureAwait(false);
                 break;
 
+            case RasterImageFormat.Ico:
+                await SaveAsIcoWithEmbeddedPngAsync(image, outputPath, cancellationToken).ConfigureAwait(false);
+                break;
+
             default:
                 throw new ArgumentOutOfRangeException(nameof(settings), settings.TargetFormat, null);
         }
+    }
+
+    /// <summary>
+    /// Writes a single-size ICO using PNG payload (supported on Windows Vista+). Longest edge is capped at 256 px for broad compatibility.
+    /// </summary>
+    private static async Task SaveAsIcoWithEmbeddedPngAsync(
+        Image<Rgba32> image,
+        string outputPath,
+        CancellationToken cancellationToken)
+    {
+        using var frame = image.Clone();
+        var longSide = Math.Max(frame.Width, frame.Height);
+        if (longSide > 256)
+        {
+            var scale = 256.0 / longSide;
+            var nw = Math.Max(1, (int)Math.Round(frame.Width * scale));
+            var nh = Math.Max(1, (int)Math.Round(frame.Height * scale));
+            frame.Mutate(ctx =>
+            {
+                ctx.Resize(new ResizeOptions
+                {
+                    Size = new Size(nw, nh),
+                    Mode = ResizeMode.Stretch,
+                    Sampler = KnownResamplers.Lanczos3
+                });
+            });
+        }
+
+        await using var pngMs = new MemoryStream();
+        await frame.SaveAsPngAsync(
+                pngMs,
+                new PngEncoder { CompressionLevel = PngCompressionLevel.BestCompression },
+                cancellationToken)
+            .ConfigureAwait(false);
+        var pngBytes = pngMs.ToArray();
+
+        await using var outStream = File.Create(outputPath);
+        await WriteIcoContainerWithPngImageAsync(outStream, frame.Width, frame.Height, pngBytes, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private static async Task WriteIcoContainerWithPngImageAsync(
+        Stream destination,
+        int width,
+        int height,
+        byte[] pngBytes,
+        CancellationToken cancellationToken)
+    {
+        var w = (byte)(width >= 256 ? 0 : width);
+        var h = (byte)(height >= 256 ? 0 : height);
+        var header = new byte[22];
+        BinaryPrimitives.WriteUInt16LittleEndian(header.AsSpan(0, 2), 0);
+        BinaryPrimitives.WriteUInt16LittleEndian(header.AsSpan(2, 2), 1);
+        BinaryPrimitives.WriteUInt16LittleEndian(header.AsSpan(4, 2), 1);
+        header[6] = w;
+        header[7] = h;
+        header[8] = 0;
+        header[9] = 0;
+        BinaryPrimitives.WriteUInt16LittleEndian(header.AsSpan(10, 2), 1);
+        BinaryPrimitives.WriteUInt16LittleEndian(header.AsSpan(12, 2), 0);
+        BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan(14, 4), (uint)pngBytes.Length);
+        BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan(18, 4), 22);
+
+        await destination.WriteAsync(header, cancellationToken).ConfigureAwait(false);
+        await destination.WriteAsync(pngBytes, cancellationToken).ConfigureAwait(false);
     }
 }

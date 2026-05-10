@@ -8,6 +8,7 @@ using MediaTools.Application.DTOs;
 using MediaTools.Application.UseCases;
 using MediaTools.Domain.Enums;
 using MediaTools.Domain.ValueObjects;
+using MediaTools.Presentation.Undo;
 
 namespace MediaTools.Presentation.ViewModels;
 
@@ -20,20 +21,38 @@ public partial class VideoCompressViewModel : ObservableObject
 
     private readonly CompressVideoUseCase _compressVideoUseCase;
     private readonly IVideoCompressionService _videoCompressionService;
+    private readonly UndoRedoHost<VideoCompressUndoSnapshot> _history;
     private CancellationTokenSource? _compressionCts;
     private long _sourceSizeBytes;
+    private bool _suppressUndoNotification;
 
     public VideoCompressViewModel(CompressVideoUseCase compressVideoUseCase, IVideoCompressionService videoCompressionService)
     {
         _compressVideoUseCase = compressVideoUseCase;
         _videoCompressionService = videoCompressionService;
-        OutputDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
+
+        // Backing field only: setter runs OnOutputDirectoryChanged → NotifyUndoableEdit before _history exists.
+        _outputDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
         foreach (var b in AudioBitrateOptions)
         {
             AudioBitrates.Add(b);
         }
 
-        SelectProfile("Balanced");
+        _suppressUndoNotification = true;
+        try
+        {
+            ApplyProfileKey("Balanced");
+        }
+        finally
+        {
+            _suppressUndoNotification = false;
+        }
+
+        _history = new UndoRedoHost<VideoCompressUndoSnapshot>(
+            CaptureVideoSnapshot,
+            ApplyVideoSnapshot,
+            CaptureVideoSnapshot(),
+            OnUndoRedoHistoryChanged);
     }
 
     public ObservableCollection<int> AudioBitrates { get; } = [];
@@ -153,6 +172,26 @@ public partial class VideoCompressViewModel : ObservableObject
         && Directory.Exists(OutputDirectory)
         && !IsRunning;
 
+    private bool CanUndoOperation() => _history.CanUndo && !IsRunning;
+
+    private bool CanRedoOperation() => _history.CanRedo && !IsRunning;
+
+    private void OnUndoRedoHistoryChanged()
+    {
+        UndoCommand.NotifyCanExecuteChanged();
+        RedoCommand.NotifyCanExecuteChanged();
+    }
+
+    private void NotifyUndoableEdit()
+    {
+        if (_suppressUndoNotification || _history.IsApplyingHistory)
+        {
+            return;
+        }
+
+        _history.NotifyEdit();
+    }
+
     public void HandleDrop(IEnumerable<string> paths)
     {
         foreach (var path in paths)
@@ -165,7 +204,7 @@ public partial class VideoCompressViewModel : ObservableObject
 
             if (AllowedExtensions.Contains(ext.ToLowerInvariant()))
             {
-                _ = LoadSelectedFileAsync(path);
+                _ = LoadFromDropWithUndoAsync(path);
                 break;
             }
         }
@@ -179,9 +218,30 @@ public partial class VideoCompressViewModel : ObservableObject
             Filter = "Video files|*.mp4;*.mkv;*.avi;*.mov;*.wmv;*.flv;*.m4v;*.webm|All files|*.*"
         };
 
-        if (dlg.ShowDialog() == true)
+        if (dlg.ShowDialog() != true)
         {
-            await LoadSelectedFileAsync(dlg.FileName).ConfigureAwait(true);
+            return;
+        }
+
+        _history.BeginUndoGroup();
+        _suppressUndoNotification = true;
+        bool loaded;
+        try
+        {
+            loaded = await LoadSelectedFileAsync(dlg.FileName).ConfigureAwait(true);
+        }
+        finally
+        {
+            _suppressUndoNotification = false;
+        }
+
+        if (loaded)
+        {
+            _history.EndUndoGroup();
+        }
+        else
+        {
+            _history.CancelUndoGroup();
         }
     }
 
@@ -197,28 +257,38 @@ public partial class VideoCompressViewModel : ObservableObject
             Description = "Choose output folder"
         };
 
-        if (dlg.ShowDialog() == true && !string.IsNullOrWhiteSpace(dlg.SelectedPath))
+        if (dlg.ShowDialog() != true || string.IsNullOrWhiteSpace(dlg.SelectedPath))
         {
-            OutputDirectory = dlg.SelectedPath;
+            return;
         }
+
+        var path = dlg.SelectedPath;
+        _history.PushUndoFrameAnd(() => OutputDirectory = path);
     }
 
     [RelayCommand]
     private void ClearFile()
     {
-        SelectedFilePath = null;
-        FileDisplayName = string.Empty;
-        FileSizeDisplay = string.Empty;
-        DurationDisplay = string.Empty;
-        FormatDisplay = string.Empty;
-        _sourceSizeBytes = 0;
-        ProgressPercent01 = 0;
-        ProgressStatusText = string.Empty;
-        ProgressDetailText = string.Empty;
-        CompressionSucceeded = false;
-        CompressionAttemptFinished = false;
-        ElapsedDisplay = FormatShortTime(TimeSpan.Zero);
-        EstimatedRemainingDisplay = "—";
+        _history.PushUndoFrameAnd(() =>
+        {
+            SelectedFilePath = null;
+            FileDisplayName = string.Empty;
+            FileSizeDisplay = string.Empty;
+            DurationDisplay = string.Empty;
+            FormatDisplay = string.Empty;
+            _sourceSizeBytes = 0;
+            ProgressPercent01 = 0;
+            ProgressStatusText = string.Empty;
+            ProgressDetailText = string.Empty;
+            CompressionSucceeded = false;
+            CompressionAttemptFinished = false;
+            ElapsedDisplay = FormatShortTime(TimeSpan.Zero);
+            EstimatedRemainingDisplay = "—";
+            ResultOriginalSizeDisplay = string.Empty;
+            ResultCompressedSizeDisplay = string.Empty;
+            SavedPercentDisplay = string.Empty;
+            ResultSummaryText = string.Empty;
+        });
     }
 
     [RelayCommand]
@@ -229,25 +299,14 @@ public partial class VideoCompressViewModel : ObservableObject
             return;
         }
 
-        SelectedProfileKey = key;
-        var profile = key switch
-        {
-            "HighQuality" => CompressionProfile.HighQuality,
-            "Balanced" => CompressionProfile.Balanced,
-            "SmallSize" => CompressionProfile.SmallSize,
-            "Web" => CompressionProfile.Web,
-            _ => CompressionProfile.Balanced
-        };
-
-        Crf = profile.Crf;
-        SelectedVideoCodec = profile.VideoCodec;
-        SelectedAudioCodec = profile.AudioCodec;
-        SelectedEncodePreset = profile.EncodePreset;
-        TargetWidthInput = profile.TargetWidth?.ToString() ?? string.Empty;
-        TargetHeightInput = profile.TargetHeight?.ToString() ?? string.Empty;
-        AudioBitrateKbps = profile.AudioBitrateKbps;
-        RemoveAudio = profile.RemoveAudio;
+        _history.PushUndoFrameAnd(() => ApplyProfileKey(key));
     }
+
+    [RelayCommand(CanExecute = nameof(CanUndoOperation))]
+    private void Undo() => _history.TryUndo();
+
+    [RelayCommand(CanExecute = nameof(CanRedoOperation))]
+    private void Redo() => _history.TryRedo();
 
     [RelayCommand(CanExecute = nameof(CanStartCompression))]
     private async Task StartCompressionAsync()
@@ -336,6 +395,9 @@ public partial class VideoCompressViewModel : ObservableObject
             IsRunning = false;
             CompressionAttemptFinished = true;
             StartCompressionCommand.NotifyCanExecuteChanged();
+            UndoCommand.NotifyCanExecuteChanged();
+            RedoCommand.NotifyCanExecuteChanged();
+            _history.FlushPendingEdit();
         }
     }
 
@@ -358,6 +420,28 @@ public partial class VideoCompressViewModel : ObservableObject
             FileName = OutputDirectory,
             UseShellExecute = true
         });
+    }
+
+    private void ApplyProfileKey(string key)
+    {
+        SelectedProfileKey = key;
+        var profile = key switch
+        {
+            "HighQuality" => CompressionProfile.HighQuality,
+            "Balanced" => CompressionProfile.Balanced,
+            "SmallSize" => CompressionProfile.SmallSize,
+            "Web" => CompressionProfile.Web,
+            _ => CompressionProfile.Balanced
+        };
+
+        Crf = profile.Crf;
+        SelectedVideoCodec = profile.VideoCodec;
+        SelectedAudioCodec = profile.AudioCodec;
+        SelectedEncodePreset = profile.EncodePreset;
+        TargetWidthInput = profile.TargetWidth?.ToString() ?? string.Empty;
+        TargetHeightInput = profile.TargetHeight?.ToString() ?? string.Empty;
+        AudioBitrateKbps = profile.AudioBitrateKbps;
+        RemoveAudio = profile.RemoveAudio;
     }
 
     private CompressionProfile BuildCurrentProfile()
@@ -386,7 +470,31 @@ public partial class VideoCompressViewModel : ObservableObject
         return ext;
     }
 
-    private async Task LoadSelectedFileAsync(string path)
+    private async Task LoadFromDropWithUndoAsync(string path)
+    {
+        _history.BeginUndoGroup();
+        _suppressUndoNotification = true;
+        bool loaded;
+        try
+        {
+            loaded = await LoadSelectedFileAsync(path).ConfigureAwait(true);
+        }
+        finally
+        {
+            _suppressUndoNotification = false;
+        }
+
+        if (loaded)
+        {
+            _history.EndUndoGroup();
+        }
+        else
+        {
+            _history.CancelUndoGroup();
+        }
+    }
+
+    private async Task<bool> LoadSelectedFileAsync(string path)
     {
         try
         {
@@ -399,6 +507,7 @@ public partial class VideoCompressViewModel : ObservableObject
             FormatDisplay = media.Format;
             CompressionSucceeded = false;
             CompressionAttemptFinished = false;
+            return true;
         }
         catch (Exception ex)
         {
@@ -407,17 +516,102 @@ public partial class VideoCompressViewModel : ObservableObject
                 "MediaTools",
                 global::System.Windows.MessageBoxButton.OK,
                 global::System.Windows.MessageBoxImage.Warning);
+            return false;
         }
     }
 
-    partial void OnOutputDirectoryChanged(string value) =>
+    private VideoCompressUndoSnapshot CaptureVideoSnapshot() =>
+        new(
+            SelectedFilePath,
+            FileDisplayName,
+            FileSizeDisplay,
+            DurationDisplay,
+            FormatDisplay,
+            _sourceSizeBytes,
+            Crf,
+            SelectedVideoCodec,
+            SelectedAudioCodec,
+            SelectedEncodePreset,
+            TargetWidthInput,
+            TargetHeightInput,
+            AudioBitrateKbps,
+            RemoveAudio,
+            OutputDirectory,
+            ProgressPercent01,
+            ProgressStatusText,
+            ProgressDetailText,
+            ElapsedDisplay,
+            EstimatedRemainingDisplay,
+            ResultOriginalSizeDisplay,
+            ResultCompressedSizeDisplay,
+            SavedPercentDisplay,
+            ResultSummaryText,
+            CompressionSucceeded,
+            CompressionAttemptFinished,
+            SelectedProfileKey);
+
+    private void ApplyVideoSnapshot(VideoCompressUndoSnapshot s)
+    {
+        SelectedFilePath = s.SelectedFilePath;
+        FileDisplayName = s.FileDisplayName;
+        FileSizeDisplay = s.FileSizeDisplay;
+        DurationDisplay = s.DurationDisplay;
+        FormatDisplay = s.FormatDisplay;
+        _sourceSizeBytes = s.SourceSizeBytes;
+        Crf = s.Crf;
+        SelectedVideoCodec = s.SelectedVideoCodec;
+        SelectedAudioCodec = s.SelectedAudioCodec;
+        SelectedEncodePreset = s.SelectedEncodePreset;
+        TargetWidthInput = s.TargetWidthInput;
+        TargetHeightInput = s.TargetHeightInput;
+        AudioBitrateKbps = s.AudioBitrateKbps;
+        RemoveAudio = s.RemoveAudio;
+        OutputDirectory = s.OutputDirectory;
+        ProgressPercent01 = s.ProgressPercent01;
+        ProgressStatusText = s.ProgressStatusText;
+        ProgressDetailText = s.ProgressDetailText;
+        ElapsedDisplay = s.ElapsedDisplay;
+        EstimatedRemainingDisplay = s.EstimatedRemainingDisplay;
+        ResultOriginalSizeDisplay = s.ResultOriginalSizeDisplay;
+        ResultCompressedSizeDisplay = s.ResultCompressedSizeDisplay;
+        SavedPercentDisplay = s.SavedPercentDisplay;
+        ResultSummaryText = s.ResultSummaryText;
+        CompressionSucceeded = s.CompressionSucceeded;
+        CompressionAttemptFinished = s.CompressionAttemptFinished;
+        SelectedProfileKey = s.SelectedProfileKey;
+    }
+
+    partial void OnCrfChanged(int value) => NotifyUndoableEdit();
+
+    partial void OnSelectedVideoCodecChanged(VideoCodec value) => NotifyUndoableEdit();
+
+    partial void OnSelectedAudioCodecChanged(AudioCodec value) => NotifyUndoableEdit();
+
+    partial void OnSelectedEncodePresetChanged(EncodePreset value) => NotifyUndoableEdit();
+
+    partial void OnTargetWidthInputChanged(string? value) => NotifyUndoableEdit();
+
+    partial void OnTargetHeightInputChanged(string? value) => NotifyUndoableEdit();
+
+    partial void OnAudioBitrateKbpsChanged(int value) => NotifyUndoableEdit();
+
+    partial void OnRemoveAudioChanged(bool value) => NotifyUndoableEdit();
+
+    partial void OnOutputDirectoryChanged(string value)
+    {
         StartCompressionCommand.NotifyCanExecuteChanged();
+        NotifyUndoableEdit();
+    }
 
     partial void OnSelectedFilePathChanged(string? value) =>
         StartCompressionCommand.NotifyCanExecuteChanged();
 
-    partial void OnIsRunningChanged(bool value) =>
+    partial void OnIsRunningChanged(bool value)
+    {
         StartCompressionCommand.NotifyCanExecuteChanged();
+        UndoCommand.NotifyCanExecuteChanged();
+        RedoCommand.NotifyCanExecuteChanged();
+    }
 
     private static string FormatBytes(long bytes)
     {

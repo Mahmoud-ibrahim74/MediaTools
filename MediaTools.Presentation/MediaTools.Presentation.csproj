@@ -6,10 +6,18 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
-    <ApplicationIcon />
+    <ApplicationIcon>optimizing_enhanced.ico</ApplicationIcon>
     <RootNamespace>MediaTools.Presentation</RootNamespace>
     <AssemblyName>MediaTools</AssemblyName>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="optimizing.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="optimizing_enhanced.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
@@ -24,6 +32,10 @@
     <ProjectReference Include="..\MediaTools.Application\MediaTools.Application.csproj" />
     <ProjectReference Include="..\MediaTools.Domain\MediaTools.Domain.csproj" />
     <ProjectReference Include="..\MediaTools.Infrastructure\MediaTools.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="optimizing.png" />
   </ItemGroup>
 
 </Project>
