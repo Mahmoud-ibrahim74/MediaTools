@@ -10,7 +10,7 @@ public interface IVideoEnhanceService
     Task EnhanceAsync(
         string sourcePath,
         string outputPath,
-        VideoEnhanceSettings settings,
+        VideoEnhancePipelineSettings pipeline,
         IProgress<VideoEnhanceProgressReport> progress,
         CancellationToken cancellationToken = default);
 

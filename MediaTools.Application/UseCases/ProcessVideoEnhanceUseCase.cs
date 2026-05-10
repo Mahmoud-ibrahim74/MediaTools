@@ -18,7 +18,7 @@ public sealed class ProcessVideoEnhanceUseCase(IVideoEnhanceService videoEnhance
                 .EnhanceAsync(
                     request.SourcePath,
                     request.OutputFilePath,
-                    request.Settings,
+                    request.Pipeline,
                     progress,
                     cancellationToken)
                 .ConfigureAwait(false);

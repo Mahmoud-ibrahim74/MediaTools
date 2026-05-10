@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using MediaTools.Presentation.ViewModels;
@@ -14,6 +15,11 @@ public partial class VideoEnhancerPage : Page
         _viewModel = viewModel;
         InitializeComponent();
         DataContext = viewModel;
+    }
+
+    private void OnPageLoaded(object sender, RoutedEventArgs e)
+    {
+        Console.WriteLine("[VideoEnhancerPage] Loaded");
     }
 
     private void OnEnhancerDragOver(object sender, DragEventArgs e)
@@ -33,6 +39,7 @@ public partial class VideoEnhancerPage : Page
 
     private void OnEnhancerDragLeave(object sender, DragEventArgs e)
     {
+        Console.WriteLine("[VideoEnhancerPage] DragLeave");
         _viewModel.IsDropHover = false;
         e.Handled = true;
     }
@@ -42,7 +49,12 @@ public partial class VideoEnhancerPage : Page
         _viewModel.IsDropHover = false;
         if (e.Data.GetData(DataFormats.FileDrop) is string[] paths)
         {
+            Console.WriteLine($"[VideoEnhancerPage] Drop: {paths.Length} path(s) — {string.Join(", ", paths.Take(3))}{(paths.Length > 3 ? "…" : string.Empty)}");
             _viewModel.HandleDrop(paths);
+        }
+        else
+        {
+            Console.WriteLine("[VideoEnhancerPage] Drop: no file paths");
         }
 
         e.Handled = true;
@@ -50,6 +62,7 @@ public partial class VideoEnhancerPage : Page
 
     private void OnSourcePreviewMediaOpened(object sender, RoutedEventArgs e)
     {
+        Console.WriteLine("[VideoEnhancerPage] Source preview MediaOpened");
         if (sender is MediaElement me)
         {
             me.Play();
@@ -58,6 +71,7 @@ public partial class VideoEnhancerPage : Page
 
     private void OnSourcePreviewMediaEnded(object sender, RoutedEventArgs e)
     {
+        Console.WriteLine("[VideoEnhancerPage] Source preview MediaEnded (loop)");
         if (sender is MediaElement me)
         {
             me.Position = TimeSpan.Zero;

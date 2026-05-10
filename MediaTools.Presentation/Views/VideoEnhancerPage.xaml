@@ -5,7 +5,8 @@
       xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
       Title="Video tools"
       HorizontalAlignment="Stretch"
-      VerticalAlignment="Stretch">
+      VerticalAlignment="Stretch"
+      Loaded="OnPageLoaded">
   <Page.InputBindings>
     <KeyBinding Key="Z" Modifiers="Control" Command="{Binding UndoCommand}" />
     <KeyBinding Key="Y" Modifiers="Control" Command="{Binding RedoCommand}" />
@@ -35,7 +36,7 @@
             <StackPanel Grid.Column="0">
               <TextBlock FontSize="26" FontWeight="SemiBold" Text="Video tools" />
               <TextBlock Margin="0,6,0,0" FontSize="14" Foreground="#FF5F6B76" TextWrapping="Wrap"
-                         Text="Load a video, pick an operation (including embedded subtitles), then export." />
+                         Text="Load a video, adjust any operations you need, then use “Include in export” on each panel to combine several effects into one file. Subtitles stay a separate action." />
               <TextBlock Margin="0,10,0,0"
                          FontSize="13"
                          Foreground="#FF5F6B76"
@@ -147,132 +148,151 @@
             </Grid>
           </Border>
 
-          <!-- Operation buttons -->
+          <!-- Operation tabs -->
           <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">
             <StackPanel>
               <TextBlock Margin="0,0,0,10" FontWeight="SemiBold" Text="Operation" />
-              <WrapPanel Orientation="Horizontal">
-                <Button Margin="0,0,8,8" MinWidth="132" Padding="10,8" Content="Watermark" FontSize="12"
-                        Command="{Binding SelectOperationCommand}"
-                        CommandParameter="{x:Static domainEnums:VideoEnhanceOperation.Watermark}">
-                  <Button.Style>
-                    <Style BasedOn="{StaticResource OutlinedButtonStyle}" TargetType="Button">
-                      <Style.Triggers>
-                        <DataTrigger Binding="{Binding Operation}" Value="{x:Static domainEnums:VideoEnhanceOperation.Watermark}">
-                          <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
-                          <Setter Property="FontWeight" Value="SemiBold" />
-                          <Setter Property="Background" Value="#FFF0F7FF" />
-                        </DataTrigger>
-                      </Style.Triggers>
-                    </Style>
-                  </Button.Style>
-                </Button>
-                <Button Margin="0,0,8,8" MinWidth="132" Padding="10,8" Content="Speed" FontSize="12"
-                        Command="{Binding SelectOperationCommand}"
-                        CommandParameter="{x:Static domainEnums:VideoEnhanceOperation.SpeedChange}">
-                  <Button.Style>
-                    <Style BasedOn="{StaticResource OutlinedButtonStyle}" TargetType="Button">
-                      <Style.Triggers>
-                        <DataTrigger Binding="{Binding Operation}" Value="{x:Static domainEnums:VideoEnhanceOperation.SpeedChange}">
-                          <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
-                          <Setter Property="FontWeight" Value="SemiBold" />
-                          <Setter Property="Background" Value="#FFF0F7FF" />
-                        </DataTrigger>
-                      </Style.Triggers>
-                    </Style>
-                  </Button.Style>
-                </Button>
-                <Button Margin="0,0,8,8" MinWidth="132" Padding="10,8" Content="Reverse" FontSize="12"
-                        Command="{Binding SelectOperationCommand}"
-                        CommandParameter="{x:Static domainEnums:VideoEnhanceOperation.Reverse}">
-                  <Button.Style>
-                    <Style BasedOn="{StaticResource OutlinedButtonStyle}" TargetType="Button">
-                      <Style.Triggers>
-                        <DataTrigger Binding="{Binding Operation}" Value="{x:Static domainEnums:VideoEnhanceOperation.Reverse}">
-                          <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
-                          <Setter Property="FontWeight" Value="SemiBold" />
-                          <Setter Property="Background" Value="#FFF0F7FF" />
-                        </DataTrigger>
-                      </Style.Triggers>
-                    </Style>
-                  </Button.Style>
-                </Button>
-                <Button Margin="0,0,8,8" MinWidth="132" Padding="10,8" Content="Stabilize" FontSize="12"
-                        Command="{Binding SelectOperationCommand}"
-                        CommandParameter="{x:Static domainEnums:VideoEnhanceOperation.Stabilize}">
-                  <Button.Style>
-                    <Style BasedOn="{StaticResource OutlinedButtonStyle}" TargetType="Button">
-                      <Style.Triggers>
-                        <DataTrigger Binding="{Binding Operation}" Value="{x:Static domainEnums:VideoEnhanceOperation.Stabilize}">
-                          <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
-                          <Setter Property="FontWeight" Value="SemiBold" />
-                          <Setter Property="Background" Value="#FFF0F7FF" />
-                        </DataTrigger>
-                      </Style.Triggers>
-                    </Style>
-                  </Button.Style>
-                </Button>
-                <Button Margin="0,0,8,8" MinWidth="132" Padding="10,8" Content="Color" FontSize="12"
-                        Command="{Binding SelectOperationCommand}"
-                        CommandParameter="{x:Static domainEnums:VideoEnhanceOperation.ColorGrading}">
-                  <Button.Style>
-                    <Style BasedOn="{StaticResource OutlinedButtonStyle}" TargetType="Button">
-                      <Style.Triggers>
-                        <DataTrigger Binding="{Binding Operation}" Value="{x:Static domainEnums:VideoEnhanceOperation.ColorGrading}">
-                          <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
-                          <Setter Property="FontWeight" Value="SemiBold" />
-                          <Setter Property="Background" Value="#FFF0F7FF" />
-                        </DataTrigger>
-                      </Style.Triggers>
-                    </Style>
-                  </Button.Style>
-                </Button>
-                <Button Margin="0,0,8,8" MinWidth="132" Padding="10,8" Content="Crop &amp; resize" FontSize="12"
-                        Command="{Binding SelectOperationCommand}"
-                        CommandParameter="{x:Static domainEnums:VideoEnhanceOperation.CropAndResize}">
-                  <Button.Style>
-                    <Style BasedOn="{StaticResource OutlinedButtonStyle}" TargetType="Button">
-                      <Style.Triggers>
-                        <DataTrigger Binding="{Binding Operation}" Value="{x:Static domainEnums:VideoEnhanceOperation.CropAndResize}">
-                          <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
-                          <Setter Property="FontWeight" Value="SemiBold" />
-                          <Setter Property="Background" Value="#FFF0F7FF" />
-                        </DataTrigger>
-                      </Style.Triggers>
-                    </Style>
-                  </Button.Style>
-                </Button>
-                <Button Margin="0,0,8,8" MinWidth="132" Padding="10,8" Content="To audio" FontSize="12"
-                        Command="{Binding SelectOperationCommand}"
-                        CommandParameter="{x:Static domainEnums:VideoEnhanceOperation.ExtractAudio}">
-                  <Button.Style>
-                    <Style BasedOn="{StaticResource OutlinedButtonStyle}" TargetType="Button">
-                      <Style.Triggers>
-                        <DataTrigger Binding="{Binding Operation}" Value="{x:Static domainEnums:VideoEnhanceOperation.ExtractAudio}">
-                          <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
-                          <Setter Property="FontWeight" Value="SemiBold" />
-                          <Setter Property="Background" Value="#FFF0F7FF" />
-                        </DataTrigger>
-                      </Style.Triggers>
-                    </Style>
-                  </Button.Style>
-                </Button>
-                <Button Margin="0,0,8,8" MinWidth="132" Padding="10,8" Content="Subtitles" FontSize="12"
-                        Command="{Binding SelectOperationCommand}"
-                        CommandParameter="{x:Static domainEnums:VideoEnhanceOperation.ExtractSubtitle}">
-                  <Button.Style>
-                    <Style BasedOn="{StaticResource OutlinedButtonStyle}" TargetType="Button">
-                      <Style.Triggers>
-                        <DataTrigger Binding="{Binding Operation}" Value="{x:Static domainEnums:VideoEnhanceOperation.ExtractSubtitle}">
-                          <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
-                          <Setter Property="FontWeight" Value="SemiBold" />
-                          <Setter Property="Background" Value="#FFF0F7FF" />
-                        </DataTrigger>
-                      </Style.Triggers>
-                    </Style>
-                  </Button.Style>
-                </Button>
-              </WrapPanel>
+              <Border Padding="10,10,2,2"
+                      Background="{DynamicResource ContentBackgroundBrush}"
+                      BorderBrush="{DynamicResource CardBorderBrush}"
+                      BorderThickness="1"
+                      CornerRadius="10">
+                <WrapPanel Orientation="Horizontal">
+                  <Button Content="Watermark"
+                          Command="{Binding SelectOperationCommand}"
+                          CommandParameter="{x:Static domainEnums:VideoEnhanceOperation.Watermark}">
+                    <Button.Style>
+                      <Style BasedOn="{StaticResource VideoEnhanceOperationTabStyle}" TargetType="Button">
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding Operation}" Value="{x:Static domainEnums:VideoEnhanceOperation.Watermark}">
+                            <Setter Property="Background" Value="{DynamicResource AccentPrimaryBrush}" />
+                            <Setter Property="Foreground" Value="White" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </Button.Style>
+                  </Button>
+                  <Button Content="Speed"
+                          Command="{Binding SelectOperationCommand}"
+                          CommandParameter="{x:Static domainEnums:VideoEnhanceOperation.SpeedChange}">
+                    <Button.Style>
+                      <Style BasedOn="{StaticResource VideoEnhanceOperationTabStyle}" TargetType="Button">
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding Operation}" Value="{x:Static domainEnums:VideoEnhanceOperation.SpeedChange}">
+                            <Setter Property="Background" Value="{DynamicResource AccentPrimaryBrush}" />
+                            <Setter Property="Foreground" Value="White" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </Button.Style>
+                  </Button>
+                  <Button Content="Reverse"
+                          Command="{Binding SelectOperationCommand}"
+                          CommandParameter="{x:Static domainEnums:VideoEnhanceOperation.Reverse}">
+                    <Button.Style>
+                      <Style BasedOn="{StaticResource VideoEnhanceOperationTabStyle}" TargetType="Button">
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding Operation}" Value="{x:Static domainEnums:VideoEnhanceOperation.Reverse}">
+                            <Setter Property="Background" Value="{DynamicResource AccentPrimaryBrush}" />
+                            <Setter Property="Foreground" Value="White" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </Button.Style>
+                  </Button>
+                  <Button Content="Stabilize"
+                          Command="{Binding SelectOperationCommand}"
+                          CommandParameter="{x:Static domainEnums:VideoEnhanceOperation.Stabilize}">
+                    <Button.Style>
+                      <Style BasedOn="{StaticResource VideoEnhanceOperationTabStyle}" TargetType="Button">
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding Operation}" Value="{x:Static domainEnums:VideoEnhanceOperation.Stabilize}">
+                            <Setter Property="Background" Value="{DynamicResource AccentPrimaryBrush}" />
+                            <Setter Property="Foreground" Value="White" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </Button.Style>
+                  </Button>
+                  <Button Content="Color"
+                          Command="{Binding SelectOperationCommand}"
+                          CommandParameter="{x:Static domainEnums:VideoEnhanceOperation.ColorGrading}">
+                    <Button.Style>
+                      <Style BasedOn="{StaticResource VideoEnhanceOperationTabStyle}" TargetType="Button">
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding Operation}" Value="{x:Static domainEnums:VideoEnhanceOperation.ColorGrading}">
+                            <Setter Property="Background" Value="{DynamicResource AccentPrimaryBrush}" />
+                            <Setter Property="Foreground" Value="White" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </Button.Style>
+                  </Button>
+                  <Button Content="Crop &amp; resize"
+                          Command="{Binding SelectOperationCommand}"
+                          CommandParameter="{x:Static domainEnums:VideoEnhanceOperation.CropAndResize}">
+                    <Button.Style>
+                      <Style BasedOn="{StaticResource VideoEnhanceOperationTabStyle}" TargetType="Button">
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding Operation}" Value="{x:Static domainEnums:VideoEnhanceOperation.CropAndResize}">
+                            <Setter Property="Background" Value="{DynamicResource AccentPrimaryBrush}" />
+                            <Setter Property="Foreground" Value="White" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </Button.Style>
+                  </Button>
+                  <Button Content="To audio"
+                          Command="{Binding SelectOperationCommand}"
+                          CommandParameter="{x:Static domainEnums:VideoEnhanceOperation.ExtractAudio}">
+                    <Button.Style>
+                      <Style BasedOn="{StaticResource VideoEnhanceOperationTabStyle}" TargetType="Button">
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding Operation}" Value="{x:Static domainEnums:VideoEnhanceOperation.ExtractAudio}">
+                            <Setter Property="Background" Value="{DynamicResource AccentPrimaryBrush}" />
+                            <Setter Property="Foreground" Value="White" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </Button.Style>
+                  </Button>
+                  <Button Content="Subtitles"
+                          Command="{Binding SelectOperationCommand}"
+                          CommandParameter="{x:Static domainEnums:VideoEnhanceOperation.ExtractSubtitle}">
+                    <Button.Style>
+                      <Style BasedOn="{StaticResource VideoEnhanceOperationTabStyle}" TargetType="Button">
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding Operation}" Value="{x:Static domainEnums:VideoEnhanceOperation.ExtractSubtitle}">
+                            <Setter Property="Background" Value="{DynamicResource AccentPrimaryBrush}" />
+                            <Setter Property="Foreground" Value="White" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </Button.Style>
+                  </Button>
+                </WrapPanel>
+              </Border>
+              <TextBlock Margin="0,12,0,0"
+                         FontSize="12"
+                         Foreground="#FF5F6B76"
+                         TextWrapping="Wrap"
+                         Text="{Binding ExportPipelineSummary}" />
             </StackPanel>
           </Border>
 
@@ -280,7 +300,14 @@
           <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}"
                   Visibility="{Binding ShowWatermarkPanel, Converter={StaticResource BoolToVisibilityConverter}}">
             <StackPanel>
-              <TextBlock Margin="0,0,0,12" FontWeight="SemiBold" Text="Watermark" />
+              <DockPanel Margin="0,0,0,12" LastChildFill="True">
+                <CheckBox DockPanel.Dock="Right"
+                          VerticalAlignment="Center"
+                          VerticalContentAlignment="Center"
+                          Content="Include in export"
+                          IsChecked="{Binding IncludeWatermarkInExport}" />
+                <TextBlock FontWeight="SemiBold" Text="Watermark" VerticalAlignment="Center" />
+              </DockPanel>
 
               <TextBlock FontSize="12" Foreground="#FF5F6B76" Text="Source" />
               <ComboBox Margin="0,4,0,0" ItemsSource="{Binding WatermarkSourceKinds}" SelectedItem="{Binding WatermarkKind}" />
@@ -342,7 +369,13 @@
           <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}"
                   Visibility="{Binding ShowSpeedPanel, Converter={StaticResource BoolToVisibilityConverter}}">
             <StackPanel>
-              <TextBlock Margin="0,0,0,12" FontWeight="SemiBold" Text="Speed" />
+              <DockPanel Margin="0,0,0,12" LastChildFill="True">
+                <CheckBox DockPanel.Dock="Right"
+                          VerticalAlignment="Center"
+                          Content="Include in export"
+                          IsChecked="{Binding IncludeSpeedInExport}" />
+                <TextBlock FontWeight="SemiBold" Text="Speed" VerticalAlignment="Center" />
+              </DockPanel>
               <TextBlock FontSize="12" Foreground="#FF5F6B76">
                 <Run Text="Factor: " /><Run Text="{Binding SpeedFactor, StringFormat={}{0:0.00}}" /><Run Text="x" />
               </TextBlock>
@@ -359,7 +392,13 @@
           <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}"
                   Visibility="{Binding ShowReversePanel, Converter={StaticResource BoolToVisibilityConverter}}">
             <StackPanel>
-              <TextBlock Margin="0,0,0,12" FontWeight="SemiBold" Text="Reverse" />
+              <DockPanel Margin="0,0,0,12" LastChildFill="True">
+                <CheckBox DockPanel.Dock="Right"
+                          VerticalAlignment="Center"
+                          Content="Include in export"
+                          IsChecked="{Binding IncludeReverseInExport}" />
+                <TextBlock FontWeight="SemiBold" Text="Reverse" VerticalAlignment="Center" />
+              </DockPanel>
               <TextBlock FontSize="13" Foreground="#FF5F6B76" TextWrapping="Wrap"
                          Text="Plays the video and audio backward end-to-end. Long clips may need plenty of free disk space (FFmpeg buffers frames)." />
             </StackPanel>
@@ -369,7 +408,13 @@
           <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}"
                   Visibility="{Binding ShowStabilizePanel, Converter={StaticResource BoolToVisibilityConverter}}">
             <StackPanel>
-              <TextBlock Margin="0,0,0,12" FontWeight="SemiBold" Text="Stabilize (vidstab)" />
+              <DockPanel Margin="0,0,0,12" LastChildFill="True">
+                <CheckBox DockPanel.Dock="Right"
+                          VerticalAlignment="Center"
+                          Content="Include in export"
+                          IsChecked="{Binding IncludeStabilizeInExport}" />
+                <TextBlock FontWeight="SemiBold" Text="Stabilize (vidstab)" VerticalAlignment="Center" />
+              </DockPanel>
               <TextBlock FontSize="12" Foreground="#FF5F6B76">
                 <Run Text="Smoothing: " /><Run Text="{Binding StabilizerSmoothing}" /><Run Text=" frames" />
               </TextBlock>
@@ -391,7 +436,13 @@
           <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}"
                   Visibility="{Binding ShowColorPanel, Converter={StaticResource BoolToVisibilityConverter}}">
             <StackPanel>
-              <TextBlock Margin="0,0,0,12" FontWeight="SemiBold" Text="Color grading" />
+              <DockPanel Margin="0,0,0,12" LastChildFill="True">
+                <CheckBox DockPanel.Dock="Right"
+                          VerticalAlignment="Center"
+                          Content="Include in export"
+                          IsChecked="{Binding IncludeColorGradingInExport}" />
+                <TextBlock FontWeight="SemiBold" Text="Color grading" VerticalAlignment="Center" />
+              </DockPanel>
 
               <TextBlock FontSize="12" Foreground="#FF5F6B76">
                 <Run Text="Brightness: " /><Run Text="{Binding ColorBrightness, StringFormat={}{0:+0.00;-0.00;0.00}}" />
@@ -425,7 +476,13 @@
           <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}"
                   Visibility="{Binding ShowCropResizePanel, Converter={StaticResource BoolToVisibilityConverter}}">
             <StackPanel>
-              <TextBlock Margin="0,0,0,12" FontWeight="SemiBold" Text="Crop &amp; resize" />
+              <DockPanel Margin="0,0,0,12" LastChildFill="True">
+                <CheckBox DockPanel.Dock="Right"
+                          VerticalAlignment="Center"
+                          Content="Include in export"
+                          IsChecked="{Binding IncludeCropResizeInExport}" />
+                <TextBlock FontWeight="SemiBold" Text="Crop &amp; resize" VerticalAlignment="Center" />
+              </DockPanel>
 
               <CheckBox Content="Enable crop" IsChecked="{Binding CropEnabled}" />
               <UniformGrid Margin="0,8,0,0" Columns="4" IsEnabled="{Binding CropEnabled}">
@@ -469,6 +526,8 @@
                   Visibility="{Binding ShowExtractAudioPanel, Converter={StaticResource BoolToVisibilityConverter}}">
             <StackPanel>
               <TextBlock Margin="0,0,0,12" FontWeight="SemiBold" Text="Extract audio (Video → Audio)" />
+              <TextBlock Margin="0,0,0,12" FontSize="11" Foreground="#FF5F6B76" TextWrapping="Wrap"
+                         Text="If any video effect has “Include in export” checked, Apply &amp; export runs the combined video pipeline instead. Clear those boxes to export audio only from this tab." />
               <TextBlock FontSize="12" Foreground="#FF5F6B76" Text="Format" />
               <ComboBox Margin="0,4,0,12" ItemsSource="{Binding AudioFormats}" SelectedItem="{Binding AudioFormat}" />
               <TextBlock FontSize="12" Foreground="#FF5F6B76">

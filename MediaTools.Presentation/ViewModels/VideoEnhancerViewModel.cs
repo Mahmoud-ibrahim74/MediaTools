@@ -39,9 +39,25 @@ public partial class VideoEnhancerViewModel : ObservableObject
     private readonly UndoRedoHost<VideoEnhancerUndoSnapshot> _history;
     private bool _suppressUndoNotification;
 
+    private static readonly VideoEnhanceOperation[] VideoExportStepOrder =
+    [
+        VideoEnhanceOperation.Stabilize,
+        VideoEnhanceOperation.CropAndResize,
+        VideoEnhanceOperation.ColorGrading,
+        VideoEnhanceOperation.SpeedChange,
+        VideoEnhanceOperation.Reverse,
+        VideoEnhanceOperation.Watermark
+    ];
+
     private static readonly HashSet<string> UndoablePropertyNames = new(StringComparer.Ordinal)
     {
         nameof(Operation),
+        nameof(IncludeWatermarkInExport),
+        nameof(IncludeSpeedInExport),
+        nameof(IncludeReverseInExport),
+        nameof(IncludeStabilizeInExport),
+        nameof(IncludeColorGradingInExport),
+        nameof(IncludeCropResizeInExport),
         nameof(WatermarkKind),
         nameof(WatermarkImagePath),
         nameof(WatermarkText),
@@ -232,7 +248,81 @@ public partial class VideoEnhancerViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(ShowEnhancerResultCard))]
     [NotifyPropertyChangedFor(nameof(ShowSubtitleProgressCard))]
     [NotifyPropertyChangedFor(nameof(ShowSubtitleResultCard))]
+    [NotifyPropertyChangedFor(nameof(ExportPipelineSummary))]
     private VideoEnhanceOperation _operation = VideoEnhanceOperation.Watermark;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ExportPipelineSummary))]
+    [NotifyPropertyChangedFor(nameof(HasAnyVideoInclude))]
+    [NotifyPropertyChangedFor(nameof(StartActionLabel))]
+    private bool _includeWatermarkInExport;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ExportPipelineSummary))]
+    [NotifyPropertyChangedFor(nameof(HasAnyVideoInclude))]
+    [NotifyPropertyChangedFor(nameof(StartActionLabel))]
+    private bool _includeSpeedInExport;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ExportPipelineSummary))]
+    [NotifyPropertyChangedFor(nameof(HasAnyVideoInclude))]
+    [NotifyPropertyChangedFor(nameof(StartActionLabel))]
+    private bool _includeReverseInExport;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ExportPipelineSummary))]
+    [NotifyPropertyChangedFor(nameof(HasAnyVideoInclude))]
+    [NotifyPropertyChangedFor(nameof(StartActionLabel))]
+    private bool _includeStabilizeInExport;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ExportPipelineSummary))]
+    [NotifyPropertyChangedFor(nameof(HasAnyVideoInclude))]
+    [NotifyPropertyChangedFor(nameof(StartActionLabel))]
+    private bool _includeColorGradingInExport;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ExportPipelineSummary))]
+    [NotifyPropertyChangedFor(nameof(HasAnyVideoInclude))]
+    [NotifyPropertyChangedFor(nameof(StartActionLabel))]
+    private bool _includeCropResizeInExport;
+
+    public bool HasAnyVideoInclude =>
+        IncludeWatermarkInExport
+        || IncludeSpeedInExport
+        || IncludeReverseInExport
+        || IncludeStabilizeInExport
+        || IncludeColorGradingInExport
+        || IncludeCropResizeInExport;
+
+    public string ExportPipelineSummary
+    {
+        get
+        {
+            if (!AreVideoToolsEnabled || Operation == VideoEnhanceOperation.ExtractSubtitle)
+            {
+                return string.Empty;
+            }
+
+            if (Operation == VideoEnhanceOperation.ExtractAudio && !HasAnyVideoInclude)
+            {
+                return "Export: audio only (current tab).";
+            }
+
+            var steps = EnumeratePlannedVideoSteps().ToList();
+            if (steps.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            if (steps.Count == 1)
+            {
+                return $"Export: {OperationLabel(steps[0])}.";
+            }
+
+            return "Export (combined): " + string.Join(" → ", steps.Select(OperationLabel));
+        }
+    }
 
     // Watermark
     [ObservableProperty]
@@ -391,7 +481,9 @@ public partial class VideoEnhancerViewModel : ObservableObject
     public string StartActionLabel =>
         Operation == VideoEnhanceOperation.ExtractSubtitle
             ? "Extract subtitle"
-            : "Apply & export";
+            : EnumeratePlannedVideoSteps().Skip(1).Any()
+                ? "Apply & export (combined)"
+                : "Apply & export";
 
     public bool ShowWatermarkPanel => Operation == VideoEnhanceOperation.Watermark;
 
@@ -491,6 +583,12 @@ public partial class VideoEnhancerViewModel : ObservableObject
             ResizeEnabled,
             ResizeWidth,
             ResizeHeight,
+            IncludeWatermarkInExport,
+            IncludeSpeedInExport,
+            IncludeReverseInExport,
+            IncludeStabilizeInExport,
+            IncludeColorGradingInExport,
+            IncludeCropResizeInExport,
             AudioFormat,
             AudioBitrateKbps,
             PreviewMuted,
@@ -542,6 +640,12 @@ public partial class VideoEnhancerViewModel : ObservableObject
         ResizeEnabled = s.ResizeEnabled;
         ResizeWidth = s.ResizeWidth;
         ResizeHeight = s.ResizeHeight;
+        IncludeWatermarkInExport = s.IncludeWatermarkInExport;
+        IncludeSpeedInExport = s.IncludeSpeedInExport;
+        IncludeReverseInExport = s.IncludeReverseInExport;
+        IncludeStabilizeInExport = s.IncludeStabilizeInExport;
+        IncludeColorGradingInExport = s.IncludeColorGradingInExport;
+        IncludeCropResizeInExport = s.IncludeCropResizeInExport;
         AudioFormat = s.AudioFormat;
         AudioBitrateKbps = s.AudioBitrateKbps;
         PreviewMuted = s.PreviewMuted;
@@ -560,6 +664,9 @@ public partial class VideoEnhancerViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowNonStillPreviewHint));
         OnPropertyChanged(nameof(IsWatermarkImage));
         OnPropertyChanged(nameof(IsWatermarkText));
+        OnPropertyChanged(nameof(ExportPipelineSummary));
+        OnPropertyChanged(nameof(HasAnyVideoInclude));
+        OnPropertyChanged(nameof(StartActionLabel));
         ApplySubtitleUndoState(s.Subtitle);
         ScheduleEffectPreview();
         StartCommand.NotifyCanExecuteChanged();
@@ -668,7 +775,11 @@ public partial class VideoEnhancerViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void SelectOperation(VideoEnhanceOperation op) => Operation = op;
+    private void SelectOperation(VideoEnhanceOperation op)
+    {
+        Console.WriteLine($"[VideoEnhancerPage] SelectOperation → {op}");
+        Operation = op;
+    }
 
     public void HandleDrop(IEnumerable<string> paths)
     {
@@ -861,14 +972,28 @@ public partial class VideoEnhancerViewModel : ObservableObject
             return;
         }
 
-        if (!TryBuildSettings(out var settings, out var errorMessage))
+        VideoEnhancePipelineSettings pipeline;
+        if (Operation == VideoEnhanceOperation.ExtractAudio && !HasAnyVideoInclude)
         {
-            MessageBoxHelper.ShowWarning(errorMessage ?? "Invalid settings.");
-            return;
+            if (!TryBuildStep(VideoEnhanceOperation.ExtractAudio, ResolveEncoderForExport(), out var audioStep, out var audioErr))
+            {
+                MessageBoxHelper.ShowWarning(audioErr ?? "Invalid settings.");
+                return;
+            }
+
+            pipeline = new VideoEnhancePipelineSettings(ResolveEncoderForExport(), [audioStep]);
+        }
+        else
+        {
+            if (!TryBuildVideoPipelineFromUi(out pipeline, out var pipelineErr))
+            {
+                MessageBoxHelper.ShowWarning(pipelineErr ?? "Invalid settings.");
+                return;
+            }
         }
 
-        var outputPath = BuildOutputPath();
-        var request = new ProcessVideoEnhanceRequest(SelectedFilePath, outputPath, settings);
+        var outputPath = BuildOutputPathForPipeline(pipeline);
+        var request = new ProcessVideoEnhanceRequest(SelectedFilePath, outputPath, pipeline);
 
         _cts = new CancellationTokenSource();
         var token = _cts.Token;
@@ -921,7 +1046,9 @@ public partial class VideoEnhancerViewModel : ObservableObject
                 ProgressPercent01 = 1;
                 var len = new FileInfo(outputPath).Length;
                 ResultMessage = $"Saved to {outputPath} ({FormatBytes(len)})";
-                toastTitle = $"{OperationLabel(Operation)} done";
+                toastTitle = pipeline.Steps.Count > 1
+                    ? "Combined export done"
+                    : $"{OperationLabel(pipeline.Steps[0].Operation)} done";
                 toastBody = $"{Path.GetFileName(outputPath)} · {FormatBytes(len)}";
                 toastSuccess = true;
             }
@@ -965,12 +1092,93 @@ public partial class VideoEnhancerViewModel : ObservableObject
         }
     }
 
-    private bool TryBuildSettings(out VideoEnhanceSettings settings, out string? error)
+    private bool TryBuildSettings(out VideoEnhanceSettings settings, out string? error) =>
+        TryBuildStep(Operation, ResolveEncoderForExport(), out settings, out error);
+
+    private IEnumerable<VideoEnhanceOperation> EnumeratePlannedVideoSteps()
     {
-        settings = new VideoEnhanceSettings(Operation, ResolveEncoderForExport(), null, null, null, null, null, null);
+        if (HasAnyVideoInclude)
+        {
+            foreach (var op in VideoExportStepOrder)
+            {
+                if (IsIncludedInExport(op))
+                {
+                    yield return op;
+                }
+            }
+
+            yield break;
+        }
+
+        if (Operation is not VideoEnhanceOperation.ExtractAudio and not VideoEnhanceOperation.ExtractSubtitle)
+        {
+            yield return Operation;
+        }
+    }
+
+    private bool IsIncludedInExport(VideoEnhanceOperation op) =>
+        op switch
+        {
+            VideoEnhanceOperation.Watermark => IncludeWatermarkInExport,
+            VideoEnhanceOperation.SpeedChange => IncludeSpeedInExport,
+            VideoEnhanceOperation.Reverse => IncludeReverseInExport,
+            VideoEnhanceOperation.Stabilize => IncludeStabilizeInExport,
+            VideoEnhanceOperation.ColorGrading => IncludeColorGradingInExport,
+            VideoEnhanceOperation.CropAndResize => IncludeCropResizeInExport,
+            _ => false
+        };
+
+    private bool TryBuildVideoPipelineFromUi(out VideoEnhancePipelineSettings pipeline, out string? error)
+    {
+        error = null;
+        var enc = ResolveEncoderForExport();
+        var list = new List<VideoEnhanceSettings>();
+
+        foreach (var op in VideoExportStepOrder)
+        {
+            if (!IsIncludedInExport(op))
+            {
+                continue;
+            }
+
+            if (!TryBuildStep(op, enc, out var step, out error))
+            {
+                pipeline = null!;
+                return false;
+            }
+
+            list.Add(step);
+        }
+
+        if (list.Count > 0)
+        {
+            pipeline = new VideoEnhancePipelineSettings(enc, list);
+            return true;
+        }
+
+        if (Operation is VideoEnhanceOperation.ExtractAudio or VideoEnhanceOperation.ExtractSubtitle)
+        {
+            error = "Check at least one video effect to combine, or use Extract audio / Subtitles for those outputs.";
+            pipeline = null!;
+            return false;
+        }
+
+        if (!TryBuildStep(Operation, enc, out var single, out error))
+        {
+            pipeline = null!;
+            return false;
+        }
+
+        pipeline = new VideoEnhancePipelineSettings(enc, [single]);
+        return true;
+    }
+
+    private bool TryBuildStep(VideoEnhanceOperation op, VideoHardwareEncoderKind enc, out VideoEnhanceSettings settings, out string? error)
+    {
+        settings = new VideoEnhanceSettings(op, enc, null, null, null, null, null, null);
         error = null;
 
-        switch (Operation)
+        switch (op)
         {
             case VideoEnhanceOperation.Watermark:
             {
@@ -1069,7 +1277,7 @@ public partial class VideoEnhancerViewModel : ObservableObject
             }
 
             case VideoEnhanceOperation.ExtractSubtitle:
-                error = "Use Start to extract subtitles when that operation is selected.";
+                error = "Subtitle extraction uses a separate command.";
                 return false;
 
             default:
@@ -1078,7 +1286,7 @@ public partial class VideoEnhancerViewModel : ObservableObject
         }
     }
 
-    private string BuildOutputPath()
+    private string BuildOutputPathForPipeline(VideoEnhancePipelineSettings pipeline)
     {
         var folder = _preferences.SaveFolderPath;
         var baseName = Path.GetFileNameWithoutExtension(SelectedFilePath ?? "video");
@@ -1088,22 +1296,31 @@ public partial class VideoEnhancerViewModel : ObservableObject
             ext = ".mp4";
         }
 
-        var suffix = Operation switch
+        var steps = pipeline.Steps;
+        string suffix;
+        if (steps.Count > 1)
         {
-            VideoEnhanceOperation.Watermark => "watermark",
-            VideoEnhanceOperation.SpeedChange => $"speed{SpeedFactor:0.##}x",
-            VideoEnhanceOperation.Reverse => "reverse",
-            VideoEnhanceOperation.Stabilize => "stabilized",
-            VideoEnhanceOperation.ColorGrading => "graded",
-            VideoEnhanceOperation.CropAndResize => "edit",
-            VideoEnhanceOperation.ExtractAudio => "audio",
-            VideoEnhanceOperation.ExtractSubtitle => "sub",
-            _ => "out"
-        };
+            suffix = "combined";
+        }
+        else
+        {
+            suffix = steps[0].Operation switch
+            {
+                VideoEnhanceOperation.Watermark => "watermark",
+                VideoEnhanceOperation.SpeedChange => $"speed{SpeedFactor:0.##}x",
+                VideoEnhanceOperation.Reverse => "reverse",
+                VideoEnhanceOperation.Stabilize => "stabilized",
+                VideoEnhanceOperation.ColorGrading => "graded",
+                VideoEnhanceOperation.CropAndResize => "edit",
+                VideoEnhanceOperation.ExtractAudio => "audio",
+                VideoEnhanceOperation.ExtractSubtitle => "sub",
+                _ => "out"
+            };
+        }
 
-        if (Operation == VideoEnhanceOperation.ExtractAudio)
+        if (steps.Count == 1 && steps[0].Operation == VideoEnhanceOperation.ExtractAudio)
         {
-            ext = AudioFormat switch
+            ext = steps[0].ToAudio!.Format switch
             {
                 AudioExportFormat.Mp3 => ".mp3",
                 AudioExportFormat.M4aAac => ".m4a",
@@ -1115,7 +1332,6 @@ public partial class VideoEnhancerViewModel : ObservableObject
         }
         else if (ext.Equals(".mkv", StringComparison.OrdinalIgnoreCase))
         {
-            // libx264 + faststart pairs best with mp4 — keep mkv only if user requests; default to mp4
             ext = ".mp4";
         }
 
@@ -1202,8 +1418,12 @@ public partial class VideoEnhancerViewModel : ObservableObject
     partial void OnSucceededChanged(bool value) =>
         OnPropertyChanged(nameof(ShowEnhancerResultCard));
 
-    partial void OnOperationChanged(VideoEnhanceOperation value) =>
+    partial void OnOperationChanged(VideoEnhanceOperation value)
+    {
         StartCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(ExportPipelineSummary));
+        OnPropertyChanged(nameof(StartActionLabel));
+    }
 
     partial void OnIsAnalyzingChanged(bool value) => StartCommand.NotifyCanExecuteChanged();
 

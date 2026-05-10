@@ -44,7 +44,7 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
     public async Task EnhanceAsync(
         string sourcePath,
         string outputPath,
-        VideoEnhanceSettings settings,
+        VideoEnhancePipelineSettings pipeline,
         IProgress<VideoEnhanceProgressReport> progress,
         CancellationToken cancellationToken = default)
     {
@@ -55,11 +55,107 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
             throw new FileNotFoundException("Source file was not found.", sourcePath);
         }
 
+        var steps = pipeline.Steps;
+        if (steps.Count == 0)
+        {
+            throw new ArgumentException("Pipeline must contain at least one step.", nameof(pipeline));
+        }
+
+        foreach (var s in steps)
+        {
+            if (s.Operation is VideoEnhanceOperation.ExtractAudio or VideoEnhanceOperation.ExtractSubtitle)
+            {
+                throw new InvalidOperationException("Audio or subtitle extraction cannot be combined in a video pipeline.");
+            }
+        }
+
         Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
 
-        var analysis = await AnalyzeAsync(sourcePath, cancellationToken).ConfigureAwait(false);
-        var totalDurationSeconds = analysis.Duration.TotalSeconds;
+        var enc = pipeline.VideoEncoder;
 
+        if (steps.Count == 1)
+        {
+            var settings = steps[0] with { VideoEncoder = enc };
+            var analysis = await AnalyzeAsync(sourcePath, cancellationToken).ConfigureAwait(false);
+            await ApplySingleEnhanceStepAsync(sourcePath, outputPath, analysis, settings, progress, cancellationToken)
+                .ConfigureAwait(false);
+            progress.Report(new VideoEnhanceProgressReport(1, "Done"));
+            return;
+        }
+
+        var tempRoot = Path.Combine(Path.GetTempPath(), "MediaTools", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempRoot);
+        try
+        {
+            var currentPath = sourcePath;
+            var analysis = await AnalyzeAsync(currentPath, cancellationToken).ConfigureAwait(false);
+
+            for (var i = 0; i < steps.Count; i++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var step = steps[i] with { VideoEncoder = enc };
+                var isLast = i == steps.Count - 1;
+                var nextPath = isLast ? outputPath : Path.Combine(tempRoot, $"step_{i:00}.mkv");
+
+                var stepIndex = i;
+                var stepCount = steps.Count;
+                var wrapped = new Progress<VideoEnhanceProgressReport>(r =>
+                {
+                    var basePct = stepIndex / (double)stepCount;
+                    var slice = r.Percent01 / stepCount;
+                    progress.Report(new VideoEnhanceProgressReport(
+                        Math.Min(1.0, basePct + slice),
+                        $"Step {stepIndex + 1}/{stepCount}: {r.StepDescription}"));
+                });
+
+                await ApplySingleEnhanceStepAsync(currentPath, nextPath, analysis, step, wrapped, cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (!isLast)
+                {
+                    if (i > 0 && currentPath.StartsWith(tempRoot, StringComparison.OrdinalIgnoreCase))
+                    {
+                        TryDelete(currentPath);
+                    }
+
+                    currentPath = nextPath;
+                    analysis = await AnalyzeAsync(currentPath, cancellationToken).ConfigureAwait(false);
+                }
+            }
+
+            progress.Report(new VideoEnhanceProgressReport(1, "Done"));
+        }
+        finally
+        {
+            try
+            {
+                if (Directory.Exists(tempRoot))
+                {
+                    foreach (var f in Directory.EnumerateFiles(tempRoot))
+                    {
+                        TryDelete(f);
+                    }
+
+                    Directory.Delete(tempRoot);
+                }
+            }
+            catch
+            {
+                // ignore cleanup failures
+            }
+        }
+    }
+
+    private async Task ApplySingleEnhanceStepAsync(
+        string sourcePath,
+        string outputPath,
+        VideoSourceAnalysis analysis,
+        VideoEnhanceSettings settings,
+        IProgress<VideoEnhanceProgressReport> progress,
+        CancellationToken cancellationToken)
+    {
+        var totalDurationSeconds = analysis.Duration.TotalSeconds;
         var enc = settings.VideoEncoder;
 
         switch (settings.Operation)
@@ -110,8 +206,6 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
             default:
                 throw new ArgumentOutOfRangeException(nameof(settings), settings.Operation, "Unknown operation.");
         }
-
-        progress.Report(new VideoEnhanceProgressReport(1, "Done"));
     }
 
     public async Task<byte[]?> TryRenderEffectPreviewJpegAsync(
@@ -361,7 +455,24 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
         return bytes;
     }
 
-    private static void AppendH264VideoEncode(StringBuilder sb, VideoHardwareEncoderKind encoder, bool movflagsFaststart)
+    /// <summary>movflags +faststart is only valid for ISO-BMFF (e.g. mp4). Using it with .mkv breaks muxing (often FFmpeg exit -22).</summary>
+    private static bool IsFaststartMuxCompatible(string outputPath)
+    {
+        var ext = Path.GetExtension(outputPath);
+        return ext.Equals(".mp4", StringComparison.OrdinalIgnoreCase)
+            || ext.Equals(".m4v", StringComparison.OrdinalIgnoreCase)
+            || ext.Equals(".mov", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void AppendMovFlagsFaststartIfCompatible(StringBuilder sb, string outputPath)
+    {
+        if (IsFaststartMuxCompatible(outputPath))
+        {
+            sb.Append("-movflags +faststart ");
+        }
+    }
+
+    private static void AppendH264VideoEncode(StringBuilder sb, VideoHardwareEncoderKind encoder, string outputPath, bool requestFaststart)
     {
         switch (encoder)
         {
@@ -379,7 +490,7 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
                 break;
         }
 
-        if (movflagsFaststart)
+        if (requestFaststart && IsFaststartMuxCompatible(outputPath))
         {
             sb.Append("-movflags +faststart ");
         }
@@ -446,7 +557,7 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
         sb.Append(ci, $"-filter_complex \"{filterComplex}\" ");
         sb.Append("-map \"[v]\" ");
         sb.Append(mapAudio);
-        AppendH264VideoEncode(sb, videoEncoder, movflagsFaststart: true);
+        AppendH264VideoEncode(sb, videoEncoder, outputPath, requestFaststart: true);
         sb.Append(ci, $"\"{outputPath}\"");
 
         await RunFfmpegAsync(sb.ToString(), totalDurationSeconds, progress, "Embedding watermark", ct).ConfigureAwait(false);
@@ -485,14 +596,16 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
 
             sb.Append(ci,
                 $"-filter_complex \"[0:v]{videoFilter}[v];[0:a]{audioFilter}[a]\" -map \"[v]\" -map \"[a]\" ");
-            AppendH264VideoEncode(sb, videoEncoder, movflagsFaststart: false);
-            sb.Append("-c:a aac -b:a 192k -movflags +faststart ");
+            AppendH264VideoEncode(sb, videoEncoder, outputPath, requestFaststart: false);
+            sb.Append("-c:a aac -b:a 192k ");
+            AppendMovFlagsFaststartIfCompatible(sb, outputPath);
         }
         else
         {
             sb.Append(ci, $"-vf \"{videoFilter}\" ");
-            AppendH264VideoEncode(sb, videoEncoder, movflagsFaststart: false);
-            sb.Append("-an -movflags +faststart ");
+            AppendH264VideoEncode(sb, videoEncoder, outputPath, requestFaststart: false);
+            sb.Append("-an ");
+            AppendMovFlagsFaststartIfCompatible(sb, outputPath);
         }
 
         sb.Append(ci, $"\"{outputPath}\"");
@@ -520,16 +633,16 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
         if (analysis.HasAudio)
         {
             sb.Append("-vf reverse -af areverse ");
-            AppendH264VideoEncode(sb, videoEncoder, movflagsFaststart: false);
+            AppendH264VideoEncode(sb, videoEncoder, outputPath, requestFaststart: false);
             sb.Append("-c:a aac -b:a 192k ");
         }
         else
         {
             sb.Append("-vf reverse -an ");
-            AppendH264VideoEncode(sb, videoEncoder, movflagsFaststart: false);
+            AppendH264VideoEncode(sb, videoEncoder, outputPath, requestFaststart: false);
         }
 
-        sb.Append("-movflags +faststart ");
+        AppendMovFlagsFaststartIfCompatible(sb, outputPath);
         sb.Append(ci, $"\"{outputPath}\"");
 
         await RunFfmpegAsync(sb.ToString(), totalDurationSeconds, progress, "Reversing", ct).ConfigureAwait(false);
@@ -577,7 +690,7 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
                 sb2.Append("-an ");
             }
 
-            AppendH264VideoEncode(sb2, videoEncoder, movflagsFaststart: true);
+            AppendH264VideoEncode(sb2, videoEncoder, outputPath, requestFaststart: true);
             sb2.Append(ci, $"\"{outputPath}\"");
 
             await RunFfmpegAsync(sb2.ToString(), totalDurationSeconds, progress, "Stabilizing (2/2)", ct).ConfigureAwait(false);
@@ -615,7 +728,7 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
             sb.Append("-an ");
         }
 
-        AppendH264VideoEncode(sb, videoEncoder, movflagsFaststart: true);
+        AppendH264VideoEncode(sb, videoEncoder, outputPath, requestFaststart: true);
         sb.Append(ci, $"\"{outputPath}\"");
 
         await RunFfmpegAsync(sb.ToString(), totalDurationSeconds, progress, "Color grading", ct).ConfigureAwait(false);
@@ -657,7 +770,7 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
             sb.Append("-an ");
         }
 
-        AppendH264VideoEncode(sb, videoEncoder, movflagsFaststart: true);
+        AppendH264VideoEncode(sb, videoEncoder, outputPath, requestFaststart: true);
         sb.Append(ci, $"\"{outputPath}\"");
 
         await RunFfmpegAsync(sb.ToString(), totalDurationSeconds, progress, "Crop & resize", ct).ConfigureAwait(false);
