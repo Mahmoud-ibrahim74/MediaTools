@@ -59,6 +59,9 @@ public partial class DashboardViewModel : ObservableObject
     [RelayCommand]
     private void GoToAudioEnhancer() => _shell.NavigateCommand.Execute("AudioEnhancer");
 
+    [RelayCommand]
+    private void GoToThumbnailGenerator() => _shell.NavigateCommand.Execute("ThumbnailGenerator");
+
     private static string FormatBytes(long bytes)
     {
         const long kb = 1024;

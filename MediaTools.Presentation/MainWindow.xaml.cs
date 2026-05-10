@@ -28,6 +28,7 @@ public partial class MainWindow : MetroWindow
             "VideoCompress" => _services.GetRequiredService<VideoCompressPage>(),
             "PhotoEnhancer" => _services.GetRequiredService<PhotoEnhancerPage>(),
             "AudioEnhancer" => _services.GetRequiredService<AudioEnhancerPage>(),
+            "ThumbnailGenerator" => _services.GetRequiredService<ThumbnailGeneratorPage>(),
             "AppSettings" => _services.GetRequiredService<AppSettingsPage>(),
             _ => null
         };
