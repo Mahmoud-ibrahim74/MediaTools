@@ -4,6 +4,7 @@
                  xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
                  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
                  xmlns:mah="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
+                 xmlns:controls="http://metro.mahapps.com/winfx/xaml/controls"
                  xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
                  mc:Ignorable="d"
                  Title="Media Tools"
@@ -15,6 +16,7 @@
                  Background="{DynamicResource ContentBackgroundBrush}"
                  GlowBrush="{DynamicResource AccentPrimaryBrush}">
     <Grid>
+        <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="220" />
             <ColumnDefinition Width="*" />
@@ -521,6 +523,42 @@
                    VerticalContentAlignment="Stretch"
                    NavigationUIVisibility="Hidden"
                    Background="Transparent" />
+        </Border>
+        </Grid>
+
+        <!-- Blocks interaction until FFmpeg is installed; app stays responsive during download. -->
+        <Border Panel.ZIndex="1000"
+                Background="#F2F5F7FA"
+                Visibility="{Binding FfmpegGateActive, Converter={StaticResource BoolToVisibilityConverter}}">
+            <Grid>
+                <StackPanel Width="440"
+                            Margin="24"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center">
+                    <TextBlock FontSize="22"
+                               FontWeight="SemiBold"
+                               TextAlignment="Center"
+                               TextWrapping="Wrap"
+                               Text="Setting up Media Tools" />
+                    <controls:ProgressRing Width="40"
+                                           Height="40"
+                                           Margin="0,20,0,16"
+                                           HorizontalAlignment="Center"
+                                           IsActive="{Binding IsFfmpegPreparing}" />
+                    <TextBlock FontSize="14"
+                               Foreground="#FF5F6B76"
+                               Text="{Binding FfmpegOverlayDetail}"
+                               TextAlignment="Center"
+                               TextWrapping="Wrap" />
+                    <Button Margin="0,28,0,0"
+                            MinWidth="168"
+                            HorizontalAlignment="Center"
+                            Command="{Binding RetryFfmpegPrepareCommand}"
+                            Content="Retry download"
+                            Style="{DynamicResource PrimaryButtonStyle}"
+                            Visibility="{Binding ShowFfmpegRetry, Converter={StaticResource BoolToVisibilityConverter}}" />
+                </StackPanel>
+            </Grid>
         </Border>
     </Grid>
 </mah:MetroWindow>

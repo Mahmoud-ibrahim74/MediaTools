@@ -53,12 +53,23 @@ public partial class App : System.Windows.Application
                 })
             .Build();
 
-        await _host.Services.GetRequiredService<IVideoCompressionService>()
-            .EnsureToolsReadyAsync()
-            .ConfigureAwait(true);
-
         var mainWindow = _host.Services.GetRequiredService<MainWindow>();
         mainWindow.Show();
+
+        var videoCompression = _host.Services.GetRequiredService<IVideoCompressionService>();
+        _ = PrepareFfmpegInBackgroundAsync(videoCompression);
+    }
+
+    private static async Task PrepareFfmpegInBackgroundAsync(IVideoCompressionService videoCompression)
+    {
+        try
+        {
+            await videoCompression.EnsureToolsReadyAsync().ConfigureAwait(false);
+        }
+        catch
+        {
+            // Failure is reported via IVideoCompressionService.ToolsPrepareError and the main-window gate UI.
+        }
     }
 
     protected override async void OnExit(ExitEventArgs e)

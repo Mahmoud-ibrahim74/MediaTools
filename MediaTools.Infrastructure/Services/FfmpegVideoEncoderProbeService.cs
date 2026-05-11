@@ -52,22 +52,15 @@ public sealed class FfmpegVideoEncoderProbeService(IVideoCompressionService vide
             var amfListed = listed("h264_amf") || listed("hevc_amf");
             var qsvListed = listed("h264_qsv") || listed("hevc_qsv");
 
-            var nvencTask = nvencListed
-                ? TryNvencHardwareWorksAsync(ffmpegExe, text, probeToken)
-                : Task.FromResult(false);
-            var amfTask = amfListed
-                ? TryAmfHardwareWorksAsync(ffmpegExe, text, probeToken)
-                : Task.FromResult(false);
-            var qsvTask = qsvListed
-                ? TryQsvHardwareWorksAsync(ffmpegExe, text, probeToken)
-                : Task.FromResult(false);
+            // Run GPU probes one at a time — parallel ffmpeg processes can confuse some driver stacks.
+            var nvencOk = nvencListed
+                && await TryNvencHardwareWorksAsync(ffmpegExe, text, probeToken).ConfigureAwait(false);
+            var amfOk = amfListed
+                && await TryAmfHardwareWorksAsync(ffmpegExe, text, probeToken).ConfigureAwait(false);
+            var qsvOk = qsvListed
+                && await TryQsvHardwareWorksAsync(ffmpegExe, text, probeToken).ConfigureAwait(false);
 
-            await Task.WhenAll(nvencTask, amfTask, qsvTask).ConfigureAwait(false);
-
-            return new VideoEncoderScanResult(
-                await nvencTask.ConfigureAwait(false),
-                await amfTask.ConfigureAwait(false),
-                await qsvTask.ConfigureAwait(false));
+            return new VideoEncoderScanResult(nvencOk, amfOk, qsvOk);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {

@@ -17,7 +17,45 @@ namespace MediaTools.Infrastructure.Services;
 public sealed class FfmpegVideoCompressionService : IVideoCompressionService
 {
     private readonly object _sync = new();
+    private readonly SemaphoreSlim _ensureGate = new(1, 1);
     private bool _toolsReady;
+    private bool _toolsPreparing;
+    private string? _toolsPrepareError;
+
+    public bool IsToolsReady
+    {
+        get
+        {
+            lock (_sync)
+            {
+                return _toolsReady;
+            }
+        }
+    }
+
+    public bool IsToolsPreparing
+    {
+        get
+        {
+            lock (_sync)
+            {
+                return _toolsPreparing;
+            }
+        }
+    }
+
+    public string? ToolsPrepareError
+    {
+        get
+        {
+            lock (_sync)
+            {
+                return _toolsPrepareError;
+            }
+        }
+    }
+
+    public event EventHandler? ToolsAvailabilityChanged;
 
     public async Task EnsureToolsReadyAsync(CancellationToken cancellationToken = default)
     {
@@ -29,49 +67,111 @@ public sealed class FfmpegVideoCompressionService : IVideoCompressionService
             }
         }
 
-        var ffmpegDirectory = Path.Combine(AppContext.BaseDirectory, "ffmpeg");
-        Directory.CreateDirectory(ffmpegDirectory);
-
-        var ffmpegExe = Path.Combine(ffmpegDirectory, "ffmpeg.exe");
-        var ffprobeExe = Path.Combine(ffmpegDirectory, "ffprobe.exe");
-
-        var missingBinary = !File.Exists(ffmpegExe) || !File.Exists(ffprobeExe);
-        var shouldReplaceMinimalBuild = !missingBinary
-            && OperatingSystem.IsWindows()
-            && await FfmpegBuildLacksGpuEncoderListingsAsync(ffmpegExe, cancellationToken).ConfigureAwait(false);
-
-        if (shouldReplaceMinimalBuild)
+        await _ensureGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
+            lock (_sync)
+            {
+                if (_toolsReady)
+                {
+                    return;
+                }
+            }
+
+            BeginToolsPrepareAttempt();
+
             try
             {
-                Directory.Delete(ffmpegDirectory, recursive: true);
+                var ffmpegDirectory = Path.Combine(AppContext.BaseDirectory, "ffmpeg");
+                Directory.CreateDirectory(ffmpegDirectory);
+
+                var ffmpegExe = Path.Combine(ffmpegDirectory, "ffmpeg.exe");
+                var ffprobeExe = Path.Combine(ffmpegDirectory, "ffprobe.exe");
+                var markerPath = Path.Combine(ffmpegDirectory, BtbNWindowsFfmpegDownload.MarkerFileName);
+
+                var missingBinary = !File.Exists(ffmpegExe) || !File.Exists(ffprobeExe);
+                var lacksGpuInList = false;
+                if (!missingBinary)
+                {
+                    lacksGpuInList = await FfmpegBuildLacksGpuEncoderListingsAsync(ffmpegExe, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+
+                var hasBtbNMarker = BtbNWindowsFfmpegDownload.HasInstallMarker(ffmpegDirectory);
+
+                // Windows: use BtbN latest GPL build (current NVENC). Xabe "Full" is frozen/old; "Official" omits GPU codecs.
+                var needBtbNInstall = OperatingSystem.IsWindows()
+                    && (missingBinary || lacksGpuInList || !hasBtbNMarker);
+
+                if (needBtbNInstall)
+                {
+                    await BtbNWindowsFfmpegDownload.InstallAsync(ffmpegDirectory, cancellationToken).ConfigureAwait(false);
+                    await File.WriteAllTextAsync(
+                            markerPath,
+                            BtbNWindowsFfmpegDownload.MarkerContent + Environment.NewLine,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                else if (!OperatingSystem.IsWindows() && (missingBinary || lacksGpuInList))
+                {
+                    await FFmpegDownloader.GetLatestVersion(FFmpegVersion.Official, ffmpegDirectory)
+                        .ConfigureAwait(false);
+                }
+
+                FFmpeg.SetExecutablesPath(
+                    ffmpegDirectory,
+                    "ffmpeg.exe",
+                    "ffprobe.exe",
+                    FileNameFilterMethod.Exact,
+                    CultureInfo.InvariantCulture);
+
+                MarkToolsReady();
             }
-            catch
+            catch (Exception ex)
             {
-                // ignore; download may still overwrite some files
+                MarkToolsFailed(ex.Message);
+                throw;
             }
-
-            Directory.CreateDirectory(ffmpegDirectory);
         }
-
-        if (missingBinary || shouldReplaceMinimalBuild)
+        finally
         {
-            // "Official" (ffbinaries) builds omit NVENC/AMF/QSV. Full (e.g. gyan.dev-style) includes GPU encoders.
-            await FFmpegDownloader.GetLatestVersion(FFmpegVersion.Full, ffmpegDirectory)
-                .ConfigureAwait(false);
+            _ensureGate.Release();
+        }
+    }
+
+    private void BeginToolsPrepareAttempt()
+    {
+        lock (_sync)
+        {
+            _toolsPreparing = true;
+            _toolsPrepareError = null;
         }
 
-        FFmpeg.SetExecutablesPath(
-            ffmpegDirectory,
-            "ffmpeg.exe",
-            "ffprobe.exe",
-            FileNameFilterMethod.Exact,
-            CultureInfo.InvariantCulture);
+        ToolsAvailabilityChanged?.Invoke(this, EventArgs.Empty);
+    }
 
+    private void MarkToolsReady()
+    {
         lock (_sync)
         {
             _toolsReady = true;
+            _toolsPreparing = false;
+            _toolsPrepareError = null;
         }
+
+        ToolsAvailabilityChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void MarkToolsFailed(string message)
+    {
+        lock (_sync)
+        {
+            _toolsReady = false;
+            _toolsPreparing = false;
+            _toolsPrepareError = message;
+        }
+
+        ToolsAvailabilityChanged?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>
