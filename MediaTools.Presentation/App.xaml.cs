@@ -82,4 +82,16 @@ public partial class App : System.Windows.Application
 
         base.OnExit(e);
     }
+    private void CheckHardwareAccelerationSupport()
+    {
+        int renderingTier = (System.Windows.Media.RenderCapability.Tier >> 16);
+        var result = renderingTier switch
+        {
+            0 => "Hardware acceleration is not supported on this system.",
+            1 => "Hardware acceleration is supported, but with limited features.",
+            2 => "Hardware acceleration is fully supported on this system.",
+            _ => "Unable to determine hardware acceleration support."
+        };
+        Console.WriteLine(result);
+    }
 }

@@ -26,7 +26,7 @@ public partial class ScreenRecorderViewModel : ObservableObject
     private CancellationTokenSource? _hardCancelCts;
     private DispatcherTimer? _elapsedTimer;
     private DateTime _recordingStartedAt;
-    private bool _devicesLoaded;
+    private readonly SemaphoreSlim _microphoneLoadGate = new(1, 1);
 
     public ScreenRecorderViewModel(
         StartScreenRecordingUseCase startScreenRecordingUseCase,
@@ -206,14 +206,14 @@ public partial class ScreenRecorderViewModel : ObservableObject
 
     private bool CanStopRecording() => IsRecording;
 
+    /// <summary>
+    /// Never cache a failed/empty enumeration: the old <c>_devicesLoaded</c> flag blocked all later loads after one
+    /// empty run (e.g. FFmpeg still downloading), so toggling "Record microphone" appeared broken.
+    /// </summary>
     [RelayCommand]
     private async Task LoadMicrophonesAsync()
     {
-        if (_devicesLoaded)
-        {
-            return;
-        }
-
+        await _microphoneLoadGate.WaitAsync().ConfigureAwait(true);
         try
         {
             var devices = await _screenRecordingService.GetAudioInputDevicesAsync().ConfigureAwait(true);
@@ -228,10 +228,11 @@ public partial class ScreenRecorderViewModel : ObservableObject
         catch (Exception)
         {
             MicrophoneDevices.Clear();
+            SelectedMicrophone = null;
         }
         finally
         {
-            _devicesLoaded = true;
+            _microphoneLoadGate.Release();
         }
     }
 
@@ -432,11 +433,7 @@ public partial class ScreenRecorderViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void RefreshDevices()
-    {
-        _devicesLoaded = false;
-        _ = LoadMicrophonesAsync();
-    }
+    private void RefreshDevices() => _ = LoadMicrophonesAsync();
 
     private ScreenRecordingSettings BuildSettings()
     {

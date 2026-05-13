@@ -37,27 +37,23 @@ public sealed partial class FfmpegScreenRecordingService(IVideoCompressionServic
         };
 
         using var process = new Process { StartInfo = psi };
-        var sb = new StringBuilder();
-        process.ErrorDataReceived += (_, e) =>
-        {
-            if (e.Data is not null)
-            {
-                sb.AppendLine(e.Data);
-            }
-        };
 
+        string combined;
         try
         {
             process.Start();
-            process.BeginErrorReadLine();
+            var readOut = process.StandardOutput.ReadToEndAsync(cancellationToken);
+            var readErr = process.StandardError.ReadToEndAsync(cancellationToken);
+            await Task.WhenAll(readOut, readErr).ConfigureAwait(false);
             await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+            combined = (await readOut.ConfigureAwait(false)) + Environment.NewLine + (await readErr.ConfigureAwait(false));
         }
         catch (Exception)
         {
             return Array.Empty<AudioInputDeviceDto>();
         }
 
-        return ParseAudioDevices(sb.ToString());
+        return ParseAudioDevices(combined);
     }
 
     public async Task<ScreenRecordingResult> RecordAsync(
@@ -241,6 +237,8 @@ public sealed partial class FfmpegScreenRecordingService(IVideoCompressionServic
         {
             sb.Append("-f dshow -rtbufsize 256M ");
             sb.Append(ci, $"-i audio=\"{EscapeForCommandLine(settings.MicrophoneDeviceName)}\" ");
+            // Explicit maps: desktop input is video-only; without -map some FFmpeg builds omit the dshow audio track.
+            sb.Append("-map 0:v:0 -map 1:a:0 ");
         }
 
         if (outputFps != captureFps)
@@ -253,6 +251,10 @@ public sealed partial class FfmpegScreenRecordingService(IVideoCompressionServic
         if (settings.IncludeMicrophone && !string.IsNullOrWhiteSpace(settings.MicrophoneDeviceName))
         {
             sb.Append("-c:a aac -b:a 192k ");
+        }
+        else
+        {
+            sb.Append("-an ");
         }
 
         if (settings.OutputFormat == ScreenRecordingOutputFormat.Mp4)
@@ -390,19 +392,24 @@ public sealed partial class FfmpegScreenRecordingService(IVideoCompressionServic
     private static IReadOnlyList<AudioInputDeviceDto> ParseAudioDevices(string ffmpegOutput)
     {
         var list = new List<AudioInputDeviceDto>();
+        if (string.IsNullOrWhiteSpace(ffmpegOutput))
+        {
+            return list;
+        }
+
         var inAudioSection = false;
 
         foreach (var raw in ffmpegOutput.Split('\n'))
         {
             var line = raw.TrimEnd('\r');
 
-            if (line.Contains("DirectShow audio devices", StringComparison.OrdinalIgnoreCase))
+            if (IsDshowAudioDevicesHeader(line))
             {
                 inAudioSection = true;
                 continue;
             }
 
-            if (line.Contains("DirectShow video devices", StringComparison.OrdinalIgnoreCase))
+            if (IsDshowVideoDevicesHeader(line))
             {
                 inAudioSection = false;
                 continue;
@@ -413,19 +420,72 @@ public sealed partial class FfmpegScreenRecordingService(IVideoCompressionServic
                 continue;
             }
 
-            var nameMatch = DeviceNameRegex().Match(line);
-            if (nameMatch.Success)
+            var name = TryExtractDshowAudioDeviceName(line, allowLooseBracketQuoted: true);
+            if (!string.IsNullOrWhiteSpace(name)
+                && !list.Any(d => string.Equals(d.Name, name, StringComparison.OrdinalIgnoreCase)))
             {
-                var name = nameMatch.Groups[1].Value;
-                if (!list.Any(d => string.Equals(d.Name, name, StringComparison.OrdinalIgnoreCase)))
-                {
-                    list.Add(new AudioInputDeviceDto(name));
-                }
+                list.Add(new AudioInputDeviceDto(name));
+            }
+        }
+
+        if (list.Count > 0)
+        {
+            return list;
+        }
+
+        // Section headers differ across FFmpeg builds / locales; fall back to any "…" (audio) line only
+        // (do not match bare [dshow] "…" here — that would pick up video devices).
+        foreach (var raw in ffmpegOutput.Split('\n'))
+        {
+            var line = raw.TrimEnd('\r');
+            var name = TryExtractDshowAudioDeviceName(line, allowLooseBracketQuoted: false);
+            if (!string.IsNullOrWhiteSpace(name)
+                && !list.Any(d => string.Equals(d.Name, name, StringComparison.OrdinalIgnoreCase)))
+            {
+                list.Add(new AudioInputDeviceDto(name));
             }
         }
 
         return list;
     }
+
+    /// <summary>
+    /// Primary: <c>"Device Name" (audio)</c>. Optional: <c>[dshow @ …] "Name"</c> only when caller is inside the audio-devices block.
+    /// </summary>
+    private static string? TryExtractDshowAudioDeviceName(string line, bool allowLooseBracketQuoted)
+    {
+        var strict = QuotedAudioDeviceRegex().Match(line);
+        if (strict.Success)
+        {
+            return strict.Groups[1].Value.Trim();
+        }
+
+        if (!allowLooseBracketQuoted)
+        {
+            return null;
+        }
+
+        if (line.Contains("Alternative name", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var loose = DshowBracketQuotedDeviceRegex().Match(line);
+        return loose.Success ? loose.Groups[1].Value.Trim() : null;
+    }
+
+    private static bool IsDshowAudioDevicesHeader(string line) =>
+        line.Contains("DirectShow audio devices", StringComparison.OrdinalIgnoreCase)
+        || (line.Contains("dshow", StringComparison.OrdinalIgnoreCase)
+            && line.Contains("audio", StringComparison.OrdinalIgnoreCase)
+            && line.Contains("devices", StringComparison.OrdinalIgnoreCase)
+            && !line.Contains("video", StringComparison.OrdinalIgnoreCase));
+
+    private static bool IsDshowVideoDevicesHeader(string line) =>
+        line.Contains("DirectShow video devices", StringComparison.OrdinalIgnoreCase)
+        || (line.Contains("dshow", StringComparison.OrdinalIgnoreCase)
+            && line.Contains("video", StringComparison.OrdinalIgnoreCase)
+            && line.Contains("devices", StringComparison.OrdinalIgnoreCase));
 
     private static string ExtractFfmpegError(string stderr)
     {
@@ -454,6 +514,9 @@ public sealed partial class FfmpegScreenRecordingService(IVideoCompressionServic
     [GeneratedRegex("size=\\s*(\\d+)\\s*[kK]i?B")]
     private static partial Regex SizeRegex();
 
-    [GeneratedRegex("\"([^\"]+)\"\\s*\\((?:audio|Audio)\\)|\\[dshow.*?\\]\\s*\"([^\"]+)\"")]
-    private static partial Regex DeviceNameRegex();
+    [GeneratedRegex("\"([^\"]+)\"\\s*\\(\\s*audio\\s*\\)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex QuotedAudioDeviceRegex();
+
+    [GeneratedRegex("\\[dshow[^\\]]*\\]\\s*\"([^\"]+)\"", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex DshowBracketQuotedDeviceRegex();
 }
