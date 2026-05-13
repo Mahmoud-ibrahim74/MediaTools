@@ -684,20 +684,30 @@
             </StackPanel>
           </Border>
 
-          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">
+          <Expander Margin="0,16,0,0"
+                    HorizontalAlignment="Stretch"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    ExpandDirection="Down"
+                    Header="Tips &amp; reference"
+                    IsExpanded="False">
             <StackPanel>
-              <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Operations" />
-              <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
-                         Text="• Watermark — image (PNG with alpha) or text overlay&#x0a;• Speed change — 0.25x to 4x with optional pitch preservation&#x0a;• Reverse — full backward play of video and audio&#x0a;• Color grading — brightness, contrast, saturation, gamma, hue&#x0a;• Crop &amp; resize — pixel-precise cropping then scaling&#x0a;• Video → Audio — strip the audio to MP3, AAC, FLAC, Opus, or WAV&#x0a;• Subtitles — export an embedded stream to SRT, WebVTT, ASS, or copy" />
+              <Border Padding="16" Style="{DynamicResource CardBorderStyle}">
+                <StackPanel>
+                  <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Operations" />
+                  <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
+                             Text="• Watermark — image (PNG with alpha) or text overlay&#x0a;• Speed change — 0.25x to 4x with optional pitch preservation&#x0a;• Reverse — full backward play of video and audio&#x0a;• Color grading — brightness, contrast, saturation, gamma, hue&#x0a;• Crop &amp; resize — pixel-precise cropping then scaling&#x0a;• Video → Audio — strip the audio to MP3, AAC, FLAC, Opus, or WAV&#x0a;• Subtitles — export an embedded stream to SRT, WebVTT, ASS, or copy" />
+                </StackPanel>
+              </Border>
+              <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">
+                <StackPanel>
+                  <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Output" />
+                  <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
+                             Text="Files are written next to your other tools' exports (App settings → Saved files folder). Names are auto-suffixed so existing files are never overwritten." />
+                </StackPanel>
+              </Border>
             </StackPanel>
-          </Border>
-          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">
-            <StackPanel>
-              <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Output" />
-              <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
-                         Text="Files are written next to your other tools' exports (App settings → Saved files folder). Names are auto-suffixed so existing files are never overwritten." />
-            </StackPanel>
-          </Border>
+          </Expander>
         </StackPanel>
       </Grid>
     </ScrollViewer>

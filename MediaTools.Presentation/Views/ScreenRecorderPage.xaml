@@ -203,32 +203,39 @@
           </StackPanel>
         </StackPanel>
 
-        <StackPanel Grid.Column="1"
-                    MinWidth="260"
-                    MaxWidth="400"
-                    HorizontalAlignment="Stretch">
-          <Border Padding="16" Style="{DynamicResource CardBorderStyle}">
-            <StackPanel>
-              <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="How it works" />
-              <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
-                         Text="FFmpeg's gdigrab captures the desktop with libx264 encoding. Press Stop &amp; save to finalize the file gracefully — Cancel discards in-progress output." />
-            </StackPanel>
-          </Border>
-          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">
-            <StackPanel>
-              <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Tips" />
-              <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
-                         Text="Lower CRF for better quality (file size grows quickly). 30 fps is a good default; 60 fps doubles file size. 90/120 fps target smooth high-rate exports: the desktop is captured at up to 60 real frames per second, then frames are duplicated to match your choice (GDI cannot reliably grab faster). MKV is more crash-tolerant; MP4 plays everywhere." />
-            </StackPanel>
-          </Border>
-          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">
-            <StackPanel>
-              <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Output folder" />
-              <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
-                         Text="Recordings are saved to the folder set in App settings using a screen_recording_yyyyMMdd_HHmmss filename." />
-            </StackPanel>
-          </Border>
-        </StackPanel>
+        <Expander Grid.Column="1"
+                  MinWidth="260"
+                  MaxWidth="400"
+                  HorizontalAlignment="Stretch"
+                  Background="Transparent"
+                  BorderThickness="0"
+                  ExpandDirection="Down"
+                  Header="Tips &amp; reference"
+                  IsExpanded="False">
+          <StackPanel>
+            <Border Padding="16" Style="{DynamicResource CardBorderStyle}">
+              <StackPanel>
+                <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="How it works" />
+                <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
+                           Text="FFmpeg's gdigrab captures the desktop with libx264 encoding. Press Stop &amp; save to finalize the file gracefully — Cancel discards in-progress output." />
+              </StackPanel>
+            </Border>
+            <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">
+              <StackPanel>
+                <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Tips" />
+                <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
+                           Text="Lower CRF for better quality (file size grows quickly). 30 fps is a good default; 60 fps doubles file size. 90/120 fps target smooth high-rate exports: the desktop is captured at up to 60 real frames per second, then frames are duplicated to match your choice (GDI cannot reliably grab faster). MKV is more crash-tolerant; MP4 plays everywhere." />
+              </StackPanel>
+            </Border>
+            <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">
+              <StackPanel>
+                <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Output folder" />
+                <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
+                           Text="Recordings are saved to the folder set in App settings using a screen_recording_yyyyMMdd_HHmmss filename." />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </Expander>
       </Grid>
     </ScrollViewer>
   </Grid>

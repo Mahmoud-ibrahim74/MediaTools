@@ -522,32 +522,39 @@
           </StackPanel>
         </StackPanel>
 
-        <StackPanel Grid.Column="1"
-                    MinWidth="260"
-                    MaxWidth="400"
-                    HorizontalAlignment="Stretch">
-          <Border Padding="16" Style="{DynamicResource CardBorderStyle}">
-            <StackPanel>
-              <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Formats" />
-              <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
-                         Text="Pick PNG for lossless, JPEG or WebP for smaller shares, TIFF for print pipelines, BMP for legacy apps." />
-            </StackPanel>
-          </Border>
-          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">
-            <StackPanel>
-              <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Upscale &amp; AI-style enhancement" />
-              <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
-                         Text="High Quality uses Lanczos resampling. AI Enhanced adds local sharpening and tone refinement on-device (no cloud). None uses faster bicubic when resizing." />
-            </StackPanel>
-          </Border>
-          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">
-            <StackPanel>
-              <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Filters" />
-              <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
-                         Text="Combine resize with sepia, vintage, warmth, cool tones, or dramatic contrast for creative finishing." />
-            </StackPanel>
-          </Border>
-        </StackPanel>
+        <Expander Grid.Column="1"
+                  MinWidth="260"
+                  MaxWidth="400"
+                  HorizontalAlignment="Stretch"
+                  Background="Transparent"
+                  BorderThickness="0"
+                  ExpandDirection="Down"
+                  Header="Tips &amp; reference"
+                  IsExpanded="False">
+          <StackPanel>
+            <Border Padding="16" Style="{DynamicResource CardBorderStyle}">
+              <StackPanel>
+                <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Formats" />
+                <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
+                           Text="Pick PNG for lossless, JPEG or WebP for smaller shares, TIFF for print pipelines, BMP for legacy apps." />
+              </StackPanel>
+            </Border>
+            <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">
+              <StackPanel>
+                <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Upscale &amp; AI-style enhancement" />
+                <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
+                           Text="High Quality uses Lanczos resampling. AI Enhanced adds local sharpening and tone refinement on-device (no cloud). None uses faster bicubic when resizing." />
+              </StackPanel>
+            </Border>
+            <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">
+              <StackPanel>
+                <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Filters" />
+                <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
+                           Text="Combine resize with sepia, vintage, warmth, cool tones, or dramatic contrast for creative finishing." />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </Expander>
       </Grid>
     </ScrollViewer>
   </Grid>

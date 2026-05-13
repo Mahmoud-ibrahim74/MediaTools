@@ -249,25 +249,32 @@
           </StackPanel>
         </StackPanel>
 
-        <StackPanel Grid.Column="1"
-                    MinWidth="260"
-                    MaxWidth="400"
-                    HorizontalAlignment="Stretch">
-          <Border Padding="16" Style="{DynamicResource CardBorderStyle}">
-            <StackPanel>
-              <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="How it works" />
-              <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
-                         Text="Images are resized so the longest side matches your max edge (smaller images are not enlarged). Videos use FFmpeg to grab one frame at the chosen time." />
-            </StackPanel>
-          </Border>
-          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">
-            <StackPanel>
-              <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Output folder" />
-              <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
-                         Text="Thumbnails are saved next to your other tool outputs — the folder set in App settings. The file name ends with _thumb plus the chosen extension." />
-            </StackPanel>
-          </Border>
-        </StackPanel>
+        <Expander Grid.Column="1"
+                  MinWidth="260"
+                  MaxWidth="400"
+                  HorizontalAlignment="Stretch"
+                  Background="Transparent"
+                  BorderThickness="0"
+                  ExpandDirection="Down"
+                  Header="Tips &amp; reference"
+                  IsExpanded="False">
+          <StackPanel>
+            <Border Padding="16" Style="{DynamicResource CardBorderStyle}">
+              <StackPanel>
+                <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="How it works" />
+                <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
+                           Text="Images are resized so the longest side matches your max edge (smaller images are not enlarged). Videos use FFmpeg to grab one frame at the chosen time." />
+              </StackPanel>
+            </Border>
+            <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">
+              <StackPanel>
+                <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Output folder" />
+                <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
+                           Text="Thumbnails are saved next to your other tool outputs — the folder set in App settings. The file name ends with _thumb plus the chosen extension." />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </Expander>
       </Grid>
     </ScrollViewer>
   </Grid>

@@ -458,48 +458,55 @@
           </StackPanel>
         </StackPanel>
 
-        <StackPanel Grid.Column="1"
-                    MinWidth="260"
-                    MaxWidth="400"
-                    HorizontalAlignment="Stretch">
-          <Border Padding="16"
-                  Style="{DynamicResource CardBorderStyle}">
-            <StackPanel>
-              <TextBlock Margin="0,0,0,8"
-                         FontWeight="SemiBold"
-                         Text="Codec guide" />
-              <TextBlock TextWrapping="Wrap"
-                         Foreground="#FF5F6B76">
-                <Run FontWeight="SemiBold"
-                     Foreground="#FF1F2A36"
-                     Text="H.264" /><Run Text=" — Best compatibility; fast to encode; ideal for web playback." /><LineBreak /><LineBreak /><Run FontWeight="SemiBold"
-                     Foreground="#FF1F2A36"
-                     Text="H.265" /><Run Text=" — Roughly half the size of H.264 at similar quality; great for archiving." /><LineBreak /><LineBreak /><Run FontWeight="SemiBold"
-                     Foreground="#FF1F2A36"
-                     Text="AV1" /><Run Text=" — Open codec with excellent compression; encode times are longer." />
-              </TextBlock>
-            </StackPanel>
-          </Border>
+        <Expander Grid.Column="1"
+                  MinWidth="260"
+                  MaxWidth="400"
+                  HorizontalAlignment="Stretch"
+                  Background="Transparent"
+                  BorderThickness="0"
+                  ExpandDirection="Down"
+                  Header="Tips &amp; reference"
+                  IsExpanded="False">
+          <StackPanel>
+            <Border Padding="16"
+                    Style="{DynamicResource CardBorderStyle}">
+              <StackPanel>
+                <TextBlock Margin="0,0,0,8"
+                           FontWeight="SemiBold"
+                           Text="Codec guide" />
+                <TextBlock TextWrapping="Wrap"
+                           Foreground="#FF5F6B76">
+                  <Run FontWeight="SemiBold"
+                       Foreground="#FF1F2A36"
+                       Text="H.264" /><Run Text=" — Best compatibility; fast to encode; ideal for web playback." /><LineBreak /><LineBreak /><Run FontWeight="SemiBold"
+                       Foreground="#FF1F2A36"
+                       Text="H.265" /><Run Text=" — Roughly half the size of H.264 at similar quality; great for archiving." /><LineBreak /><LineBreak /><Run FontWeight="SemiBold"
+                       Foreground="#FF1F2A36"
+                       Text="AV1" /><Run Text=" — Open codec with excellent compression; encode times are longer." />
+                </TextBlock>
+              </StackPanel>
+            </Border>
 
-          <Border Margin="0,16,0,0"
-                  Padding="16"
-                  Style="{DynamicResource CardBorderStyle}">
-            <StackPanel>
-              <TextBlock Margin="0,0,0,8"
-                         FontWeight="SemiBold"
-                         Text="CRF tips" />
-              <TextBlock TextWrapping="Wrap">
-                <Run Foreground="{DynamicResource StatusSuccessBrush}"
-                     FontWeight="SemiBold"
-                     Text="18–22" /><Run Text=" — Near lossless (best quality)." /><LineBreak /><LineBreak /><Run Foreground="{DynamicResource StatusWarningBrush}"
-                     FontWeight="SemiBold"
-                     Text="23–28" /><Run Text=" — Balanced quality and size." /><LineBreak /><LineBreak /><Run Foreground="{DynamicResource StatusDangerBrush}"
-                     FontWeight="SemiBold"
-                     Text="29–51" /><Run Text=" — Smaller files with visible tradeoffs." />
-              </TextBlock>
-            </StackPanel>
-          </Border>
-        </StackPanel>
+            <Border Margin="0,16,0,0"
+                    Padding="16"
+                    Style="{DynamicResource CardBorderStyle}">
+              <StackPanel>
+                <TextBlock Margin="0,0,0,8"
+                           FontWeight="SemiBold"
+                           Text="CRF tips" />
+                <TextBlock TextWrapping="Wrap">
+                  <Run Foreground="{DynamicResource StatusSuccessBrush}"
+                       FontWeight="SemiBold"
+                       Text="18–22" /><Run Text=" — Near lossless (best quality)." /><LineBreak /><LineBreak /><Run Foreground="{DynamicResource StatusWarningBrush}"
+                       FontWeight="SemiBold"
+                       Text="23–28" /><Run Text=" — Balanced quality and size." /><LineBreak /><LineBreak /><Run Foreground="{DynamicResource StatusDangerBrush}"
+                       FontWeight="SemiBold"
+                       Text="29–51" /><Run Text=" — Smaller files with visible tradeoffs." />
+                </TextBlock>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </Expander>
       </Grid>
     </ScrollViewer>
   </Grid>
