@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
+using System.Windows.Navigation;
 using MahApps.Metro.Controls;
 using MediaTools.Presentation.Services;
 using MediaTools.Presentation.ViewModels;
@@ -25,10 +26,20 @@ public partial class MainWindow : MetroWindow
         DataContext = viewModel;
         InitializeComponent();
 
+        ContentFrame.Navigated += OnContentFrameNavigated;
+
         viewModel.NavigationRequested += OnNavigationRequested;
         Loaded += (_, _) => viewModel.NavigateCommand.Execute("Dashboard");
         Loaded += OnMainWindowLoaded;
         Closed += OnMainWindowClosed;
+    }
+
+    private static void OnContentFrameNavigated(object sender, NavigationEventArgs e)
+    {
+        if (e.Content is DashboardPage page && page.DataContext is DashboardViewModel vm)
+        {
+            vm.RefreshAll();
+        }
     }
 
     private void OnMainWindowLoaded(object sender, RoutedEventArgs e)

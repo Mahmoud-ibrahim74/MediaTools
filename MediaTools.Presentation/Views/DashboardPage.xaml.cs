@@ -9,6 +9,5 @@ public partial class DashboardPage : Page
     {
         InitializeComponent();
         DataContext = viewModel;
-        Loaded += (_, _) => viewModel.RefreshStats();
     }
 }

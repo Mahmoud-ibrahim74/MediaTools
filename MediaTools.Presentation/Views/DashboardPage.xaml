@@ -4,275 +4,612 @@
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
       xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
+      xmlns:vm="clr-namespace:MediaTools.Presentation.ViewModels"
       mc:Ignorable="d"
       Title="Dashboard"
       HorizontalAlignment="Stretch"
       VerticalAlignment="Stretch">
+  <Page.Resources>
+    <Style x:Key="ToolLaunchCardStyle"
+           TargetType="Border"
+           BasedOn="{StaticResource CardBorderStyle}">
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}" />
+      <Style.Triggers>
+        <Trigger Property="IsMouseOver" Value="True">
+          <Setter Property="Background" Value="#FAFCFF" />
+          <Setter Property="BorderBrush" Value="{DynamicResource AccentLightBrush}" />
+        </Trigger>
+      </Style.Triggers>
+    </Style>
+  </Page.Resources>
+
   <Grid HorizontalAlignment="Stretch"
         VerticalAlignment="Stretch"
         Background="{DynamicResource ContentBackgroundBrush}">
     <ScrollViewer x:Name="DashboardScroll"
-                  Padding="28"
+                  Padding="28,24,28,36"
                   HorizontalAlignment="Stretch"
                   VerticalAlignment="Stretch"
                   HorizontalScrollBarVisibility="Disabled"
                   VerticalScrollBarVisibility="Auto"
                   Background="Transparent">
-      <Grid Width="{Binding ViewportWidth, ElementName=DashboardScroll}"
-            HorizontalAlignment="Stretch">
-    <StackPanel HorizontalAlignment="Stretch">
-      <StackPanel Margin="0,0,0,24">
-        <TextBlock FontSize="28"
+      <Grid MaxWidth="1280"
+            HorizontalAlignment="Stretch"
+            Width="{Binding ViewportWidth, ElementName=DashboardScroll}">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Hero -->
+        <Border Grid.Row="0"
+                Margin="0,0,0,24"
+                Padding="28,26"
+                CornerRadius="16"
+                SnapsToDevicePixels="True">
+          <Border.Background>
+            <LinearGradientBrush StartPoint="0,0"
+                                 EndPoint="1,1">
+              <GradientStop Offset="0"
+                            Color="#FF005A9E" />
+              <GradientStop Offset="0.55"
+                            Color="#FF0078D7" />
+              <GradientStop Offset="1"
+                            Color="#FF4DA3E8" />
+            </LinearGradientBrush>
+          </Border.Background>
+          <Border.Effect>
+            <DropShadowEffect BlurRadius="28"
+                              Direction="270"
+                              ShadowDepth="4"
+                              Opacity="0.22"
+                              Color="#FF003060" />
+          </Border.Effect>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <iconPacks:PackIconMaterial Width="32"
+                                            Height="32"
+                                            Foreground="White"
+                                            Kind="ViewDashboardOutline"
+                                            Opacity="0.95" />
+                <TextBlock Margin="12,0,0,0"
+                           VerticalAlignment="Center"
+                           FontSize="13"
+                           FontWeight="SemiBold"
+                           Foreground="#CCFFFFFF"
+                           Text="OVERVIEW" />
+              </StackPanel>
+              <TextBlock Margin="0,12,0,0"
+                         FontSize="32"
+                         FontWeight="SemiBold"
+                         Foreground="White"
+                         Text="{Binding MachineHeadline}" />
+              <TextBlock Margin="0,6,0,0"
+                         FontSize="14"
+                         Foreground="#E0FFFFFF"
+                         Text="{Binding OsSummary}"
+                         TextWrapping="Wrap" />
+              <TextBlock Margin="0,14,0,0"
+                         MaxWidth="560"
+                         FontSize="13"
+                         Foreground="#CCE8F4FF"
+                         TextWrapping="Wrap"
+                         Text="Track compression wins, disk capacity, and jump into tools — updated whenever you open this page." />
+            </StackPanel>
+            <Button Grid.Column="1"
+                    VerticalAlignment="Top"
+                    ToolTip="Refresh stats &amp; drives"
+                    Style="{DynamicResource OutlinedButtonStyle}"
+                    Command="{Binding RefreshDashboardCommand}"
+                    Background="#26FFFFFF"
+                    BorderBrush="#66FFFFFF"
+                    Foreground="White">
+              <StackPanel Orientation="Horizontal">
+                <iconPacks:PackIconMaterial Width="18"
+                                            Height="18"
+                                            Margin="0,0,8,0"
+                                            Foreground="White"
+                                            Kind="Refresh" />
+                <TextBlock Text="Refresh"
+                           Foreground="White" />
+              </StackPanel>
+            </Button>
+          </Grid>
+        </Border>
+
+        <!-- KPI strip -->
+        <UniformGrid Grid.Row="1"
+                     Margin="0,0,0,20"
+                     Columns="3">
+          <Border Margin="0,0,12,0"
+                  Style="{DynamicResource CardBorderStyle}">
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <Border Width="36"
+                        Height="36"
+                        CornerRadius="10"
+                        Background="#140078D7">
+                  <iconPacks:PackIconMaterial Width="20"
+                                                Height="20"
+                                                Margin="8"
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                Foreground="{DynamicResource AccentPrimaryBrush}"
+                                                Kind="MovieOutline" />
+                </Border>
+                <TextBlock Margin="12,0,0,0"
+                           VerticalAlignment="Center"
+                           FontSize="12"
+                           Foreground="#FF5F6B76"
+                           Text="Videos compressed" />
+              </StackPanel>
+              <TextBlock Margin="0,14,0,0"
+                         FontSize="30"
+                         FontWeight="SemiBold"
+                         Foreground="{DynamicResource AccentPrimaryBrush}"
+                         Text="{Binding TotalVideosCompressed}" />
+            </StackPanel>
+          </Border>
+          <Border Margin="6,0,6,0"
+                  Style="{DynamicResource CardBorderStyle}">
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <Border Width="36"
+                        Height="36"
+                        CornerRadius="10"
+                        Background="#142E7D32">
+                  <iconPacks:PackIconMaterial Width="20"
+                                                Height="20"
+                                                Margin="8"
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                Foreground="{DynamicResource StatusSuccessBrush}"
+                                                Kind="DatabaseArrowDownOutline" />
+                </Border>
+                <TextBlock Margin="12,0,0,0"
+                           VerticalAlignment="Center"
+                           FontSize="12"
+                           Foreground="#FF5F6B76"
+                           Text="Total space saved" />
+              </StackPanel>
+              <TextBlock Margin="0,14,0,0"
+                         FontSize="30"
+                         FontWeight="SemiBold"
+                         Foreground="{DynamicResource StatusSuccessBrush}"
+                         Text="{Binding TotalSpaceSavedDisplay}" />
+            </StackPanel>
+          </Border>
+          <Border Margin="12,0,0,0"
+                  Style="{DynamicResource CardBorderStyle}">
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <Border Width="36"
+                        Height="36"
+                        CornerRadius="10"
+                        Background="#14F9A825">
+                  <iconPacks:PackIconMaterial Width="20"
+                                                Height="20"
+                                                Margin="8"
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                Foreground="{DynamicResource StatusWarningBrush}"
+                                                Kind="ChartArc" />
+                </Border>
+                <TextBlock Margin="12,0,0,0"
+                           VerticalAlignment="Center"
+                           FontSize="12"
+                           Foreground="#FF5F6B76"
+                           Text="Avg. compression" />
+              </StackPanel>
+              <TextBlock Margin="0,14,0,0"
+                         FontSize="30"
+                         FontWeight="SemiBold"
+                         Foreground="{DynamicResource AccentPrimaryBrush}"
+                         Text="{Binding AverageCompressionRatioDisplay}" />
+            </StackPanel>
+          </Border>
+        </UniformGrid>
+
+        <!-- Charts + storage summary row -->
+        <Grid Grid.Row="2"
+              Margin="0,0,0,22">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+
+          <!-- Activity chart -->
+          <Border Margin="0,0,12,0"
+                  Style="{DynamicResource CardBorderStyle}">
+            <StackPanel>
+              <StackPanel Orientation="Horizontal"
+                          Margin="0,0,0,16">
+                <iconPacks:PackIconMaterial Width="22"
+                                            Height="22"
+                                            VerticalAlignment="Center"
+                                            Foreground="{DynamicResource AccentPrimaryBrush}"
+                                            Kind="ChartBar" />
+                <TextBlock Margin="10,0,0,0"
+                           VerticalAlignment="Center"
+                           FontSize="17"
+                           FontWeight="SemiBold"
+                           Text="Compression activity" />
+              </StackPanel>
+              <TextBlock Margin="0,0,0,18"
+                         FontSize="13"
+                         Foreground="#FF5F6B76"
+                         TextWrapping="Wrap"
+                         Text="Relative bars compare jobs completed, bytes reclaimed, and average shrink — scaled for quick scanning." />
+              <ItemsControl ItemsSource="{Binding CompressionBars}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate DataType="{x:Type vm:CompressionStatBarItem}">
+                    <StackPanel Margin="0,0,0,18">
+                      <Grid Margin="0,0,0,8">
+                        <TextBlock HorizontalAlignment="Left"
+                                   FontSize="13"
+                                   Foreground="#FF5F6B76"
+                                   Text="{Binding Label}" />
+                        <TextBlock HorizontalAlignment="Right"
+                                   FontSize="15"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource AccentPrimaryBrush}"
+                                   Text="{Binding ValueText}" />
+                      </Grid>
+                      <ProgressBar Height="12"
+                                   Maximum="100"
+                                   Style="{DynamicResource MetroProgressBarRounded}"
+                                   Value="{Binding FillPercent}"
+                                   Foreground="{DynamicResource AccentPrimaryBrush}" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </Border>
+
+          <!-- Computer storage -->
+          <Border Grid.Column="1"
+                  Margin="12,0,0,0"
+                  Style="{DynamicResource CardBorderStyle}">
+            <StackPanel>
+              <StackPanel Orientation="Horizontal"
+                          Margin="0,0,0,16">
+                <iconPacks:PackIconMaterial Width="22"
+                                            Height="22"
+                                            VerticalAlignment="Center"
+                                            Foreground="{DynamicResource AccentPrimaryBrush}"
+                                            Kind="Harddisk" />
+                <TextBlock Margin="10,0,0,0"
+                           VerticalAlignment="Center"
+                           FontSize="17"
+                           FontWeight="SemiBold"
+                           Text="Computer storage" />
+              </StackPanel>
+              <TextBlock Margin="0,0,0,8"
+                         FontSize="13"
+                         Foreground="#FF5F6B76"
+                         Text="{Binding AggregateStorageSummary}"
+                         TextWrapping="Wrap" />
+
+              <Grid Margin="0,12,0,16">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0"
+                        Width="112"
+                        Height="112"
+                        Margin="0,0,20,0"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        CornerRadius="56"
+                        BorderThickness="11"
+                        Background="White"
+                        SnapsToDevicePixels="True">
+                  <Border.BorderBrush>
+                    <LinearGradientBrush StartPoint="0,0"
+                                         EndPoint="1,1">
+                      <GradientStop Offset="0"
+                                    Color="#FF0078D7" />
+                      <GradientStop Offset="1"
+                                    Color="#FF4FC3F7" />
+                    </LinearGradientBrush>
+                  </Border.BorderBrush>
+                  <TextBlock HorizontalAlignment="Center"
+                             VerticalAlignment="Center"
+                             FontSize="24"
+                             FontWeight="Bold"
+                             Foreground="{DynamicResource AccentDarkBrush}"
+                             Text="{Binding AggregateStorageUsedPercent, StringFormat={}{0:0}%}" />
+                </Border>
+                <StackPanel Grid.Column="1"
+                            VerticalAlignment="Center">
+                  <TextBlock FontSize="13"
+                             FontWeight="SemiBold"
+                             Foreground="#FF37474F"
+                             Text="Overall disk use" />
+                  <TextBlock Margin="0,8,0,0"
+                             FontSize="12"
+                             Foreground="#FF5F6B76"
+                             TextWrapping="Wrap"
+                             Text="Weighted across fixed drives (NTFS/ReFS). Hover drives below for details." />
+                  <ProgressBar Margin="0,14,0,0"
+                               Height="14"
+                               Maximum="100"
+                               Style="{DynamicResource MetroProgressBarRounded}"
+                               Foreground="{DynamicResource AccentPrimaryBrush}"
+                               Value="{Binding AggregateStorageUsedPercent}" />
+                </StackPanel>
+              </Grid>
+
+              <Separator Margin="0,4,0,16"
+                         Background="#FFE8EEF4" />
+
+              <TextBlock Margin="0,0,0,10"
+                         FontSize="13"
+                         FontWeight="SemiBold"
+                         Foreground="#FF37474F"
+                         Text="Volumes" />
+              <ItemsControl ItemsSource="{Binding StorageDrives}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate DataType="{x:Type vm:DriveStorageDisplayItem}">
+                    <Border Margin="0,0,0,12"
+                            Padding="12,10"
+                            CornerRadius="10"
+                            Background="#FFF8FAFC"
+                            BorderBrush="#FFE8EEF4"
+                            BorderThickness="1">
+                      <StackPanel>
+                        <Grid Margin="0,0,0,6">
+                          <TextBlock HorizontalAlignment="Left"
+                                     FontWeight="SemiBold"
+                                     Foreground="#FF263238"
+                                     Text="{Binding TitleLine}" />
+                          <TextBlock HorizontalAlignment="Right"
+                                     FontSize="13"
+                                     FontWeight="SemiBold"
+                                     Foreground="#FF5F6B76"
+                                     Text="{Binding UsedPercent, StringFormat={}{0:0}%}">
+                            <TextBlock.Style>
+                              <Style TargetType="TextBlock">
+                                <Style.Triggers>
+                                  <DataTrigger Binding="{Binding Severity}"
+                                               Value="{x:Static vm:DriveUsageSeverity.Warning}">
+                                    <Setter Property="Foreground"
+                                            Value="{DynamicResource StatusWarningBrush}" />
+                                  </DataTrigger>
+                                  <DataTrigger Binding="{Binding Severity}"
+                                               Value="{x:Static vm:DriveUsageSeverity.Critical}">
+                                    <Setter Property="Foreground"
+                                            Value="{DynamicResource StatusDangerBrush}" />
+                                  </DataTrigger>
+                                </Style.Triggers>
+                              </Style>
+                            </TextBlock.Style>
+                          </TextBlock>
+                        </Grid>
+                        <TextBlock Margin="0,0,0,8"
+                                   FontSize="12"
+                                   Foreground="#FF78909C"
+                                   Text="{Binding DetailLine}"
+                                   TextWrapping="Wrap" />
+                        <ProgressBar Height="10"
+                                     Maximum="100"
+                                     Value="{Binding UsedPercent}">
+                          <ProgressBar.Style>
+                            <Style TargetType="ProgressBar"
+                                   BasedOn="{StaticResource MetroProgressBarRounded}">
+                              <Style.Triggers>
+                                <DataTrigger Binding="{Binding Severity}"
+                                             Value="{x:Static vm:DriveUsageSeverity.Warning}">
+                                  <Setter Property="Foreground"
+                                          Value="{DynamicResource StatusWarningBrush}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Severity}"
+                                             Value="{x:Static vm:DriveUsageSeverity.Critical}">
+                                  <Setter Property="Foreground"
+                                          Value="{DynamicResource StatusDangerBrush}" />
+                                </DataTrigger>
+                              </Style.Triggers>
+                            </Style>
+                          </ProgressBar.Style>
+                        </ProgressBar>
+                      </StackPanel>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </Border>
+        </Grid>
+
+        <!-- Tools -->
+        <TextBlock Grid.Row="3"
+                   Margin="0,0,0,14"
+                   FontSize="20"
                    FontWeight="SemiBold"
-                   Text="Dashboard" />
-        <TextBlock Margin="0,6,0,0"
-                   FontSize="14"
-                   Foreground="#FF5F6B76"
-                   Text="Overview of your MediaTools usage and quick access to tools." />
-      </StackPanel>
+                   Foreground="#FF263238"
+                   Text="Tools" />
 
-      <UniformGrid Margin="0,0,0,24"
-                   Columns="3">
-        <Border Margin="0,0,12,12"
-                Style="{DynamicResource CardBorderStyle}">
-          <StackPanel>
-            <TextBlock FontSize="13"
-                       Foreground="#FF5F6B76"
-                       Text="Videos compressed" />
-            <TextBlock Margin="0,8,0,0"
-                       FontSize="28"
-                       FontWeight="SemiBold"
-                       Foreground="{DynamicResource AccentPrimaryBrush}"
-                       Text="{Binding TotalVideosCompressed}" />
-          </StackPanel>
-        </Border>
-        <Border Margin="0,0,12,12"
-                Style="{DynamicResource CardBorderStyle}">
-          <StackPanel>
-            <TextBlock FontSize="13"
-                       Foreground="#FF5F6B76"
-                       Text="Total space saved" />
-            <TextBlock Margin="0,8,0,0"
-                       FontSize="28"
-                       FontWeight="SemiBold"
-                       Foreground="{DynamicResource AccentPrimaryBrush}"
-                       Text="{Binding TotalSpaceSavedDisplay}" />
-          </StackPanel>
-        </Border>
-        <Border Margin="0,0,0,12"
-                Style="{DynamicResource CardBorderStyle}">
-          <StackPanel>
-            <TextBlock FontSize="13"
-                       Foreground="#FF5F6B76"
-                       Text="Avg. compression" />
-            <TextBlock Margin="0,8,0,0"
-                       FontSize="28"
-                       FontWeight="SemiBold"
-                       Foreground="{DynamicResource AccentPrimaryBrush}"
-                       Text="{Binding AverageCompressionRatioDisplay}" />
-          </StackPanel>
-        </Border>
-      </UniformGrid>
-
-      <TextBlock Margin="0,8,0,12"
-                 FontSize="18"
-                 FontWeight="SemiBold"
-                 Text="Tools" />
-
-      <UniformGrid Columns="2">
-        <Border Margin="0,0,12,12"
-                Cursor="Hand"
-                Style="{DynamicResource CardBorderStyle}">
-          <Border.InputBindings>
-            <MouseBinding Command="{Binding GoToVideoCompressCommand}"
-                          MouseAction="LeftClick" />
-          </Border.InputBindings>
-          <Border.Background>
-            <SolidColorBrush Color="White" />
-          </Border.Background>
-          <Grid Margin="4">
-            <StackPanel>
-              <StackPanel Orientation="Horizontal">
-                <iconPacks:PackIconMaterial Width="26"
-                                            Height="26"
-                                            Foreground="{DynamicResource AccentPrimaryBrush}"
-                                            Kind="FolderZipOutline" />
-                <TextBlock Margin="12,0,0,0"
-                           VerticalAlignment="Center"
-                           FontSize="18"
-                           FontWeight="SemiBold"
-                           Text="Video Compress" />
+        <UniformGrid Grid.Row="4"
+                     Columns="3">
+          <Border Margin="0,0,12,12"
+                  Style="{StaticResource ToolLaunchCardStyle}">
+            <Border.InputBindings>
+              <MouseBinding Command="{Binding GoToVideoCompressCommand}"
+                            MouseAction="LeftClick" />
+            </Border.InputBindings>
+            <Grid Margin="4">
+              <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                  <iconPacks:PackIconMaterial Width="26"
+                                              Height="26"
+                                              Foreground="{DynamicResource AccentPrimaryBrush}"
+                                              Kind="FolderZipOutline" />
+                  <TextBlock Margin="12,0,0,0"
+                             VerticalAlignment="Center"
+                             FontSize="18"
+                             FontWeight="SemiBold"
+                             Text="Video Compress" />
+                </StackPanel>
+                <TextBlock Margin="0,10,0,0"
+                           FontSize="13"
+                           Foreground="#FF5F6B76"
+                           TextWrapping="Wrap"
+                           Text="Shrink video files with intelligent codec presets and advanced tuning." />
               </StackPanel>
-              <TextBlock Margin="0,10,0,0"
-                         FontSize="13"
-                         Foreground="#FF5F6B76"
-                         TextWrapping="Wrap"
-                         Text="Shrink video files with intelligent codec presets and advanced tuning." />
-            </StackPanel>
-          </Grid>
-        </Border>
+            </Grid>
+          </Border>
 
-        <Border Margin="0,0,0,12"
-                Cursor="Hand"
-                Style="{DynamicResource CardBorderStyle}">
-          <Border.InputBindings>
-            <MouseBinding Command="{Binding GoToPhotoEnhancerCommand}"
-                          MouseAction="LeftClick" />
-          </Border.InputBindings>
-          <Border.Background>
-            <SolidColorBrush Color="White" />
-          </Border.Background>
-          <Grid Margin="4">
-            <StackPanel>
-              <StackPanel Orientation="Horizontal">
-                <iconPacks:PackIconMaterial Width="26"
-                                            Height="26"
-                                            Foreground="{DynamicResource AccentPrimaryBrush}"
-                                            Kind="ImageFilterHdrOutline" />
-                <TextBlock Margin="12,0,0,0"
-                           VerticalAlignment="Center"
-                           FontSize="18"
-                           FontWeight="SemiBold"
-                           Text="Photo Enhancer" />
+          <Border Margin="0,0,12,12"
+                  Style="{StaticResource ToolLaunchCardStyle}">
+            <Border.InputBindings>
+              <MouseBinding Command="{Binding GoToPhotoEnhancerCommand}"
+                            MouseAction="LeftClick" />
+            </Border.InputBindings>
+            <Grid Margin="4">
+              <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                  <iconPacks:PackIconMaterial Width="26"
+                                              Height="26"
+                                              Foreground="{DynamicResource AccentPrimaryBrush}"
+                                              Kind="ImageFilterHdrOutline" />
+                  <TextBlock Margin="12,0,0,0"
+                             VerticalAlignment="Center"
+                             FontSize="18"
+                             FontWeight="SemiBold"
+                             Text="Photo Enhancer" />
+                </StackPanel>
+                <TextBlock Margin="0,10,0,0"
+                           FontSize="13"
+                           Foreground="#FF5F6B76"
+                           TextWrapping="Wrap"
+                           Text="Convert formats, upscale with AI-style enhancement, and apply creative filters." />
               </StackPanel>
-              <TextBlock Margin="0,10,0,0"
-                         FontSize="13"
-                         Foreground="#FF5F6B76"
-                         TextWrapping="Wrap"
-                         Text="Convert formats, upscale with AI-style enhancement, and apply creative filters." />
-            </StackPanel>
-          </Grid>
-        </Border>
+            </Grid>
+          </Border>
 
-        <Border Margin="0,0,12,0"
-                Cursor="Hand"
-                Style="{DynamicResource CardBorderStyle}">
-          <Border.InputBindings>
-            <MouseBinding Command="{Binding GoToAudioEnhancerCommand}"
-                          MouseAction="LeftClick" />
-          </Border.InputBindings>
-          <Border.Background>
-            <SolidColorBrush Color="White" />
-          </Border.Background>
-          <Grid Margin="4">
-            <StackPanel>
-              <StackPanel Orientation="Horizontal">
-                <iconPacks:PackIconMaterial Width="26"
-                                            Height="26"
-                                            Foreground="{DynamicResource AccentPrimaryBrush}"
-                                            Kind="MusicNoteOutline" />
-                <TextBlock Margin="12,0,0,0"
-                           VerticalAlignment="Center"
-                           FontSize="18"
-                           FontWeight="SemiBold"
-                           Text="Audio Converter" />
+          <Border Margin="0,0,0,12"
+                  Style="{StaticResource ToolLaunchCardStyle}">
+            <Border.InputBindings>
+              <MouseBinding Command="{Binding GoToAudioEnhancerCommand}"
+                            MouseAction="LeftClick" />
+            </Border.InputBindings>
+            <Grid Margin="4">
+              <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                  <iconPacks:PackIconMaterial Width="26"
+                                              Height="26"
+                                              Foreground="{DynamicResource AccentPrimaryBrush}"
+                                              Kind="MusicNoteOutline" />
+                  <TextBlock Margin="12,0,0,0"
+                             VerticalAlignment="Center"
+                             FontSize="18"
+                             FontWeight="SemiBold"
+                             Text="Audio Converter" />
+                </StackPanel>
+                <TextBlock Margin="0,10,0,0"
+                           FontSize="13"
+                           Foreground="#FF5F6B76"
+                           TextWrapping="Wrap"
+                           Text="Convert formats, set bitrate and sample rate, normalize loudness, and add clarity EQ." />
               </StackPanel>
-              <TextBlock Margin="0,10,0,0"
-                         FontSize="13"
-                         Foreground="#FF5F6B76"
-                         TextWrapping="Wrap"
-                         Text="Convert formats, set bitrate and sample rate, normalize loudness, and add clarity EQ." />
-            </StackPanel>
-          </Grid>
-        </Border>
+            </Grid>
+          </Border>
 
-        <Border Margin="0,0,0,0"
-                Cursor="Hand"
-                Style="{DynamicResource CardBorderStyle}">
-          <Border.InputBindings>
-            <MouseBinding Command="{Binding GoToThumbnailGeneratorCommand}"
-                          MouseAction="LeftClick" />
-          </Border.InputBindings>
-          <Border.Background>
-            <SolidColorBrush Color="White" />
-          </Border.Background>
-          <Grid Margin="4">
-            <StackPanel>
-              <StackPanel Orientation="Horizontal">
-                <iconPacks:PackIconMaterial Width="26"
-                                            Height="26"
-                                            Foreground="{DynamicResource AccentPrimaryBrush}"
-                                            Kind="ImageSizeSelectLarge" />
-                <TextBlock Margin="12,0,0,0"
-                           VerticalAlignment="Center"
-                           FontSize="18"
-                           FontWeight="SemiBold"
-                           Text="Thumbnail Generator" />
+          <Border Margin="0,0,12,12"
+                  Style="{StaticResource ToolLaunchCardStyle}">
+            <Border.InputBindings>
+              <MouseBinding Command="{Binding GoToThumbnailGeneratorCommand}"
+                            MouseAction="LeftClick" />
+            </Border.InputBindings>
+            <Grid Margin="4">
+              <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                  <iconPacks:PackIconMaterial Width="26"
+                                              Height="26"
+                                              Foreground="{DynamicResource AccentPrimaryBrush}"
+                                              Kind="ImageSizeSelectLarge" />
+                  <TextBlock Margin="12,0,0,0"
+                             VerticalAlignment="Center"
+                             FontSize="18"
+                             FontWeight="SemiBold"
+                             Text="Thumbnail Generator" />
+                </StackPanel>
+                <TextBlock Margin="0,10,0,0"
+                           FontSize="13"
+                           Foreground="#FF5F6B76"
+                           TextWrapping="Wrap"
+                           Text="Resize images or grab a video frame — pick max edge, format, and seek time for clips." />
               </StackPanel>
-              <TextBlock Margin="0,10,0,0"
-                         FontSize="13"
-                         Foreground="#FF5F6B76"
-                         TextWrapping="Wrap"
-                         Text="Resize images or grab a video frame — pick max edge, format, and seek time for clips." />
-            </StackPanel>
-          </Grid>
-        </Border>
+            </Grid>
+          </Border>
 
-        <Border Margin="0,0,12,0"
-                Cursor="Hand"
-                Style="{DynamicResource CardBorderStyle}">
-          <Border.InputBindings>
-            <MouseBinding Command="{Binding GoToScreenRecorderCommand}"
-                          MouseAction="LeftClick" />
-          </Border.InputBindings>
-          <Border.Background>
-            <SolidColorBrush Color="White" />
-          </Border.Background>
-          <Grid Margin="4">
-            <StackPanel>
-              <StackPanel Orientation="Horizontal">
-                <iconPacks:PackIconMaterial Width="26"
-                                            Height="26"
-                                            Foreground="{DynamicResource AccentPrimaryBrush}"
-                                            Kind="RecordRec" />
-                <TextBlock Margin="12,0,0,0"
-                           VerticalAlignment="Center"
-                           FontSize="18"
-                           FontWeight="SemiBold"
-                           Text="Screen Recorder" />
+          <Border Margin="0,0,12,12"
+                  Style="{StaticResource ToolLaunchCardStyle}">
+            <Border.InputBindings>
+              <MouseBinding Command="{Binding GoToScreenRecorderCommand}"
+                            MouseAction="LeftClick" />
+            </Border.InputBindings>
+            <Grid Margin="4">
+              <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                  <iconPacks:PackIconMaterial Width="26"
+                                              Height="26"
+                                              Foreground="{DynamicResource AccentPrimaryBrush}"
+                                              Kind="RecordRec" />
+                  <TextBlock Margin="12,0,0,0"
+                             VerticalAlignment="Center"
+                             FontSize="18"
+                             FontWeight="SemiBold"
+                             Text="Screen Recorder" />
+                </StackPanel>
+                <TextBlock Margin="0,10,0,0"
+                           FontSize="13"
+                           Foreground="#FF5F6B76"
+                           TextWrapping="Wrap"
+                           Text="Capture your desktop with optional microphone audio — pick a region, frame rate, and quality." />
               </StackPanel>
-              <TextBlock Margin="0,10,0,0"
-                         FontSize="13"
-                         Foreground="#FF5F6B76"
-                         TextWrapping="Wrap"
-                         Text="Capture your desktop with optional microphone audio — pick a region, frame rate, and quality." />
-            </StackPanel>
-          </Grid>
-        </Border>
+            </Grid>
+          </Border>
 
-        <Border Margin="0,0,0,0"
-                Cursor="Hand"
-                Style="{DynamicResource CardBorderStyle}">
-          <Border.InputBindings>
-            <MouseBinding Command="{Binding GoToVideoEnhancerCommand}"
-                          MouseAction="LeftClick" />
-          </Border.InputBindings>
-          <Border.Background>
-            <SolidColorBrush Color="White" />
-          </Border.Background>
-          <Grid Margin="4">
-            <StackPanel>
-              <StackPanel Orientation="Horizontal">
-                <iconPacks:PackIconMaterial Width="26"
-                                            Height="26"
-                                            Foreground="{DynamicResource AccentPrimaryBrush}"
-                                            Kind="MovieEditOutline" />
-                <TextBlock Margin="12,0,0,0"
-                           VerticalAlignment="Center"
-                           FontSize="18"
-                           FontWeight="SemiBold"
-                           Text="Video tools" />
+          <Border Margin="0,0,0,12"
+                  Style="{StaticResource ToolLaunchCardStyle}">
+            <Border.InputBindings>
+              <MouseBinding Command="{Binding GoToVideoEnhancerCommand}"
+                            MouseAction="LeftClick" />
+            </Border.InputBindings>
+            <Grid Margin="4">
+              <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                  <iconPacks:PackIconMaterial Width="26"
+                                              Height="26"
+                                              Foreground="{DynamicResource AccentPrimaryBrush}"
+                                              Kind="MovieEditOutline" />
+                  <TextBlock Margin="12,0,0,0"
+                             VerticalAlignment="Center"
+                             FontSize="18"
+                             FontWeight="SemiBold"
+                             Text="Video tools" />
+                </StackPanel>
+                <TextBlock Margin="0,10,0,0"
+                           FontSize="13"
+                           Foreground="#FF5F6B76"
+                           TextWrapping="Wrap"
+                           Text="Extract embedded subtitles (SRT, WebVTT, ASS, copy) and enhance clips — watermark, speed, reverse, color grade, crop &amp; resize, or pull audio." />
               </StackPanel>
-              <TextBlock Margin="0,10,0,0"
-                         FontSize="13"
-                         Foreground="#FF5F6B76"
-                         TextWrapping="Wrap"
-                         Text="Extract embedded subtitles (SRT, WebVTT, ASS, copy) and enhance clips — watermark, speed, reverse, color grade, crop &amp; resize, or pull audio." />
-            </StackPanel>
-          </Grid>
-        </Border>
-      </UniformGrid>
-    </StackPanel>
+            </Grid>
+          </Border>
+        </UniformGrid>
       </Grid>
     </ScrollViewer>
   </Grid>
