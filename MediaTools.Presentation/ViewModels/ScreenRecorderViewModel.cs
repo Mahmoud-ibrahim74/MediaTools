@@ -12,6 +12,7 @@ using MediaTools.Domain.Enums;
 using MediaTools.Domain.ValueObjects;
 using MediaTools.Presentation.Helpers;
 using MediaTools.Presentation.Services;
+using MediaTools.Presentation.Views;
 
 namespace MediaTools.Presentation.ViewModels;
 
@@ -30,6 +31,11 @@ public partial class ScreenRecorderViewModel : ObservableObject
     private TimeSpan _pausedBeforeCurrentSegment;
     private DateTime? _pauseSegmentStarted;
     private readonly SemaphoreSlim _microphoneLoadGate = new(1, 1);
+
+    /// <summary>
+    /// True only after the user finishes <see cref="ApplyPickedRegion"/> (draw overlay). Selecting Custom in the UI alone does not count.
+    /// </summary>
+    private bool _customRegionConfirmed;
 
     public ScreenRecorderViewModel(
         StartScreenRecordingUseCase startScreenRecordingUseCase,
@@ -213,12 +219,15 @@ public partial class ScreenRecorderViewModel : ObservableObject
         OffsetY = offsetY;
         CaptureWidth = w;
         CaptureHeight = h;
+        _customRegionConfirmed = true;
+        StartRecordingCommand.NotifyCanExecuteChanged();
     }
 
     private bool CanStartRecording() =>
         !IsRecording
         && CountdownSeconds == 0
-        && Directory.Exists(_preferences.SaveFolderPath);
+        && Directory.Exists(_preferences.SaveFolderPath)
+        && (Region != ScreenRecordingRegion.Custom || _customRegionConfirmed);
 
     private bool CanStopRecording() => IsRecording;
 
@@ -282,6 +291,9 @@ public partial class ScreenRecorderViewModel : ObservableObject
                 return;
             }
         }
+
+        // Close the draw-region modal if it is still open (e.g. user pressed the global Start hotkey after selecting a rectangle).
+        RegionSelectionOverlayWindow.CloseAllForRecordingStart();
 
         if (StartDelaySeconds > 0)
         {
@@ -454,6 +466,51 @@ public partial class ScreenRecorderViewModel : ObservableObject
         IsPaused = false;
     }
 
+    /// <summary>Global shortcut from App settings — starts recording when idle (same rules as the Start button).</summary>
+    public void HandleGlobalHotkeyStartRecording()
+    {
+        global::System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+        {
+            if (Region == ScreenRecordingRegion.Custom && !_customRegionConfirmed)
+            {
+                MessageBoxHelper.ShowWarning(
+                    "Custom region is not set. Use \"Draw region on screen…\", drag to select an area, then start recording or press the hotkey again.");
+                return;
+            }
+
+            if (!StartRecordingCommand.CanExecute(null))
+            {
+                return;
+            }
+
+            StartRecordingCommand.Execute(null);
+        });
+    }
+
+    /// <summary>Global shortcut — toggles pause/resume while recording.</summary>
+    public void HandleGlobalHotkeyPauseToggle()
+    {
+        global::System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+        {
+            if (!IsRecording)
+            {
+                return;
+            }
+
+            if (IsPaused)
+            {
+                if (ResumeRecordingCommand.CanExecute(null))
+                {
+                    ResumeRecordingCommand.Execute(null);
+                }
+            }
+            else if (PauseRecordingCommand.CanExecute(null))
+            {
+                PauseRecordingCommand.Execute(null);
+            }
+        });
+    }
+
     [RelayCommand(CanExecute = nameof(CanStopRecording))]
     private void StopRecording()
     {
@@ -606,6 +663,13 @@ public partial class ScreenRecorderViewModel : ObservableObject
 
     partial void OnRegionChanged(ScreenRecordingRegion value)
     {
+        if (value != ScreenRecordingRegion.Custom)
+        {
+            _customRegionConfirmed = false;
+        }
+
+        StartRecordingCommand.NotifyCanExecuteChanged();
+
         if (value == ScreenRecordingRegion.PrimaryMonitor)
         {
             ApplyPrimaryMonitorBounds();

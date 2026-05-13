@@ -20,6 +20,11 @@ public sealed class UserPreferencesService : IUserPreferencesService
     private bool _toastNotificationsEnabled = true;
     private VideoHardwareEncoderKind _videoHardwareEncoder = VideoHardwareEncoderKind.Software;
     private VideoEncoderScanResult? _lastVideoEncoderScan;
+    private HotkeySetting _screenRecorderStart = DefaultStartHotkey;
+    private HotkeySetting _screenRecorderPause = DefaultPauseHotkey;
+
+    private static HotkeySetting DefaultStartHotkey => new(0, 0x78); // F9
+    private static HotkeySetting DefaultPauseHotkey => new(0, 0x79); // F10
 
     public UserPreferencesService()
     {
@@ -40,6 +45,12 @@ public sealed class UserPreferencesService : IUserPreferencesService
     public event EventHandler? SaveFolderPathChanged;
 
     public event EventHandler? VideoEncoderSettingsChanged;
+
+    public event EventHandler? ScreenRecorderHotkeysChanged;
+
+    public HotkeySetting ScreenRecorderStartHotkey => _screenRecorderStart;
+
+    public HotkeySetting ScreenRecorderPauseHotkey => _screenRecorderPause;
 
     public void SetSaveFolderPath(string path)
     {
@@ -78,6 +89,19 @@ public sealed class UserPreferencesService : IUserPreferencesService
         _lastVideoEncoderScan = scan;
         Persist();
         VideoEncoderSettingsChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void SetScreenRecorderHotkeys(HotkeySetting start, HotkeySetting pause)
+    {
+        if (_screenRecorderStart == start && _screenRecorderPause == pause)
+        {
+            return;
+        }
+
+        _screenRecorderStart = start;
+        _screenRecorderPause = pause;
+        Persist();
+        ScreenRecorderHotkeysChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private static VideoHardwareEncoderKind CoercePreference(VideoHardwareEncoderKind preference, VideoEncoderScanResult scan)
@@ -129,6 +153,9 @@ public sealed class UserPreferencesService : IUserPreferencesService
                 _videoHardwareEncoder = CoercePreference(enc, scanOrFallback);
             }
 
+            _screenRecorderStart = NormalizeLoadedHotkey(dto.ScreenRecorderStartMods, dto.ScreenRecorderStartVk, DefaultStartHotkey);
+            _screenRecorderPause = NormalizeLoadedHotkey(dto.ScreenRecorderPauseMods, dto.ScreenRecorderPauseVk, DefaultPauseHotkey);
+
             if (string.IsNullOrWhiteSpace(dto.SaveFolderPath))
             {
                 CreateDefaultFolderAndPersist();
@@ -166,7 +193,11 @@ public sealed class UserPreferencesService : IUserPreferencesService
                 VideoHardwareEncoder = _videoHardwareEncoder,
                 EncoderScanNvenc = _lastVideoEncoderScan?.NvencAvailable,
                 EncoderScanAmf = _lastVideoEncoderScan?.AmfAvailable,
-                EncoderScanQsv = _lastVideoEncoderScan?.QuickSyncAvailable
+                EncoderScanQsv = _lastVideoEncoderScan?.QuickSyncAvailable,
+                ScreenRecorderStartMods = _screenRecorderStart.Modifiers,
+                ScreenRecorderStartVk = _screenRecorderStart.VirtualKey,
+                ScreenRecorderPauseMods = _screenRecorderPause.Modifiers,
+                ScreenRecorderPauseVk = _screenRecorderPause.VirtualKey
             };
             var json = JsonSerializer.Serialize(dto, JsonOptions);
             File.WriteAllText(_filePath, json);
@@ -191,5 +222,30 @@ public sealed class UserPreferencesService : IUserPreferencesService
         public bool? EncoderScanAmf { get; set; }
 
         public bool? EncoderScanQsv { get; set; }
+
+        public uint? ScreenRecorderStartMods { get; set; }
+
+        public uint? ScreenRecorderStartVk { get; set; }
+
+        public uint? ScreenRecorderPauseMods { get; set; }
+
+        public uint? ScreenRecorderPauseVk { get; set; }
+    }
+
+    private static HotkeySetting NormalizeLoadedHotkey(uint? mods, uint? vk, HotkeySetting fallback)
+    {
+        if (vk is null)
+        {
+            return fallback;
+        }
+
+        if (vk.Value == 0)
+        {
+            return HotkeySetting.Empty;
+        }
+
+        var m = mods ?? 0;
+        m &= ~(HotkeySetting.ModNoRepeat);
+        return new HotkeySetting(m, vk.Value);
     }
 }

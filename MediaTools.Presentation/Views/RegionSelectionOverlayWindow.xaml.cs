@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -292,6 +293,48 @@ public partial class RegionSelectionOverlayWindow : Window
         SelectedScreenRect = null;
         SelectedDelaySeconds = 0;
         DialogResult = false;
+    }
+
+    /// <summary>
+    /// Closes this overlay when recording is started from elsewhere (e.g. global Start hotkey) so the dimmed screen,
+    /// delay row, and buttons do not stay visible during capture.
+    /// </summary>
+    public void DismissForRecordingStartedElsewhere()
+    {
+        try
+        {
+            if (!IsLoaded)
+            {
+                return;
+            }
+
+            CancelOverlay();
+        }
+        catch
+        {
+            try
+            {
+                Close();
+            }
+            catch
+            {
+                // ignore
+            }
+        }
+    }
+
+    /// <inheritdoc cref="DismissForRecordingStartedElsewhere"/>
+    public static void CloseAllForRecordingStart()
+    {
+        if (global::System.Windows.Application.Current is null)
+        {
+            return;
+        }
+
+        foreach (var w in global::System.Windows.Application.Current.Windows.OfType<RegionSelectionOverlayWindow>().ToArray())
+        {
+            w.DismissForRecordingStartedElsewhere();
+        }
     }
 
     private void UpdateDimGeometry()

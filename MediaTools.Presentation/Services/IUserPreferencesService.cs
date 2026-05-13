@@ -29,4 +29,14 @@ public interface IUserPreferencesService
     event EventHandler? SaveFolderPathChanged;
 
     event EventHandler? VideoEncoderSettingsChanged;
+
+    /// <summary>Global shortcut to start recording when not recording (see App settings).</summary>
+    HotkeySetting ScreenRecorderStartHotkey { get; }
+
+    /// <summary>Global shortcut to pause / resume while recording.</summary>
+    HotkeySetting ScreenRecorderPauseHotkey { get; }
+
+    void SetScreenRecorderHotkeys(HotkeySetting start, HotkeySetting pause);
+
+    event EventHandler? ScreenRecorderHotkeysChanged;
 }

@@ -361,3 +361,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Ad-hoc `dotnet build -o` output (CI/agent verification)
+_build_verify_out*/

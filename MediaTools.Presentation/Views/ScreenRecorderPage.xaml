@@ -223,7 +223,7 @@
               <StackPanel>
                 <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="How it works" />
                 <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
-                           Text="FFmpeg's gdigrab captures the desktop with libx264 encoding. Pause freezes capture (timer stops); Resume continues. Stop &amp; save finalizes the file gracefully — Cancel discards in-progress output." />
+                           Text="FFmpeg's gdigrab captures the desktop with libx264 encoding. Pause freezes capture (timer stops); Resume continues. Configure global Start and Pause shortcuts in App settings (Bandicam-style). Stop &amp; save finalizes the file gracefully — Cancel discards in-progress output." />
               </StackPanel>
             </Border>
             <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">

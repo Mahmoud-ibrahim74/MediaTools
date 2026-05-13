@@ -52,12 +52,6 @@
                         Content="Browse…"
                         Style="{DynamicResource OutlinedButtonStyle}" />
               </Grid>
-              <Button Margin="0,16,0,0"
-                      HorizontalAlignment="Left"
-                      MinWidth="120"
-                      Command="{Binding SaveSettingsCommand}"
-                      Content="Save"
-                      Style="{DynamicResource PrimaryButtonStyle}" />
             </StackPanel>
           </Border>
 
@@ -180,6 +174,91 @@
 
           <Border Margin="0,16,0,0" Padding="20" Style="{DynamicResource CardBorderStyle}">
             <StackPanel>
+              <TextBlock FontWeight="SemiBold" Text="Screen Recorder hotkeys" />
+              <TextBlock Margin="0,6,0,0"
+                         FontSize="12"
+                         Foreground="#FF5F6B76"
+                         TextWrapping="Wrap"
+                         Text="Bandicam-style shortcuts work system-wide while Media Tools is running (even when another app is focused). Defaults: F9 start, F10 pause/resume. Click Set, then press the desired combination. The same key cannot be assigned to more than one action." />
+              <Border Margin="0,12,0,0"
+                      Padding="12"
+                      Background="#FFFFF8E1"
+                      BorderBrush="#FFFFE082"
+                      BorderThickness="1"
+                      CornerRadius="8"
+                      Visibility="{Binding IsHotkeyCaptureActive, Converter={StaticResource BoolToVisibilityConverter}}">
+                <TextBlock Foreground="#FF6D4C41"
+                           Text="{Binding HotkeyCaptureHint}"
+                           TextWrapping="Wrap" />
+              </Border>
+              <Grid Margin="0,16,0,0">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="154" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="Auto" />
+                  <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0"
+                           Grid.Column="0"
+                           VerticalAlignment="Center"
+                           Text="Start recording" />
+                <TextBox Grid.Row="0"
+                         Grid.Column="1"
+                         Margin="12,0,12,0"
+                         MinHeight="36"
+                         VerticalContentAlignment="Center"
+                         IsReadOnly="True"
+                         Text="{Binding DraftStartHotkeyDisplay, Mode=OneWay}" />
+                <Button Grid.Row="0"
+                        Grid.Column="2"
+                        MinWidth="72"
+                        Margin="0,0,8,0"
+                        Command="{Binding BeginCaptureStartHotkeyCommand}"
+                        Content="Set…"
+                        Style="{DynamicResource OutlinedButtonStyle}" />
+                <Button Grid.Row="0"
+                        Grid.Column="3"
+                        MinWidth="72"
+                        Command="{Binding ClearDraftStartHotkeyCommand}"
+                        Content="Clear"
+                        Style="{DynamicResource OutlinedButtonStyle}" />
+
+                <TextBlock Grid.Row="1"
+                           Grid.Column="0"
+                           Margin="0,12,0,0"
+                           VerticalAlignment="Center"
+                           Text="Pause / resume" />
+                <TextBox Grid.Row="1"
+                         Grid.Column="1"
+                         Margin="12,12,12,0"
+                         MinHeight="36"
+                         VerticalContentAlignment="Center"
+                         IsReadOnly="True"
+                         Text="{Binding DraftPauseHotkeyDisplay, Mode=OneWay}" />
+                <Button Grid.Row="1"
+                        Grid.Column="2"
+                        Margin="0,12,8,0"
+                        MinWidth="72"
+                        Command="{Binding BeginCapturePauseHotkeyCommand}"
+                        Content="Set…"
+                        Style="{DynamicResource OutlinedButtonStyle}" />
+                <Button Grid.Row="1"
+                        Grid.Column="3"
+                        Margin="0,12,0,0"
+                        MinWidth="72"
+                        Command="{Binding ClearDraftPauseHotkeyCommand}"
+                        Content="Clear"
+                        Style="{DynamicResource OutlinedButtonStyle}" />
+              </Grid>
+            </StackPanel>
+          </Border>
+
+          <Border Margin="0,16,0,0" Padding="20" Style="{DynamicResource CardBorderStyle}">
+            <StackPanel>
               <TextBlock FontWeight="SemiBold" Text="Notifications" />
               <TextBlock Margin="0,6,0,0"
                          FontSize="12"
@@ -207,9 +286,18 @@
               <TextBlock Margin="10,0,0,0"
                          Foreground="#FF5F6B76"
                          TextWrapping="Wrap"
-                         Text="Settings (folder path, hardware encoder choice, scan results, and notification toggle) are stored under your user profile (AppData\Roaming\MediaTools\settings.json)." />
+                         Text="Settings (folder path, hardware encoder choice, scan results, notification toggle, and screen recorder hotkeys) are stored under your user profile (AppData\Roaming\MediaTools\settings.json)." />
             </StackPanel>
           </Border>
+
+          <StackPanel Margin="0,24,0,32"
+                      HorizontalAlignment="Right"
+                      Orientation="Horizontal">
+            <Button MinWidth="140"
+                    Command="{Binding SaveSettingsCommand}"
+                    Content="Save"
+                    Style="{DynamicResource PrimaryButtonStyle}" />
+          </StackPanel>
         </StackPanel>
       </Grid>
     </ScrollViewer>
