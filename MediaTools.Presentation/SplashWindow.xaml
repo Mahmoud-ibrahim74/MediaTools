@@ -3,10 +3,10 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="http://metro.mahapps.com/winfx/xaml/controls"
         Title="Media Tools"
-        Width="820"
-        Height="480"
-        MinWidth="760"
-        MinHeight="440"
+        Width="760"
+        Height="420"
+        MinWidth="700"
+        MinHeight="400"
         WindowStyle="None"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterScreen"
@@ -16,201 +16,414 @@
   <Window.Resources>
     <ResourceDictionary>
       <ResourceDictionary.MergedDictionaries>
-        <ResourceDictionary Source="pack://application:,,,/MahApps.Metro;component/Styles/Controls.xaml" />
         <ResourceDictionary Source="/Themes/AppColors.xaml" />
       </ResourceDictionary.MergedDictionaries>
 
-      <Style x:Key="SplashTitleMain" TargetType="Run">
-        <Setter Property="FontSize" Value="38" />
-        <Setter Property="FontWeight" Value="Light" />
-        <Setter Property="Foreground" Value="{StaticResource SideMenuTextBrush}" />
-      </Style>
-      <Style x:Key="SplashTitleAccent" TargetType="Run">
-        <Setter Property="FontSize" Value="38" />
-        <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="Foreground" Value="{StaticResource AccentLightBrush}" />
-      </Style>
+      <Color x:Key="SplashBgColor">#FF121212</Color>
+      <Color x:Key="SplashCyanColor">#FF70D6E3</Color>
+      <SolidColorBrush x:Key="SplashBgBrush" Color="{StaticResource SplashBgColor}" />
+      <SolidColorBrush x:Key="SplashCyanBrush" Color="{StaticResource SplashCyanColor}" />
+
+      <CubicEase x:Key="EaseOut" EasingMode="EaseOut" />
+
+      <Storyboard x:Key="SplashIntroStoryboard">
+        <DoubleAnimation Storyboard.TargetName="SplashCard"
+                         Storyboard.TargetProperty="Opacity"
+                         From="0"
+                         To="1"
+                         Duration="0:0:0.65"
+                         EasingFunction="{StaticResource EaseOut}" />
+        <DoubleAnimation Storyboard.TargetName="SplashSlide"
+                         Storyboard.TargetProperty="Y"
+                         From="22"
+                         To="0"
+                         Duration="0:0:0.7"
+                         EasingFunction="{StaticResource EaseOut}" />
+      </Storyboard>
+
+      <Storyboard x:Key="BarShimmerStoryboard" RepeatBehavior="Forever">
+        <DoubleAnimation Storyboard.TargetName="BarShimmerTranslate"
+                         Storyboard.TargetProperty="X"
+                         From="-120"
+                         To="420"
+                         Duration="0:0:1.65"
+                         EasingFunction="{StaticResource EaseOut}" />
+      </Storyboard>
+
+      <Storyboard x:Key="DotsTwinkleStoryboard" RepeatBehavior="Forever" AutoReverse="True">
+        <DoubleAnimation Storyboard.TargetName="DotsClusterNe"
+                         Storyboard.TargetProperty="Opacity"
+                         From="0.35"
+                         To="0.85"
+                         Duration="0:0:2.2"
+                         EasingFunction="{StaticResource EaseOut}" />
+        <DoubleAnimation Storyboard.TargetName="DotsClusterSw"
+                         Storyboard.TargetProperty="Opacity"
+                         From="0.3"
+                         To="0.75"
+                         Duration="0:0:2.6"
+                         EasingFunction="{StaticResource EaseOut}" />
+      </Storyboard>
     </ResourceDictionary>
   </Window.Resources>
 
-  <!-- Outer breathing room + soft halo -->
-  <Border Padding="10">
-    <Border CornerRadius="28"
+  <Window.Triggers>
+    <EventTrigger RoutedEvent="FrameworkElement.Loaded">
+      <BeginStoryboard Storyboard="{StaticResource SplashIntroStoryboard}" />
+      <BeginStoryboard Storyboard="{StaticResource BarShimmerStoryboard}" />
+      <BeginStoryboard Storyboard="{StaticResource DotsTwinkleStoryboard}" />
+    </EventTrigger>
+  </Window.Triggers>
+
+  <!-- Outer soft halo -->
+  <Border Padding="14">
+    <Border x:Name="SplashCard"
+            CornerRadius="22"
             ClipToBounds="True"
-            Background="#FF0A1424">
+            Opacity="0"
+            Background="{StaticResource SplashBgBrush}">
+      <Border.RenderTransform>
+        <TranslateTransform x:Name="SplashSlide" Y="22" />
+      </Border.RenderTransform>
       <Border.Effect>
-        <DropShadowEffect BlurRadius="40"
+        <DropShadowEffect BlurRadius="36"
                           Direction="270"
-                          ShadowDepth="8"
-                          Opacity="0.55"
+                          ShadowDepth="6"
+                          Opacity="0.45"
                           Color="#FF000000" />
       </Border.Effect>
 
       <Grid>
-        <Grid.RowDefinitions>
-          <RowDefinition Height="*" />
-          <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
+        <!-- Ambient gradient orbs (reference-style backdrop) -->
+        <Ellipse Width="420"
+                 Height="420"
+                 Margin="-120,-80,0,0"
+                 HorizontalAlignment="Left"
+                 VerticalAlignment="Top"
+                 IsHitTestVisible="False"
+                 Opacity="0.35">
+          <Ellipse.Fill>
+            <RadialGradientBrush>
+              <GradientStop Offset="0" Color="#664DA3E8" />
+              <GradientStop Offset="1" Color="#00121212" />
+            </RadialGradientBrush>
+          </Ellipse.Fill>
+        </Ellipse>
+        <Ellipse Width="380"
+                 Height="380"
+                 Margin="0,40,-100,-60"
+                 HorizontalAlignment="Right"
+                 VerticalAlignment="Bottom"
+                 IsHitTestVisible="False"
+                 Opacity="0.28">
+          <Ellipse.Fill>
+            <RadialGradientBrush>
+              <GradientStop Offset="0" Color="#558050FF" />
+              <GradientStop Offset="1" Color="#00121212" />
+            </RadialGradientBrush>
+          </Ellipse.Fill>
+        </Ellipse>
 
-        <!-- Main split -->
-        <Grid Grid.Row="0">
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="312" />
-            <ColumnDefinition Width="*" />
-          </Grid.ColumnDefinitions>
+        <!-- Corner dot clusters -->
+        <Canvas x:Name="DotsClusterNe"
+                Width="200"
+                Height="160"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Top"
+                Margin="0,16,12,0"
+                IsHitTestVisible="False"
+                Opacity="0.55">
+          <Ellipse Canvas.Left="120" Canvas.Top="8" Width="5" Height="5" Fill="#CCFFFFFF" />
+          <Ellipse Canvas.Left="132" Canvas.Top="18" Width="8" Height="8" Fill="#AA70D6E3" />
+          <Ellipse Canvas.Left="148" Canvas.Top="6" Width="4" Height="4" Fill="#77FFFFFF" />
+          <Ellipse Canvas.Left="158" Canvas.Top="22" Width="6" Height="6" Fill="#9970D6E3" />
+          <Ellipse Canvas.Left="172" Canvas.Top="12" Width="5" Height="5" Fill="#CCFFFFFF" />
+          <Ellipse Canvas.Left="104" Canvas.Top="28" Width="6" Height="6" Fill="#8870D6E3" />
+          <Ellipse Canvas.Left="88" Canvas.Top="42" Width="4" Height="4" Fill="#55FFFFFF" />
+          <Ellipse Canvas.Left="138" Canvas.Top="38" Width="7" Height="7" Fill="#BB70D6E3" />
+          <Ellipse Canvas.Left="154" Canvas.Top="52" Width="5" Height="5" Fill="#99FFFFFF" />
+          <Ellipse Canvas.Left="118" Canvas.Top="56" Width="6" Height="6" Fill="#6670D6E3" />
+        </Canvas>
 
-          <!-- Hero / logo column -->
-          <Grid Grid.Column="0">
-            <Grid.Background>
-              <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                <GradientStop Offset="0" Color="{StaticResource AccentDarkColor}" />
-                <GradientStop Offset="0.55" Color="{StaticResource SideMenuActiveColor}" />
-                <GradientStop Offset="1" Color="{StaticResource SideMenuBackgroundColor}" />
-              </LinearGradientBrush>
-            </Grid.Background>
+        <Canvas x:Name="DotsClusterSw"
+                Width="200"
+                Height="160"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Bottom"
+                Margin="12,0,0,12"
+                IsHitTestVisible="False"
+                Opacity="0.5">
+          <Ellipse Canvas.Left="18" Canvas.Top="104" Width="6" Height="6" Fill="#AA70D6E3" />
+          <Ellipse Canvas.Left="32" Canvas.Top="118" Width="4" Height="4" Fill="#77FFFFFF" />
+          <Ellipse Canvas.Left="8" Canvas.Top="128" Width="8" Height="8" Fill="#9970D6E3" />
+          <Ellipse Canvas.Left="48" Canvas.Top="132" Width="5" Height="5" Fill="#CCFFFFFF" />
+          <Ellipse Canvas.Left="62" Canvas.Top="108" Width="6" Height="6" Fill="#6670D6E3" />
+          <Ellipse Canvas.Left="26" Canvas.Top="82" Width="5" Height="5" Fill="#8870D6E3" />
+          <Ellipse Canvas.Left="72" Canvas.Top="92" Width="4" Height="4" Fill="#55FFFFFF" />
+          <Ellipse Canvas.Left="98" Canvas.Top="122" Width="7" Height="7" Fill="#BB70D6E3" />
+          <Ellipse Canvas.Left="112" Canvas.Top="138" Width="5" Height="5" Fill="#99FFFFFF" />
+        </Canvas>
 
-            <!-- Soft glow orbs -->
-            <Ellipse Width="220"
-                     Height="220"
-                     Margin="-40,-30,0,0"
-                     HorizontalAlignment="Left"
-                     VerticalAlignment="Top"
-                     IsHitTestVisible="False">
-              <Ellipse.Fill>
-                <RadialGradientBrush>
-                  <GradientStop Offset="0" Color="#554DA3E8" />
-                  <GradientStop Offset="1" Color="#000078D7" />
-                </RadialGradientBrush>
-              </Ellipse.Fill>
-            </Ellipse>
-            <Ellipse Width="180"
-                     Height="180"
-                     Margin="0,0,-50,-40"
-                     HorizontalAlignment="Right"
-                     VerticalAlignment="Bottom"
-                     IsHitTestVisible="False">
-              <Ellipse.Fill>
-                <RadialGradientBrush>
-                  <GradientStop Offset="0" Color="#330078D7" />
-                  <GradientStop Offset="1" Color="#000F1B2E" />
-                </RadialGradientBrush>
-              </Ellipse.Fill>
-            </Ellipse>
+        <!-- Main layout -->
+        <Grid Margin="44,40,44,36">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
 
-            <Border Padding="36"
-                    VerticalAlignment="Center">
-              <StackPanel VerticalAlignment="Center">
-                <Border Padding="32"
-                        HorizontalAlignment="Center"
-                        CornerRadius="24"
-                        Background="#40FFFFFF">
-                  <Border.Effect>
-                    <DropShadowEffect BlurRadius="24"
-                                      Direction="270"
-                                      ShadowDepth="0"
-                                      Opacity="0.35"
-                                      Color="#FF000000" />
-                  </Border.Effect>
-                  <Image x:Name="LogoImage"
-                         Width="168"
-                         Height="168"
-                         RenderOptions.BitmapScalingMode="HighQuality"
-                         SnapsToDevicePixels="True"
-                         Stretch="Uniform"
-                         Source="pack://application:,,,/optimizing.png" />
-                </Border>
+          <Grid Grid.Row="0" VerticalAlignment="Center">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
 
-                <TextBlock Margin="0,22,0,0"
-                           HorizontalAlignment="Center"
-                           FontSize="12"
+            <!-- Large serif version (reference left column) -->
+            <TextBlock x:Name="LargeVersionText"
+                       Grid.Column="0"
+                       Margin="0,0,28,0"
+                       VerticalAlignment="Center"
+                       FontFamily="Georgia, Times New Roman"
+                       FontSize="56"
+                       FontWeight="Normal"
+                       Foreground="#FFF5F8FB"
+                       Text="" />
+
+            <!-- Logo + titles -->
+            <StackPanel Grid.Column="1"
+                        VerticalAlignment="Center"
+                        Orientation="Horizontal">
+              <Border Padding="4"
+                      VerticalAlignment="Center"
+                      Background="Transparent">
+                <Image x:Name="LogoImage"
+                       Width="76"
+                       Height="76"
+                       RenderOptions.BitmapScalingMode="HighQuality"
+                       SnapsToDevicePixels="True"
+                       Stretch="Uniform"
+                       Source="pack://application:,,,/optimizing.png" />
+              </Border>
+
+              <StackPanel Margin="28,0,0,0"
+                          VerticalAlignment="Center">
+                <TextBlock FontFamily="Segoe UI Semibold"
+                           FontSize="38"
                            FontWeight="SemiBold"
-                           Foreground="#99E8EEF5"
-                           Text="MEDIA TOOLKIT" />
-              </StackPanel>
-            </Border>
-          </Grid>
-
-          <!-- Brand + status column -->
-          <Grid Grid.Column="1">
-            <Border Padding="44,48,44,24">
-              <StackPanel VerticalAlignment="Center">
-                <TextBlock TextWrapping="Wrap"
-                           LineHeight="44">
-                  <Run Style="{StaticResource SplashTitleMain}" Text="Media " />
-                  <Run Style="{StaticResource SplashTitleAccent}" Text="Tools" />
-                </TextBlock>
-
-                <TextBlock Margin="0,14,0,0"
+                           Foreground="{StaticResource SplashCyanBrush}"
+                           Text="MEDIA TOOLS" />
+                <TextBlock Margin="0,10,0,0"
+                           FontFamily="Segoe UI"
                            FontSize="15"
-                           Foreground="{StaticResource SideMenuMutedTextBrush}"
-                           LineHeight="22"
-                           TextWrapping="Wrap"
-                           Text="Optimize, compress, and enhance your media — one calm workspace for everyday workflows." />
-
-                <Border Margin="0,32,0,0"
-                        Padding="20,18"
-                        CornerRadius="16"
-                        BorderThickness="1"
-                        Background="#18FFFFFF">
-                  <Border.BorderBrush>
-                    <SolidColorBrush Color="{StaticResource AccentPrimaryColor}" Opacity="0.35" />
-                  </Border.BorderBrush>
-                  <Grid>
-                    <Grid.ColumnDefinitions>
-                      <ColumnDefinition Width="Auto" />
-                      <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-
-                    <controls:ProgressRing x:Name="BusyRing"
-                                           Grid.Column="0"
-                                           Width="40"
-                                           Height="40"
-                                           Margin="0,0,16,0"
-                                           VerticalAlignment="Top"
-                                           Foreground="{StaticResource AccentPrimaryBrush}"
-                                           IsActive="True" />
-
-                    <StackPanel Grid.Column="1"
-                                VerticalAlignment="Center">
-                      <TextBlock FontSize="12"
-                                 FontWeight="SemiBold"
-                                 Foreground="#CCB8C5D9"
-                                 Text="STATUS" />
-                      <TextBlock x:Name="StatusMessageText"
-                                 Margin="0,6,0,0"
-                                 FontSize="14"
-                                 Foreground="{StaticResource SideMenuTextBrush}"
-                                 Text="Preparing workspace…"
-                                 TextWrapping="Wrap" />
-                    </StackPanel>
-                  </Grid>
-                </Border>
+                           Foreground="#FFF5F8FB"
+                           Opacity="0.95"
+                           Text="Intelligent media optimization" />
+                <TextBlock Margin="0,8,0,0"
+                           FontFamily="Segoe UI"
+                           FontSize="12"
+                           Foreground="#8899AA"
+                           Text="for Windows" />
               </StackPanel>
-            </Border>
-
-            <!-- Column divider -->
-            <Border Width="1"
-                    HorizontalAlignment="Left"
-                    Background="#14FFFFFF" />
+            </StackPanel>
           </Grid>
+
+          <!-- Segmented loading bar -->
+          <Border Grid.Row="1"
+                  Margin="0,28,0,0"
+                  HorizontalAlignment="Center"
+                  Padding="10,8"
+                  BorderThickness="1"
+                  CornerRadius="4"
+                  BorderBrush="#CCFFFFFF"
+                  Background="Transparent">
+            <Border Width="340"
+                    ClipToBounds="True">
+              <Grid>
+                <StackPanel HorizontalAlignment="Center"
+                            Orientation="Horizontal">
+                  <Rectangle Width="26"
+                             Height="12"
+                             Margin="1.5,0"
+                             RadiusX="2"
+                             RadiusY="2">
+                    <Rectangle.Fill>
+                      <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Offset="0" Color="#FF70D6E3" />
+                        <GradientStop Offset="1" Color="#FFFFFFFF" />
+                      </LinearGradientBrush>
+                    </Rectangle.Fill>
+                  </Rectangle>
+                  <Rectangle Width="26"
+                             Height="12"
+                             Margin="1.5,0"
+                             RadiusX="2"
+                             RadiusY="2">
+                    <Rectangle.Fill>
+                      <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Offset="0" Color="#FF70D6E3" />
+                        <GradientStop Offset="1" Color="#FFE8FDFF" />
+                      </LinearGradientBrush>
+                    </Rectangle.Fill>
+                  </Rectangle>
+                  <Rectangle Width="26"
+                             Height="12"
+                             Margin="1.5,0"
+                             RadiusX="2"
+                             RadiusY="2">
+                    <Rectangle.Fill>
+                      <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Offset="0" Color="#FF5BC8D8" />
+                        <GradientStop Offset="1" Color="#FFF2FBFF" />
+                      </LinearGradientBrush>
+                    </Rectangle.Fill>
+                  </Rectangle>
+                  <Rectangle Width="26"
+                             Height="12"
+                             Margin="1.5,0"
+                             RadiusX="2"
+                             RadiusY="2">
+                    <Rectangle.Fill>
+                      <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Offset="0" Color="#FF4DBBD0" />
+                        <GradientStop Offset="1" Color="#FFFFFFFF" />
+                      </LinearGradientBrush>
+                    </Rectangle.Fill>
+                  </Rectangle>
+                  <Rectangle Width="26"
+                             Height="12"
+                             Margin="1.5,0"
+                             RadiusX="2"
+                             RadiusY="2">
+                    <Rectangle.Fill>
+                      <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Offset="0" Color="#FF44B5CC" />
+                        <GradientStop Offset="1" Color="#FFEFFFFE" />
+                      </LinearGradientBrush>
+                    </Rectangle.Fill>
+                  </Rectangle>
+                  <Rectangle Width="26"
+                             Height="12"
+                             Margin="1.5,0"
+                             RadiusX="2"
+                             RadiusY="2">
+                    <Rectangle.Fill>
+                      <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Offset="0" Color="#FF3BAFC8" />
+                        <GradientStop Offset="1" Color="#FFFFFFFF" />
+                      </LinearGradientBrush>
+                    </Rectangle.Fill>
+                  </Rectangle>
+                  <Rectangle Width="26"
+                             Height="12"
+                             Margin="1.5,0"
+                             RadiusX="2"
+                             RadiusY="2">
+                    <Rectangle.Fill>
+                      <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Offset="0" Color="#FF33A8C2" />
+                        <GradientStop Offset="1" Color="#FFF6FEFF" />
+                      </LinearGradientBrush>
+                    </Rectangle.Fill>
+                  </Rectangle>
+                  <Rectangle Width="26"
+                             Height="12"
+                             Margin="1.5,0"
+                             RadiusX="2"
+                             RadiusY="2">
+                    <Rectangle.Fill>
+                      <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Offset="0" Color="#FF2AA2BD" />
+                        <GradientStop Offset="1" Color="#FFFFFFFF" />
+                      </LinearGradientBrush>
+                    </Rectangle.Fill>
+                  </Rectangle>
+                  <Rectangle Width="26"
+                             Height="12"
+                             Margin="1.5,0"
+                             RadiusX="2"
+                             RadiusY="2">
+                    <Rectangle.Fill>
+                      <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Offset="0" Color="#FF229BB8" />
+                        <GradientStop Offset="1" Color="#FFF9FFFF" />
+                      </LinearGradientBrush>
+                    </Rectangle.Fill>
+                  </Rectangle>
+                  <Rectangle Width="26"
+                             Height="12"
+                             Margin="1.5,0"
+                             RadiusX="2"
+                             RadiusY="2">
+                    <Rectangle.Fill>
+                      <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Offset="0" Color="#FF1A95B3" />
+                        <GradientStop Offset="1" Color="#FFFFFFFF" />
+                      </LinearGradientBrush>
+                    </Rectangle.Fill>
+                  </Rectangle>
+                  <Rectangle Width="26"
+                             Height="12"
+                             Margin="1.5,0"
+                             RadiusX="2"
+                             RadiusY="2">
+                    <Rectangle.Fill>
+                      <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Offset="0" Color="#FF138FAE" />
+                        <GradientStop Offset="1" Color="#FFEFFFFF" />
+                      </LinearGradientBrush>
+                    </Rectangle.Fill>
+                  </Rectangle>
+                </StackPanel>
+
+                <!-- Shimmer sweep -->
+                <Rectangle HorizontalAlignment="Left"
+                           Width="100"
+                           Height="22"
+                           Margin="-120,0,0,0"
+                           IsHitTestVisible="False"
+                           Opacity="0.35">
+                  <Rectangle.Fill>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                      <GradientStop Offset="0" Color="#00FFFFFF" />
+                      <GradientStop Offset="0.5" Color="#66FFFFFF" />
+                      <GradientStop Offset="1" Color="#00FFFFFF" />
+                    </LinearGradientBrush>
+                  </Rectangle.Fill>
+                  <Rectangle.RenderTransform>
+                    <TranslateTransform x:Name="BarShimmerTranslate" X="-120" />
+                  </Rectangle.RenderTransform>
+                </Rectangle>
+              </Grid>
+            </Border>
+          </Border>
+
+          <!-- Status line -->
+          <TextBlock x:Name="StatusMessageText"
+                     Grid.Row="2"
+                     Margin="0,14,0,0"
+                     HorizontalAlignment="Center"
+                     FontFamily="Segoe UI"
+                     FontSize="13"
+                     Foreground="#DDFFFFFF"
+                     Text="Loading.." />
+
         </Grid>
 
-        <!-- Footer strip -->
-        <Border Grid.Row="1"
-                Padding="28,14,28,18"
-                Background="#14000000"
-                BorderThickness="0,1,0,0">
-          <Border.BorderBrush>
-            <SolidColorBrush Color="#FFFFFFFF" Opacity="0.06" />
-          </Border.BorderBrush>
+        <!-- Kept for existing startup logic; not shown (reference UI uses segmented bar) -->
+        <Canvas Width="0"
+                Height="0"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                IsHitTestVisible="False">
+          <controls:ProgressRing x:Name="BusyRing"
+                                 Width="1"
+                                 Height="1"
+                                 Visibility="Collapsed"
+                                 IsActive="False" />
           <TextBlock x:Name="VersionFooterText"
-                     HorizontalAlignment="Center"
-                     VerticalAlignment="Center"
-                     FontSize="11"
-                     FontWeight="SemiBold"
-                     Foreground="#995C6B82"
+                     Visibility="Collapsed"
                      Text="" />
-        </Border>
+        </Canvas>
       </Grid>
     </Border>
   </Border>

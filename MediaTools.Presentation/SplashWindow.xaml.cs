@@ -11,7 +11,9 @@ public partial class SplashWindow : Window
     {
         InitializeComponent();
         var v = Assembly.GetExecutingAssembly().GetName().Version;
-        VersionFooterText.Text = v is null ? string.Empty : $"v{v.Major}.{v.Minor}.{v.Build}";
+        var versionLabel = v is null ? string.Empty : $"v. {v.Major}.{v.Minor}.{v.Build}";
+        LargeVersionText.Text = versionLabel;
+        VersionFooterText.Text = versionLabel;
     }
 
     /// <summary>Startup phases before FFmpeg/tools state is known (host build, DI, etc.).</summary>
