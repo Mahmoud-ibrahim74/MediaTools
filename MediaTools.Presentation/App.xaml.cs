@@ -4,6 +4,7 @@ using System.Windows;
 using MediaTools.Application.Abstractions;
 using MediaTools.Application.UseCases;
 using MediaTools.Infrastructure;
+using MediaTools.Infrastructure.Services;
 using MediaTools.Presentation.Services;
 using MediaTools.Presentation.ViewModels;
 using MediaTools.Presentation.Views;
@@ -139,6 +140,8 @@ public partial class App : System.Windows.Application
             await _host.StopAsync().ConfigureAwait(false);
             _host.Dispose();
         }
+
+        BundledFfmpegProcessCleanup.KillRemainingBundledToolProcesses();
 
         base.OnExit(e);
     }
