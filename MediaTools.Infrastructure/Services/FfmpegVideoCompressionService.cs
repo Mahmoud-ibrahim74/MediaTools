@@ -424,6 +424,7 @@ public sealed class FfmpegVideoCompressionService : IVideoCompressionService
     {
         if (profile.HardwareVideoEncoder == VideoHardwareEncoderKind.Software)
         {
+            
             return false;
         }
 

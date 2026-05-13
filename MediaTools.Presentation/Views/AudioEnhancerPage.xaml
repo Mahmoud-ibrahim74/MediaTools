@@ -41,7 +41,7 @@
             <StackPanel Grid.Column="0">
               <TextBlock FontSize="26" FontWeight="SemiBold" Text="Audio Converter &amp; Enhancer" />
               <TextBlock Margin="0,6,0,0" FontSize="14" Foreground="#FF5F6B76" TextWrapping="Wrap"
-                         Text="Convert between popular formats, tune bitrate and sample rate, and apply loudness normalization and clarity EQ — powered by FFmpeg on your device." />
+                         Text="Convert formats, reduce noise, trim silence, or approximate an instrumental from stereo mixes — plus loudness normalization when you want it. FFmpeg runs locally." />
             </StackPanel>
             <StackPanel Grid.Column="1"
                         Orientation="Horizontal"
@@ -215,9 +215,173 @@
             </Grid>
           </Border>
 
+          <!-- Operation tabs (same pattern as PhotoEnhancerPage / VideoEnhancerPage) -->
           <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">
             <StackPanel>
-              <TextBlock Margin="0,0,0,12" FontWeight="SemiBold" Text="Output &amp; enhancement" />
+              <TextBlock Margin="0,0,0,10" FontWeight="SemiBold" Text="Operation" />
+              <Border Padding="10,10,2,2"
+                      Background="{DynamicResource ContentBackgroundBrush}"
+                      BorderBrush="{DynamicResource CardBorderBrush}"
+                      BorderThickness="1"
+                      CornerRadius="10">
+                <WrapPanel Orientation="Horizontal">
+                  <Button Command="{Binding SelectWorkspaceTabCommand}"
+                          CommandParameter="0"
+                          Content="Enhance &amp; convert">
+                    <Button.Style>
+                      <Style BasedOn="{StaticResource VideoEnhanceOperationTabStyle}" TargetType="Button">
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding IsEnhanceWorkspace}" Value="True">
+                            <Setter Property="Background" Value="{DynamicResource AccentPrimaryBrush}" />
+                            <Setter Property="Foreground" Value="White" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </Button.Style>
+                  </Button>
+                  <Button Command="{Binding SelectWorkspaceTabCommand}"
+                          CommandParameter="1"
+                          Content="Vocal remover">
+                    <Button.Style>
+                      <Style BasedOn="{StaticResource VideoEnhanceOperationTabStyle}" TargetType="Button">
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding IsVocalWorkspace}" Value="True">
+                            <Setter Property="Background" Value="{DynamicResource AccentPrimaryBrush}" />
+                            <Setter Property="Foreground" Value="White" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </Button.Style>
+                  </Button>
+                  <Button Command="{Binding SelectWorkspaceTabCommand}"
+                          CommandParameter="2"
+                          Content="Noise reduction">
+                    <Button.Style>
+                      <Style BasedOn="{StaticResource VideoEnhanceOperationTabStyle}" TargetType="Button">
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding IsNoiseWorkspace}" Value="True">
+                            <Setter Property="Background" Value="{DynamicResource AccentPrimaryBrush}" />
+                            <Setter Property="Foreground" Value="White" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </Button.Style>
+                  </Button>
+                  <Button Command="{Binding SelectWorkspaceTabCommand}"
+                          CommandParameter="3"
+                          Content="Silence remover">
+                    <Button.Style>
+                      <Style BasedOn="{StaticResource VideoEnhanceOperationTabStyle}" TargetType="Button">
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding IsSilenceWorkspace}" Value="True">
+                            <Setter Property="Background" Value="{DynamicResource AccentPrimaryBrush}" />
+                            <Setter Property="Foreground" Value="White" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </Button.Style>
+                  </Button>
+                </WrapPanel>
+              </Border>
+            </StackPanel>
+          </Border>
+
+          <!-- Vocal remover -->
+          <Border Margin="0,16,0,0"
+                  Padding="16"
+                  Style="{DynamicResource CardBorderStyle}"
+                  Visibility="{Binding IsVocalWorkspace, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel>
+              <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Vocal remover" />
+              <TextBlock Margin="0,0,0,12"
+                         FontSize="13"
+                         Foreground="#FF5F6B76"
+                         TextWrapping="Wrap"
+                         Text="Blends mid (sum) and side (L−R) from a stereo track to approximate an instrumental. Mono sources cannot be processed — use a stereo mix." />
+              <TextBlock Margin="0,0,0,6" FontSize="12" Foreground="#FF5F6B76" Text="Instrumental blend (favor side)" />
+              <Slider Margin="0,0,0,4" Maximum="1" Minimum="0" LargeChange="0.1" SmallChange="0.02"
+                      Value="{Binding VocalRemoverStrength}" />
+              <TextBlock Margin="0,0,0,8" FontSize="11" Foreground="#FF5F6B76"
+                         Text="{Binding VocalRemoverStrength, StringFormat={}{0:0.00} — higher emphasizes difference channel}" />
+              <Border Padding="10"
+                      Background="#FFFFF8F0"
+                      BorderBrush="{DynamicResource StatusWarningBrush}"
+                      BorderThickness="1"
+                      CornerRadius="8"
+                      Visibility="{Binding ShowVocalStereoWarning, Converter={StaticResource BoolToVisibilityConverter}}">
+                <TextBlock Foreground="#FF5F6B76"
+                           TextWrapping="Wrap"
+                           Text="This file is mono or single-channel. Vocal remover needs stereo audio." />
+              </Border>
+            </StackPanel>
+          </Border>
+
+          <!-- Noise reduction -->
+          <Border Margin="0,16,0,0"
+                  Padding="16"
+                  Style="{DynamicResource CardBorderStyle}"
+                  Visibility="{Binding IsNoiseWorkspace, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel>
+              <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Noise reduction" />
+              <TextBlock Margin="0,0,0,12"
+                         FontSize="13"
+                         Foreground="#FF5F6B76"
+                         TextWrapping="Wrap"
+                         Text="Spectral noise suppression (FFmpeg afftdn). Stronger settings remove more hiss but may thin the signal." />
+              <TextBlock Margin="0,0,0,6" FontSize="12" Foreground="#FF5F6B76" Text="Strength" />
+              <Slider Margin="0,0,0,4" Maximum="1" Minimum="0.05" LargeChange="0.1" SmallChange="0.02"
+                      Value="{Binding NoiseReductionStrength}" />
+              <TextBlock FontSize="11" Foreground="#FF5F6B76" Text="{Binding NoiseReductionStrength, StringFormat={}{0:0.00}}" />
+            </StackPanel>
+          </Border>
+
+          <!-- Silence remover -->
+          <Border Margin="0,16,0,0"
+                  Padding="16"
+                  Style="{DynamicResource CardBorderStyle}"
+                  Visibility="{Binding IsSilenceWorkspace, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel>
+              <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Silence remover" />
+              <TextBlock Margin="0,0,0,12"
+                         FontSize="13"
+                         Foreground="#FF5F6B76"
+                         TextWrapping="Wrap"
+                         Text="Trims runs of silence below the threshold. Uses FFmpeg silenceremove; very aggressive settings can clip breaths and room tone." />
+              <TextBlock Margin="0,0,0,6" FontSize="12" Foreground="#FF5F6B76" Text="Silence threshold (dB)" />
+              <Slider Margin="0,0,0,4" Maximum="-15" Minimum="-60" LargeChange="5" SmallChange="1"
+                      Value="{Binding SilenceThresholdDb}" />
+              <TextBlock Margin="0,0,0,12" FontSize="11" Foreground="#FF5F6B76"
+                         Text="{Binding SilenceThresholdDb, StringFormat={}{0:0} dB — lower values trim quieter passages.}" />
+
+              <TextBlock Margin="0,0,0,6" FontSize="12" Foreground="#FF5F6B76" Text="Minimum silence to remove (seconds)" />
+              <Slider Margin="0,0,0,4" Maximum="3" Minimum="0.05" LargeChange="0.1" SmallChange="0.05"
+                      Value="{Binding MinSilenceDurationSec}" />
+              <TextBlock Margin="0,0,0,12" FontSize="11" Foreground="#FF5F6B76"
+                         Text="{Binding MinSilenceDurationSec, StringFormat={}{0:0.00} s}" />
+
+              <TextBlock Margin="0,0,0,6" FontSize="12" Foreground="#FF5F6B76" Text="Detection window (seconds)" />
+              <Slider Margin="0,0,0,4" Maximum="0.2" Minimum="0.01" LargeChange="0.02" SmallChange="0.005"
+                      Value="{Binding SilenceDetectionWindowSec}" />
+              <TextBlock FontSize="11" Foreground="#FF5F6B76"
+                         Text="{Binding SilenceDetectionWindowSec, StringFormat={}{0:0.000} s}" />
+            </StackPanel>
+          </Border>
+
+          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">
+            <StackPanel>
+              <TextBlock Margin="0,0,0,12" FontWeight="SemiBold" Text="Export &amp; levels" />
+              <CheckBox Margin="0,0,0,12"
+                        Content="Clarity boost (gentle high-frequency emphasis)"
+                        IsChecked="{Binding ClarityBoost}"
+                        Visibility="{Binding IsEnhanceWorkspace, Converter={StaticResource BoolToVisibilityConverter}}" />
               <Grid Margin="0,0,0,12">
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="*" />
@@ -245,10 +409,6 @@
 
               <CheckBox Content="Loudness normalize (streaming-friendly target)"
                         IsChecked="{Binding NormalizeLoudness}" />
-
-              <CheckBox Margin="0,8,0,0"
-                        Content="Clarity boost (gentle high-frequency emphasis)"
-                        IsChecked="{Binding ClarityBoost}" />
             </StackPanel>
           </Border>
 
@@ -287,7 +447,9 @@
             <Button Margin="0,0,12,0" MinWidth="100" Command="{Binding CancelCommand}" Content="Cancel"
                     Style="{DynamicResource OutlinedButtonStyle}"
                     Visibility="{Binding ShowCancelButton, Converter={StaticResource BoolToVisibilityConverter}}" />
-            <Button MinWidth="220" Command="{Binding ProcessAudioCommand}" Content="Convert &amp; enhance"
+            <Button MinWidth="220"
+                    Command="{Binding ProcessAudioCommand}"
+                    Content="{Binding ProcessPrimaryLabel}"
                     Style="{DynamicResource PrimaryButtonStyle}" />
           </StackPanel>
         </StackPanel>
@@ -305,9 +467,9 @@
           </Border>
           <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">
             <StackPanel>
-              <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Loudness &amp; clarity" />
+              <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Tools" />
               <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
-                         Text="Normalization steers perceived loudness toward a streaming-style target. Clarity boost applies a light EQ lift — use sparingly on already bright masters." />
+                         Text="Noise reduction uses spectral denoise; silence remover deletes quiet gaps; vocal remover blends mid and side — stereo only. Loudness and clarity live under Export &amp; levels." />
             </StackPanel>
           </Border>
           <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">

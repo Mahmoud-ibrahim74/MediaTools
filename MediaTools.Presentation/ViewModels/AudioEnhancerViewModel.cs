@@ -105,6 +105,53 @@ public partial class AudioEnhancerViewModel : ObservableObject
     private bool _clarityBoost;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ProcessPrimaryLabel))]
+    [NotifyPropertyChangedFor(nameof(IsEnhanceWorkspace))]
+    [NotifyPropertyChangedFor(nameof(IsVocalWorkspace))]
+    [NotifyPropertyChangedFor(nameof(IsNoiseWorkspace))]
+    [NotifyPropertyChangedFor(nameof(IsSilenceWorkspace))]
+    [NotifyPropertyChangedFor(nameof(ShowVocalStereoWarning))]
+    private int _workspaceTabIndex;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowVocalStereoWarning))]
+    private int _sourceAudioChannels;
+
+    [ObservableProperty]
+    private double _vocalRemoverStrength = 0.65;
+
+    [ObservableProperty]
+    private double _noiseReductionStrength = 0.5;
+
+    [ObservableProperty]
+    private double _silenceThresholdDb = -40;
+
+    [ObservableProperty]
+    private double _minSilenceDurationSec = 0.5;
+
+    [ObservableProperty]
+    private double _silenceDetectionWindowSec = 0.02;
+
+    public bool IsEnhanceWorkspace => WorkspaceTabIndex == 0;
+
+    public bool IsVocalWorkspace => WorkspaceTabIndex == 1;
+
+    public bool IsNoiseWorkspace => WorkspaceTabIndex == 2;
+
+    public bool IsSilenceWorkspace => WorkspaceTabIndex == 3;
+
+    public bool ShowVocalStereoWarning =>
+        WorkspaceTabIndex == 1 && SourceAudioChannels > 0 && SourceAudioChannels < 2;
+
+    public string ProcessPrimaryLabel => WorkspaceTabIndex switch
+    {
+        1 => "Remove vocals",
+        2 => "Reduce noise",
+        3 => "Remove silence",
+        _ => "Convert & enhance",
+    };
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ProgressPercentDisplay))]
     [NotifyPropertyChangedFor(nameof(ShowProgressCard))]
     private double _progressPercent01;
@@ -150,7 +197,8 @@ public partial class AudioEnhancerViewModel : ObservableObject
     private bool CanStartProcess() =>
         !string.IsNullOrWhiteSpace(SelectedFilePath)
         && Directory.Exists(_preferences.SaveFolderPath)
-        && !IsRunning;
+        && !IsRunning
+        && !(WorkspaceTabIndex == 1 && SourceAudioChannels > 0 && SourceAudioChannels < 2);
 
     private bool CanUndoOperation() => _history.CanUndo && !IsRunning;
 
@@ -244,7 +292,22 @@ public partial class AudioEnhancerViewModel : ObservableObject
             ProgressStatusText = string.Empty;
             ProgressDetailText = string.Empty;
             ResultMessage = string.Empty;
+            SourceAudioChannels = 0;
         });
+    }
+
+    [RelayCommand]
+    private void SelectWorkspaceTab(object? parameter)
+    {
+        var idx = parameter switch
+        {
+            int i => i,
+            string s when int.TryParse(s, System.Globalization.NumberStyles.Integer,
+                System.Globalization.CultureInfo.InvariantCulture, out var j) => j,
+            _ => 0
+        };
+
+        WorkspaceTabIndex = Math.Clamp(idx, 0, 3);
     }
 
     [RelayCommand(CanExecute = nameof(CanUndoOperation))]
@@ -268,15 +331,28 @@ public partial class AudioEnhancerViewModel : ObservableObject
         FinishedAttempt = false;
         Succeeded = false;
         ProgressPercent01 = 0;
-        ProgressStatusText = "Converting…";
         ProgressDetailText = string.Empty;
         ResultMessage = string.Empty;
 
         var settings = BuildSettings();
+        ProgressStatusText = settings.Workspace switch
+        {
+            AudioEnhancerWorkspace.VocalRemover => "Removing vocals…",
+            AudioEnhancerWorkspace.NoiseReduction => "Reducing noise…",
+            AudioEnhancerWorkspace.SilenceRemover => "Removing silence…",
+            _ => "Converting…",
+        };
+
         var ext = ExtensionFor(settings.TargetFormat);
-        var outputPath = Path.Combine(
-            _preferences.SaveFolderPath,
-            Path.GetFileNameWithoutExtension(SelectedFilePath) + "_converted" + ext);
+        var stem = Path.GetFileNameWithoutExtension(SelectedFilePath);
+        var suffix = settings.Workspace switch
+        {
+            AudioEnhancerWorkspace.VocalRemover => "_instrumental",
+            AudioEnhancerWorkspace.NoiseReduction => "_denoised",
+            AudioEnhancerWorkspace.SilenceRemover => "_trimmed",
+            _ => "_converted",
+        };
+        var outputPath = Path.Combine(_preferences.SaveFolderPath, stem + suffix + ext);
 
         var request = new ProcessAudioRequest(SelectedFilePath, outputPath, settings);
 
@@ -320,7 +396,13 @@ public partial class AudioEnhancerViewModel : ObservableObject
                 ProgressPercent01 = 1;
                 var len = new FileInfo(outputPath).Length;
                 ResultMessage = $"Saved to {outputPath} ({FormatBytes(len)})";
-                toastTitle = "Audio conversion complete";
+                toastTitle = settings.Workspace switch
+                {
+                    AudioEnhancerWorkspace.VocalRemover => "Instrumental track saved",
+                    AudioEnhancerWorkspace.NoiseReduction => "Noise reduction complete",
+                    AudioEnhancerWorkspace.SilenceRemover => "Silence trimmed",
+                    _ => "Audio conversion complete",
+                };
                 toastBody = $"{Path.GetFileName(outputPath)} · {FormatBytes(len)}";
                 toastSuccess = true;
             }
@@ -330,7 +412,7 @@ public partial class AudioEnhancerViewModel : ObservableObject
                 ProgressStatusText = "Failed";
                 ProgressDetailText = "Output file was not created.";
                 ResultMessage = ProgressDetailText;
-                toastTitle = "Audio conversion failed";
+                toastTitle = "Audio processing failed";
                 toastBody = ResultMessage;
                 toastSuccess = false;
             }
@@ -340,7 +422,7 @@ public partial class AudioEnhancerViewModel : ObservableObject
                 ProgressStatusText = "Failed";
                 ProgressDetailText = result.ErrorMessage ?? "Unknown error";
                 ResultMessage = result.ErrorMessage ?? "Processing failed.";
-                toastTitle = "Audio conversion failed";
+                toastTitle = "Audio processing failed";
                 toastBody = ResultMessage;
                 toastSuccess = false;
             }
@@ -415,7 +497,22 @@ public partial class AudioEnhancerViewModel : ObservableObject
             SampleRate,
             NormalizeLoudness,
             VolumePercent,
-            ClarityBoost);
+            ClarityBoost,
+            MapWorkspaceFromTab(WorkspaceTabIndex),
+            (float)VocalRemoverStrength,
+            (float)NoiseReductionStrength,
+            (float)SilenceThresholdDb,
+            (float)MinSilenceDurationSec,
+            (float)SilenceDetectionWindowSec);
+
+    private static AudioEnhancerWorkspace MapWorkspaceFromTab(int tab) =>
+        tab switch
+        {
+            1 => AudioEnhancerWorkspace.VocalRemover,
+            2 => AudioEnhancerWorkspace.NoiseReduction,
+            3 => AudioEnhancerWorkspace.SilenceRemover,
+            _ => AudioEnhancerWorkspace.EnhanceAndConvert,
+        };
 
     private static string ExtensionFor(AudioExportFormat format) =>
         format switch
@@ -440,6 +537,7 @@ public partial class AudioEnhancerViewModel : ObservableObject
             CodecDisplay = info.Codec;
             SampleRateDisplay = $"{info.SampleRateHz} Hz";
             ChannelsDisplay = FormatChannels(info.Channels);
+            SourceAudioChannels = info.Channels;
             FinishedAttempt = false;
             Succeeded = false;
             return true;
@@ -460,6 +558,13 @@ public partial class AudioEnhancerViewModel : ObservableObject
             CodecDisplay,
             SampleRateDisplay,
             ChannelsDisplay,
+            SourceAudioChannels,
+            WorkspaceTabIndex,
+            VocalRemoverStrength,
+            NoiseReductionStrength,
+            SilenceThresholdDb,
+            MinSilenceDurationSec,
+            SilenceDetectionWindowSec,
             TargetFormat,
             BitrateKbps,
             SampleRate,
@@ -482,6 +587,13 @@ public partial class AudioEnhancerViewModel : ObservableObject
         CodecDisplay = s.CodecDisplay;
         SampleRateDisplay = s.SampleRateDisplay;
         ChannelsDisplay = s.ChannelsDisplay;
+        SourceAudioChannels = s.SourceAudioChannels;
+        WorkspaceTabIndex = s.WorkspaceTabIndex;
+        VocalRemoverStrength = s.VocalRemoverStrength;
+        NoiseReductionStrength = s.NoiseReductionStrength;
+        SilenceThresholdDb = s.SilenceThresholdDb;
+        MinSilenceDurationSec = s.MinSilenceDurationSec;
+        SilenceDetectionWindowSec = s.SilenceDetectionWindowSec;
         TargetFormat = s.TargetFormat;
         BitrateKbps = s.BitrateKbps;
         SampleRate = s.SampleRate;
@@ -495,6 +607,12 @@ public partial class AudioEnhancerViewModel : ObservableObject
         Succeeded = s.Succeeded;
         ResultMessage = s.ResultMessage;
         OnPropertyChanged(nameof(ShowBitrateControls));
+        OnPropertyChanged(nameof(IsEnhanceWorkspace));
+        OnPropertyChanged(nameof(IsVocalWorkspace));
+        OnPropertyChanged(nameof(IsNoiseWorkspace));
+        OnPropertyChanged(nameof(IsSilenceWorkspace));
+        OnPropertyChanged(nameof(ProcessPrimaryLabel));
+        OnPropertyChanged(nameof(ShowVocalStereoWarning));
     }
 
     partial void OnTargetFormatChanged(AudioExportFormat value)
@@ -512,6 +630,25 @@ public partial class AudioEnhancerViewModel : ObservableObject
     partial void OnVolumePercentChanged(int value) => NotifyUndoableEdit();
 
     partial void OnClarityBoostChanged(bool value) => NotifyUndoableEdit();
+
+    partial void OnWorkspaceTabIndexChanged(int value)
+    {
+        ProcessAudioCommand.NotifyCanExecuteChanged();
+        NotifyUndoableEdit();
+    }
+
+    partial void OnSourceAudioChannelsChanged(int value) =>
+        ProcessAudioCommand.NotifyCanExecuteChanged();
+
+    partial void OnVocalRemoverStrengthChanged(double value) => NotifyUndoableEdit();
+
+    partial void OnNoiseReductionStrengthChanged(double value) => NotifyUndoableEdit();
+
+    partial void OnSilenceThresholdDbChanged(double value) => NotifyUndoableEdit();
+
+    partial void OnMinSilenceDurationSecChanged(double value) => NotifyUndoableEdit();
+
+    partial void OnSilenceDetectionWindowSecChanged(double value) => NotifyUndoableEdit();
 
     partial void OnSelectedFilePathChanged(string? value) =>
         ProcessAudioCommand.NotifyCanExecuteChanged();
