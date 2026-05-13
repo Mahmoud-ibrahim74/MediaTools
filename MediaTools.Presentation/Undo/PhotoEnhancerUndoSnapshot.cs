@@ -1,4 +1,5 @@
 using MediaTools.Domain.Enums;
+using MediaTools.Domain.ValueObjects;
 
 namespace MediaTools.Presentation.Undo;
 
@@ -20,4 +21,17 @@ public sealed record PhotoEnhancerUndoSnapshot(
     string ProgressDetailText,
     bool FinishedAttempt,
     bool Succeeded,
-    string ResultMessage);
+    string ResultMessage,
+    PhotoEnhancerWorkspace Workspace,
+    BackgroundRemovalMode BgMode,
+    int BgTolerance,
+    float BgFeatherSigma,
+    byte BgKeyR,
+    byte BgKeyG,
+    byte BgKeyB,
+    float BgLuminanceThreshold01,
+    int BgEdgeExpandPx,
+    EraserBrushStamp[] EraserStrokes,
+    float EraserBlurSigma,
+    float EraserBrushSoftness01,
+    float EraserBrushRadiusPx);

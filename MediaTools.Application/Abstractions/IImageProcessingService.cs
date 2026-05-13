@@ -22,4 +22,31 @@ public interface IImageProcessingService
         string sourcePath,
         PhotoEnhanceSettings settings,
         CancellationToken cancellationToken = default);
+
+    Task<byte[]?> GetBackgroundRemovalPreviewPngAsync(
+        string sourcePath,
+        BackgroundRemovalSettings settings,
+        CancellationToken cancellationToken = default);
+
+    Task RemoveBackgroundToFileAsync(
+        string sourcePath,
+        string outputPath,
+        BackgroundRemovalSettings settings,
+        IProgress<PhotoProgressReport> progress,
+        CancellationToken cancellationToken = default);
+
+    Task<byte[]?> GetObjectEraserPreviewPngAsync(
+        string sourcePath,
+        IReadOnlyList<EraserBrushStamp> stamps,
+        ObjectEraserSettings settings,
+        CancellationToken cancellationToken = default);
+
+    Task ApplyObjectEraserToFileAsync(
+        string sourcePath,
+        string outputPath,
+        IReadOnlyList<EraserBrushStamp> stamps,
+        ObjectEraserSettings eraserSettings,
+        PhotoEnhanceSettings encodeSettings,
+        IProgress<PhotoProgressReport> progress,
+        CancellationToken cancellationToken = default);
 }

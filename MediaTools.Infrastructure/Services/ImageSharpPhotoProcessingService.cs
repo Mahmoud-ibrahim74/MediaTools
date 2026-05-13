@@ -13,7 +13,7 @@ using SixLabors.ImageSharp.Processing;
 
 namespace MediaTools.Infrastructure.Services;
 
-public sealed class ImageSharpPhotoProcessingService : IImageProcessingService
+public sealed partial class ImageSharpPhotoProcessingService : IImageProcessingService
 {
     private const int MaxDimension = 16000;
     private const int PreviewWorkspaceMaxEdge = 1600;
