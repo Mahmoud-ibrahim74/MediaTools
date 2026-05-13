@@ -16,15 +16,21 @@
   </Page.InputBindings>
   <Grid HorizontalAlignment="Stretch"
         VerticalAlignment="Stretch"
-        Background="{DynamicResource ContentBackgroundBrush}">
+        Background="{DynamicResource ContentBackgroundBrush}"
+        UseLayoutRounding="True">
+    <!-- Deferred scrolling + pixel units: smoother on heavy layouts than default line scrolling + ViewportWidth binding churn -->
     <ScrollViewer x:Name="AudioEnhancerScroll"
                   Padding="24"
                   HorizontalAlignment="Stretch"
                   VerticalAlignment="Stretch"
                   HorizontalScrollBarVisibility="Disabled"
-                  VerticalScrollBarVisibility="Auto">
-      <Grid Width="{Binding ViewportWidth, ElementName=AudioEnhancerScroll}"
-            HorizontalAlignment="Stretch">
+                  VerticalScrollBarVisibility="Auto"
+                  CanContentScroll="False"
+                  IsDeferredScrollingEnabled="True"
+                  PanningMode="VerticalOnly"
+                  TextOptions.TextFormattingMode="Display">
+      <Grid HorizontalAlignment="Stretch"
+            MaxWidth="1200">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="*" MinWidth="280" />
           <ColumnDefinition Width="Auto" />
@@ -550,32 +556,40 @@
           </StackPanel>
         </StackPanel>
 
-        <StackPanel Grid.Column="1"
-                    MinWidth="260"
-                    MaxWidth="400"
-                    HorizontalAlignment="Stretch">
-          <Border Padding="16" Style="{DynamicResource CardBorderStyle}">
-            <StackPanel>
-              <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Formats" />
-              <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
-                         Text="MP3 and AAC (M4A) are ideal for sharing. FLAC is lossless. Opus in OGG offers great quality at low bitrates. WAV is uncompressed PCM." />
-            </StackPanel>
-          </Border>
-          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">
-            <StackPanel>
-              <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Combined export" />
-              <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
-                         Text="Check each tool you want, then Export audio once. Processing order: vocal (optional) → noise → silence → clarity → volume and loudness." />
-            </StackPanel>
-          </Border>
-          <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">
-            <StackPanel>
-              <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Output folder" />
-              <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
-                         Text="Files are written to the folder set in App settings, same as Video Compress and Photo Enhancer." />
-            </StackPanel>
-          </Border>
-        </StackPanel>
+        <Expander Grid.Column="1"
+                  Margin="0,0,0,0"
+                  MinWidth="260"
+                  MaxWidth="400"
+                  HorizontalAlignment="Stretch"
+                  Background="Transparent"
+                  BorderThickness="0"
+                  ExpandDirection="Down"
+                  Header="Tips &amp; reference"
+                  IsExpanded="False">
+          <StackPanel>
+            <Border Padding="16" Style="{DynamicResource CardBorderStyle}">
+              <StackPanel>
+                <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Formats" />
+                <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
+                           Text="MP3 and AAC (M4A) are ideal for sharing. FLAC is lossless. Opus in OGG offers great quality at low bitrates. WAV is uncompressed PCM." />
+              </StackPanel>
+            </Border>
+            <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">
+              <StackPanel>
+                <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Combined export" />
+                <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
+                           Text="Check each tool you want, then Export audio once. Processing order: vocal (optional) → noise → silence → clarity → volume and loudness." />
+              </StackPanel>
+            </Border>
+            <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">
+              <StackPanel>
+                <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Output folder" />
+                <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
+                           Text="Files are written to the folder set in App settings, same as Video Compress and Photo Enhancer." />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </Expander>
       </Grid>
     </ScrollViewer>
   </Grid>

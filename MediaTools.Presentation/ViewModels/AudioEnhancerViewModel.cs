@@ -54,7 +54,8 @@ public partial class AudioEnhancerViewModel : ObservableObject
             CaptureSnapshot,
             ApplySnapshot,
             CaptureSnapshot(),
-            OnUndoRedoHistoryChanged);
+            OnUndoRedoHistoryChanged,
+            debounceMs: 580);
     }
 
     private void OnSaveFolderPathChanged(object? sender, EventArgs e) =>
@@ -269,7 +270,7 @@ public partial class AudioEnhancerViewModel : ObservableObject
     {
         try
         {
-            await Task.Delay(450, token).ConfigureAwait(true);
+            await Task.Delay(700, token).ConfigureAwait(true);
             await RebuildProcessedPreviewCoreAsync(token).ConfigureAwait(true);
         }
         catch (OperationCanceledException)
