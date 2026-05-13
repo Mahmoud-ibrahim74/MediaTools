@@ -18,19 +18,14 @@
         VerticalAlignment="Stretch"
         Background="{DynamicResource ContentBackgroundBrush}"
         UseLayoutRounding="True">
-    <!-- Deferred scrolling + pixel units: smoother on heavy layouts than default line scrolling + ViewportWidth binding churn -->
     <ScrollViewer x:Name="AudioEnhancerScroll"
                   Padding="24"
                   HorizontalAlignment="Stretch"
                   VerticalAlignment="Stretch"
                   HorizontalScrollBarVisibility="Disabled"
-                  VerticalScrollBarVisibility="Auto"
-                  CanContentScroll="False"
-                  IsDeferredScrollingEnabled="True"
-                  PanningMode="VerticalOnly"
-                  TextOptions.TextFormattingMode="Display">
-      <Grid HorizontalAlignment="Stretch"
-            MaxWidth="1200">
+                  VerticalScrollBarVisibility="Auto">
+      <Grid Width="{Binding ViewportWidth, ElementName=AudioEnhancerScroll}"
+            HorizontalAlignment="Stretch">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="*" MinWidth="280" />
           <ColumnDefinition Width="Auto" />
