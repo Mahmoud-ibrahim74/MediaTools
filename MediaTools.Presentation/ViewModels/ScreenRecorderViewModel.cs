@@ -26,6 +26,9 @@ public partial class ScreenRecorderViewModel : ObservableObject
     private CancellationTokenSource? _hardCancelCts;
     private DispatcherTimer? _elapsedTimer;
     private DateTime _recordingStartedAt;
+    private IPausableRecordingControl? _pauseControl;
+    private TimeSpan _pausedBeforeCurrentSegment;
+    private DateTime? _pauseSegmentStarted;
     private readonly SemaphoreSlim _microphoneLoadGate = new(1, 1);
 
     public ScreenRecorderViewModel(
@@ -141,7 +144,14 @@ public partial class ScreenRecorderViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(ShowRecordingPanel))]
     [NotifyPropertyChangedFor(nameof(ShowStartButton))]
     [NotifyPropertyChangedFor(nameof(ShowStopButton))]
+    [NotifyPropertyChangedFor(nameof(ShowPauseRecordingButton))]
+    [NotifyPropertyChangedFor(nameof(ShowResumeRecordingButton))]
     private bool _isRecording;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowPauseRecordingButton))]
+    [NotifyPropertyChangedFor(nameof(ShowResumeRecordingButton))]
+    private bool _isPaused;
 
     [ObservableProperty]
     private string _elapsedDisplay = "00:00";
@@ -172,6 +182,12 @@ public partial class ScreenRecorderViewModel : ObservableObject
     public bool ShowStartButton => !IsRecording && CountdownSeconds == 0;
 
     public bool ShowStopButton => IsRecording;
+
+    /// <summary>Pause while FFmpeg is running (see <see cref="PauseRecordingCommand"/>).</summary>
+    public bool ShowPauseRecordingButton => IsRecording && !IsPaused;
+
+    /// <summary>Resume after pause.</summary>
+    public bool ShowResumeRecordingButton => IsRecording && IsPaused;
 
     public bool ShowResultCard => Succeeded && !IsRecording;
 
@@ -205,6 +221,12 @@ public partial class ScreenRecorderViewModel : ObservableObject
         && Directory.Exists(_preferences.SaveFolderPath);
 
     private bool CanStopRecording() => IsRecording;
+
+    private bool CanPauseRecording() =>
+        IsRecording && !IsPaused && _pauseControl is not null;
+
+    private bool CanResumeRecording() =>
+        IsRecording && IsPaused && _pauseControl is not null;
 
     /// <summary>
     /// Never cache a failed/empty enumeration: the old <c>_devicesLoaded</c> flag blocked all later loads after one
@@ -296,6 +318,10 @@ public partial class ScreenRecorderViewModel : ObservableObject
 
         _stopCts = new CancellationTokenSource();
         _hardCancelCts = new CancellationTokenSource();
+        _pauseControl = null;
+        IsPaused = false;
+        _pausedBeforeCurrentSegment = TimeSpan.Zero;
+        _pauseSegmentStarted = null;
 
         var dispatcher = global::System.Windows.Application.Current?.Dispatcher;
 
@@ -337,7 +363,17 @@ public partial class ScreenRecorderViewModel : ObservableObject
         try
         {
             var result = await _startScreenRecordingUseCase
-                .ExecuteAsync(request, progress, _stopCts.Token, _hardCancelCts.Token)
+                .ExecuteAsync(
+                    request,
+                    progress,
+                    _stopCts.Token,
+                    _hardCancelCts.Token,
+                    onRecordingStarted: c =>
+                    {
+                        _pauseControl = c;
+                        PauseRecordingCommand.NotifyCanExecuteChanged();
+                        ResumeRecordingCommand.NotifyCanExecuteChanged();
+                    })
                 .ConfigureAwait(true);
 
             if (result.IsCancelled)
@@ -370,8 +406,14 @@ public partial class ScreenRecorderViewModel : ObservableObject
         {
             StopElapsedTimer();
             IsRecording = false;
+            IsPaused = false;
+            _pauseControl = null;
+            _pausedBeforeCurrentSegment = TimeSpan.Zero;
+            _pauseSegmentStarted = null;
             StartRecordingCommand.NotifyCanExecuteChanged();
             StopRecordingCommand.NotifyCanExecuteChanged();
+            PauseRecordingCommand.NotifyCanExecuteChanged();
+            ResumeRecordingCommand.NotifyCanExecuteChanged();
             _stopCts?.Dispose();
             _stopCts = null;
             _hardCancelCts?.Dispose();
@@ -386,6 +428,30 @@ public partial class ScreenRecorderViewModel : ObservableObject
                     "Screen Recorder");
             }
         }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanPauseRecording))]
+    private void PauseRecording()
+    {
+        _pauseControl?.Pause();
+        if (_pauseControl is { IsPaused: true })
+        {
+            _pauseSegmentStarted = DateTime.Now;
+            IsPaused = true;
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanResumeRecording))]
+    private void ResumeRecording()
+    {
+        if (_pauseSegmentStarted.HasValue)
+        {
+            _pausedBeforeCurrentSegment += DateTime.Now - _pauseSegmentStarted.Value;
+            _pauseSegmentStarted = null;
+        }
+
+        _pauseControl?.Resume();
+        IsPaused = false;
     }
 
     [RelayCommand(CanExecute = nameof(CanStopRecording))]
@@ -507,19 +573,35 @@ public partial class ScreenRecorderViewModel : ObservableObject
 
     private void OnElapsedTick(object? sender, EventArgs e)
     {
-        var elapsed = DateTime.Now - _recordingStartedAt;
-        if (elapsed < TimeSpan.Zero)
+        var now = DateTime.Now;
+        var wall = now - _recordingStartedAt;
+        var currentPause =
+            IsPaused && _pauseSegmentStarted.HasValue ? now - _pauseSegmentStarted.Value : TimeSpan.Zero;
+        var active = wall - _pausedBeforeCurrentSegment - currentPause;
+        if (active < TimeSpan.Zero)
         {
-            elapsed = TimeSpan.Zero;
+            active = TimeSpan.Zero;
         }
 
-        ElapsedDisplay = FormatDuration(elapsed);
+        ElapsedDisplay = FormatDuration(active);
     }
 
     partial void OnIsRecordingChanged(bool value)
     {
         StartRecordingCommand.NotifyCanExecuteChanged();
         StopRecordingCommand.NotifyCanExecuteChanged();
+        PauseRecordingCommand.NotifyCanExecuteChanged();
+        ResumeRecordingCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnIsPausedChanged(bool value)
+    {
+        PauseRecordingCommand.NotifyCanExecuteChanged();
+        ResumeRecordingCommand.NotifyCanExecuteChanged();
+        if (IsRecording)
+        {
+            StatusText = value ? "Paused" : "Recording…";
+        }
     }
 
     partial void OnRegionChanged(ScreenRecordingRegion value)

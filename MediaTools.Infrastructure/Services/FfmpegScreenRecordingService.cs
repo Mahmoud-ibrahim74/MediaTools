@@ -61,7 +61,8 @@ public sealed partial class FfmpegScreenRecordingService(IVideoCompressionServic
         ScreenRecordingSettings settings,
         IProgress<ScreenRecordingProgressReport> progress,
         CancellationToken stopSignal,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        Action<IPausableRecordingControl>? onRecordingStarted = null)
     {
         await videoCompressionService.EnsureToolsReadyAsync(cancellationToken).ConfigureAwait(false);
 
@@ -89,6 +90,7 @@ public sealed partial class FfmpegScreenRecordingService(IVideoCompressionServic
 
         var stderr = new StringBuilder();
         using var process = new Process { StartInfo = psi };
+        ProcessPauseControl? pauseCtl = null;
         process.ErrorDataReceived += (_, e) =>
         {
             if (e.Data is null)
@@ -109,6 +111,8 @@ public sealed partial class FfmpegScreenRecordingService(IVideoCompressionServic
                 Elapsed: TimeSpan.Zero,
                 CurrentSizeBytes: null,
                 StepDescription: "Recording…"));
+            pauseCtl = new ProcessPauseControl(process);
+            onRecordingStarted?.Invoke(pauseCtl);
         }
         catch (Exception ex)
         {
@@ -142,6 +146,7 @@ public sealed partial class FfmpegScreenRecordingService(IVideoCompressionServic
                 }
                 else
                 {
+                    pauseCtl?.Resume();
                     await StopGracefullyAsync(process).ConfigureAwait(false);
                 }
             }

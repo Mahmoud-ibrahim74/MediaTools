@@ -9,7 +9,8 @@ public sealed class StartScreenRecordingUseCase(IScreenRecordingService screenRe
         StartScreenRecordingRequest request,
         IProgress<ScreenRecordingProgressReport> progress,
         CancellationToken stopSignal,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        Action<IPausableRecordingControl>? onRecordingStarted = null)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -21,7 +22,8 @@ public sealed class StartScreenRecordingUseCase(IScreenRecordingService screenRe
                     request.Settings,
                     progress,
                     stopSignal,
-                    cancellationToken)
+                    cancellationToken,
+                    onRecordingStarted)
                 .ConfigureAwait(false);
         }
         catch (OperationCanceledException)
