@@ -12,5 +12,6 @@ public interface IAudioProcessingService
         string outputPath,
         AudioEnhanceSettings settings,
         IProgress<AudioProgressReport> progress,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        TimeSpan? maxOutputDuration = null);
 }

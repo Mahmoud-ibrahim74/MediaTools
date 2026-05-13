@@ -41,7 +41,7 @@
             <StackPanel Grid.Column="0">
               <TextBlock FontSize="26" FontWeight="SemiBold" Text="Audio Converter &amp; Enhancer" />
               <TextBlock Margin="0,6,0,0" FontSize="14" Foreground="#FF5F6B76" TextWrapping="Wrap"
-                         Text="Convert formats, reduce noise, trim silence, or approximate an instrumental from stereo mixes — plus loudness normalization when you want it. FFmpeg runs locally." />
+                         Text="Tune each tool below and check “Include … in export” for every effect you want in the final file. One export runs vocal → noise → silence → clarity → levels together. FFmpeg runs locally." />
             </StackPanel>
             <StackPanel Grid.Column="1"
                         Orientation="Horizontal"
@@ -121,70 +121,153 @@
                            TextWrapping="Wrap" />
               </DockPanel>
 
-              <Grid Grid.Row="1" Margin="0,14,0,0">
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="*" />
-                  <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
+              <StackPanel Grid.Row="1" Margin="0,14,0,0">
+                <TextBlock FontWeight="SemiBold" Text="Live preview" />
+                <TextBlock Margin="0,6,0,0"
+                           FontSize="12"
+                           Foreground="#FF5F6B76"
+                           TextWrapping="Wrap"
+                           Text="Pick Source or With current settings, adjust options, then press Play to hear the preview. Pause anytime; the preview clip refreshes shortly after you change sliders (processed mode)." />
 
-                <Border Grid.Column="0"
-                        Margin="0,0,8,0"
-                        Padding="16"
-                        Background="#FFF5F7FA"
+                <Border Margin="0,10,0,0"
+                        Padding="10,10,2,2"
+                        Background="{DynamicResource ContentBackgroundBrush}"
                         BorderBrush="{DynamicResource CardBorderBrush}"
                         BorderThickness="1"
-                        CornerRadius="8"
-                        MinHeight="160">
-                  <StackPanel VerticalAlignment="Center">
-                    <TextBlock FontSize="12"
-                               FontWeight="SemiBold"
-                               Foreground="#FF5F6B76"
-                               Text="Source track" />
-                    <iconPacks:PackIconMaterial Margin="0,12,0,0"
-                                                Width="40"
-                                                Height="40"
-                                                HorizontalAlignment="Center"
-                                                Foreground="{DynamicResource AccentPrimaryBrush}"
-                                                Kind="SineWave" />
-                    <TextBlock Margin="0,10,0,0"
-                               HorizontalAlignment="Center"
-                               FontSize="12"
-                               Foreground="#FF5F6B76"
-                               Text="Waveform preview is not available."
-                               TextAlignment="Center"
-                               TextWrapping="Wrap" />
-                  </StackPanel>
+                        CornerRadius="10">
+                  <WrapPanel Orientation="Horizontal">
+                    <Button Command="{Binding SelectPreviewListenModeCommand}"
+                            CommandParameter="0"
+                            Content="Source">
+                      <Button.Style>
+                        <Style BasedOn="{StaticResource VideoEnhanceOperationTabStyle}" TargetType="Button">
+                          <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsPreviewSourceMode}" Value="True">
+                              <Setter Property="Background" Value="{DynamicResource AccentPrimaryBrush}" />
+                              <Setter Property="Foreground" Value="White" />
+                              <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+                              <Setter Property="FontWeight" Value="SemiBold" />
+                            </DataTrigger>
+                          </Style.Triggers>
+                        </Style>
+                      </Button.Style>
+                    </Button>
+                    <Button Command="{Binding SelectPreviewListenModeCommand}"
+                            CommandParameter="1"
+                            Content="With current settings">
+                      <Button.Style>
+                        <Style BasedOn="{StaticResource VideoEnhanceOperationTabStyle}" TargetType="Button">
+                          <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsPreviewProcessedMode}" Value="True">
+                              <Setter Property="Background" Value="{DynamicResource AccentPrimaryBrush}" />
+                              <Setter Property="Foreground" Value="White" />
+                              <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+                              <Setter Property="FontWeight" Value="SemiBold" />
+                            </DataTrigger>
+                          </Style.Triggers>
+                        </Style>
+                      </Button.Style>
+                    </Button>
+                  </WrapPanel>
                 </Border>
 
-                <Border Grid.Column="1"
-                        Margin="8,0,0,0"
-                        Padding="16"
-                        Background="#FFF8FBFF"
-                        BorderBrush="{DynamicResource AccentPrimaryBrush}"
-                        BorderThickness="1"
+                <Border Margin="0,12,0,0"
+                        MinHeight="88"
+                        Background="#FF101418"
                         CornerRadius="8"
-                        MinHeight="160">
-                  <StackPanel VerticalAlignment="Center">
-                    <TextBlock FontSize="12"
-                               FontWeight="SemiBold"
-                               Foreground="{DynamicResource AccentPrimaryBrush}"
-                               Text="After export" />
-                    <iconPacks:PackIconMaterial Margin="0,12,0,0"
-                                                Width="40"
-                                                Height="40"
-                                                HorizontalAlignment="Center"
-                                                Foreground="{DynamicResource AccentPrimaryBrush}"
-                                                Kind="TuneVariant" />
-                    <TextBlock Margin="0,10,0,0"
-                               HorizontalAlignment="Center"
-                               FontSize="12"
-                               Foreground="#FF5F6B76"
-                               Text="Output reflects your format, bitrate, sample rate, and enhancement options."
-                               TextAlignment="Center"
-                               TextWrapping="Wrap" />
-                  </StackPanel>
+                        ClipToBounds="True">
+                  <Grid>
+                    <!-- Opacity must stay at 1: WMF audio often does not output when the element is fully transparent. -->
+                    <!-- LoadedBehavior=Manual: required so code-behind can Play(), set Position, and loop. UnloadedBehavior=Close releases the file on unload. -->
+                    <MediaElement x:Name="AudioPreviewPlayer"
+                                  HorizontalAlignment="Stretch"
+                                  VerticalAlignment="Stretch"
+                                  LoadedBehavior="Manual"
+                                  IsHitTestVisible="False"
+                                  IsMuted="{Binding PreviewMuted}"
+                                  MediaEnded="OnAudioPreviewMediaEnded"
+                                  MediaFailed="OnAudioPreviewMediaFailed"
+                                  MediaOpened="OnAudioPreviewMediaOpened"
+                                  ScrubbingEnabled="True"
+                                  Source="{Binding PreviewMediaUri}"
+                                  UnloadedBehavior="Close"
+                                  Volume="1" />
+                    <StackPanel HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Margin="16"
+                                IsHitTestVisible="False">
+                      <iconPacks:PackIconMaterial Width="40"
+                                                    Height="40"
+                                                    HorizontalAlignment="Center"
+                                                    Foreground="#66FFFFFF"
+                                                    Kind="Headphones" />
+                      <TextBlock Margin="0,10,0,0"
+                                 HorizontalAlignment="Center"
+                                 FontSize="12"
+                                 Foreground="#99FFFFFF"
+                                 Text="Use Play / Pause below — audio does not start automatically."
+                                 TextAlignment="Center"
+                                 TextWrapping="Wrap" />
+                    </StackPanel>
+                    <Border Background="#AA000000"
+                            Visibility="{Binding IsPreviewBuilding, Converter={StaticResource BoolToVisibilityConverter}}">
+                      <TextBlock Margin="12"
+                                 HorizontalAlignment="Center"
+                                 VerticalAlignment="Center"
+                                 FontWeight="SemiBold"
+                                 Foreground="White"
+                                 Text="Building preview…"
+                                 TextAlignment="Center" />
+                    </Border>
+                  </Grid>
                 </Border>
-              </Grid>
+
+                <StackPanel Margin="0,10,0,0"
+                            HorizontalAlignment="Center"
+                            Orientation="Horizontal">
+                  <Button MinWidth="100"
+                          Padding="12,8"
+                          Click="OnPreviewPlayClick"
+                          IsEnabled="{Binding CanPreviewPlaybackControls}"
+                          Style="{DynamicResource PrimaryButtonStyle}"
+                          ToolTip="Play preview from the start. If you hear nothing, uncheck “Mute preview” and confirm Windows volume.">
+                    <StackPanel Orientation="Horizontal">
+                      <iconPacks:PackIconMaterial Width="18"
+                                                  Height="18"
+                                                  Margin="0,0,8,0"
+                                                  VerticalAlignment="Center"
+                                                  Kind="Play" />
+                      <TextBlock VerticalAlignment="Center" Text="Play" />
+                    </StackPanel>
+                  </Button>
+                  <Button MinWidth="100"
+                          Margin="12,0,0,0"
+                          Padding="12,8"
+                          Click="OnPreviewPauseClick"
+                          IsEnabled="{Binding CanPreviewPlaybackControls}"
+                          Style="{DynamicResource OutlinedButtonStyle}"
+                          ToolTip="Pause preview">
+                    <StackPanel Orientation="Horizontal">
+                      <iconPacks:PackIconMaterial Width="18"
+                                                  Height="18"
+                                                  Margin="0,0,8,0"
+                                                  VerticalAlignment="Center"
+                                                  Kind="Pause" />
+                      <TextBlock VerticalAlignment="Center" Text="Pause" />
+                    </StackPanel>
+                  </Button>
+                </StackPanel>
+
+                <TextBlock Margin="0,10,0,0"
+                           FontSize="12"
+                           Foreground="#FF5F6B76"
+                           Text="{Binding PreviewStatusText}"
+                           TextWrapping="Wrap" />
+
+                <CheckBox Margin="0,8,0,0"
+                          Content="Mute preview"
+                          IsChecked="{Binding PreviewMuted}" />
+              </StackPanel>
 
               <StackPanel Grid.Row="2" Margin="0,14,0,0">
                 <UniformGrid Columns="3">
@@ -218,7 +301,12 @@
           <!-- Operation tabs (same pattern as PhotoEnhancerPage / VideoEnhancerPage) -->
           <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">
             <StackPanel>
-              <TextBlock Margin="0,0,0,10" FontWeight="SemiBold" Text="Operation" />
+              <TextBlock Margin="0,0,0,10" FontWeight="SemiBold" Text="Tools" />
+              <TextBlock Margin="0,0,0,10"
+                         FontSize="12"
+                         Foreground="#FF5F6B76"
+                         TextWrapping="Wrap"
+                         Text="Tabs only organize settings. Export always applies every checked “Include” option in one pass." />
               <Border Padding="10,10,2,2"
                       Background="{DynamicResource ContentBackgroundBrush}"
                       BorderBrush="{DynamicResource CardBorderBrush}"
@@ -301,6 +389,9 @@
                   Visibility="{Binding IsVocalWorkspace, Converter={StaticResource BoolToVisibilityConverter}}">
             <StackPanel>
               <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Vocal remover" />
+              <CheckBox Margin="0,0,0,10"
+                        Content="Include vocal remover in export (stereo sources only)"
+                        IsChecked="{Binding IncludeVocalRemover}" />
               <TextBlock Margin="0,0,0,12"
                          FontSize="13"
                          Foreground="#FF5F6B76"
@@ -331,6 +422,9 @@
                   Visibility="{Binding IsNoiseWorkspace, Converter={StaticResource BoolToVisibilityConverter}}">
             <StackPanel>
               <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Noise reduction" />
+              <CheckBox Margin="0,0,0,10"
+                        Content="Include noise reduction in export"
+                        IsChecked="{Binding IncludeNoiseReduction}" />
               <TextBlock Margin="0,0,0,12"
                          FontSize="13"
                          Foreground="#FF5F6B76"
@@ -350,6 +444,9 @@
                   Visibility="{Binding IsSilenceWorkspace, Converter={StaticResource BoolToVisibilityConverter}}">
             <StackPanel>
               <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Silence remover" />
+              <CheckBox Margin="0,0,0,10"
+                        Content="Include silence removal in export"
+                        IsChecked="{Binding IncludeSilenceRemover}" />
               <TextBlock Margin="0,0,0,12"
                          FontSize="13"
                          Foreground="#FF5F6B76"
@@ -380,8 +477,7 @@
               <TextBlock Margin="0,0,0,12" FontWeight="SemiBold" Text="Export &amp; levels" />
               <CheckBox Margin="0,0,0,12"
                         Content="Clarity boost (gentle high-frequency emphasis)"
-                        IsChecked="{Binding ClarityBoost}"
-                        Visibility="{Binding IsEnhanceWorkspace, Converter={StaticResource BoolToVisibilityConverter}}" />
+                        IsChecked="{Binding ClarityBoost}" />
               <Grid Margin="0,0,0,12">
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="*" />
@@ -449,7 +545,7 @@
                     Visibility="{Binding ShowCancelButton, Converter={StaticResource BoolToVisibilityConverter}}" />
             <Button MinWidth="220"
                     Command="{Binding ProcessAudioCommand}"
-                    Content="{Binding ProcessPrimaryLabel}"
+                    Content="Export audio"
                     Style="{DynamicResource PrimaryButtonStyle}" />
           </StackPanel>
         </StackPanel>
@@ -467,9 +563,9 @@
           </Border>
           <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">
             <StackPanel>
-              <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Tools" />
+              <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Combined export" />
               <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
-                         Text="Noise reduction uses spectral denoise; silence remover deletes quiet gaps; vocal remover blends mid and side — stereo only. Loudness and clarity live under Export &amp; levels." />
+                         Text="Check each tool you want, then Export audio once. Processing order: vocal (optional) → noise → silence → clarity → volume and loudness." />
             </StackPanel>
           </Border>
           <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">

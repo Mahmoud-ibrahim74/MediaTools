@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MediaTools.Application.Abstractions;
@@ -28,6 +29,9 @@ public partial class AudioEnhancerViewModel : ObservableObject
     private readonly UndoRedoHost<AudioEnhancerUndoSnapshot> _history;
     private CancellationTokenSource? _cts;
     private bool _suppressUndoNotification;
+    private CancellationTokenSource? _previewDebounceCts;
+    private CancellationTokenSource? _previewBuildCts;
+    private string? _tempPreviewPath;
 
     public AudioEnhancerViewModel(
         ProcessAudioUseCase processAudioUseCase,
@@ -105,7 +109,16 @@ public partial class AudioEnhancerViewModel : ObservableObject
     private bool _clarityBoost;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ProcessPrimaryLabel))]
+    [NotifyPropertyChangedFor(nameof(ShowVocalStereoWarning))]
+    private bool _includeVocalRemover;
+
+    [ObservableProperty]
+    private bool _includeNoiseReduction;
+
+    [ObservableProperty]
+    private bool _includeSilenceRemover;
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsEnhanceWorkspace))]
     [NotifyPropertyChangedFor(nameof(IsVocalWorkspace))]
     [NotifyPropertyChangedFor(nameof(IsNoiseWorkspace))]
@@ -141,15 +154,33 @@ public partial class AudioEnhancerViewModel : ObservableObject
     public bool IsSilenceWorkspace => WorkspaceTabIndex == 3;
 
     public bool ShowVocalStereoWarning =>
-        WorkspaceTabIndex == 1 && SourceAudioChannels > 0 && SourceAudioChannels < 2;
+        IncludeVocalRemover && SourceAudioChannels > 0 && SourceAudioChannels < 2;
 
-    public string ProcessPrimaryLabel => WorkspaceTabIndex switch
-    {
-        1 => "Remove vocals",
-        2 => "Reduce noise",
-        3 => "Remove silence",
-        _ => "Convert & enhance",
-    };
+    /// <summary>0 = original file, 1 = processed WAV snippet.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsPreviewSourceMode))]
+    [NotifyPropertyChangedFor(nameof(IsPreviewProcessedMode))]
+    private int _previewListenModeIndex;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanPreviewPlaybackControls))]
+    private Uri? _previewMediaUri;
+
+    [ObservableProperty]
+    private bool _previewMuted;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanPreviewPlaybackControls))]
+    private bool _isPreviewBuilding;
+
+    [ObservableProperty]
+    private string _previewStatusText = string.Empty;
+
+    public bool IsPreviewSourceMode => PreviewListenModeIndex == 0;
+
+    public bool IsPreviewProcessedMode => PreviewListenModeIndex == 1;
+
+    public bool CanPreviewPlaybackControls => PreviewMediaUri is not null && !IsPreviewBuilding;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ProgressPercentDisplay))]
@@ -198,7 +229,7 @@ public partial class AudioEnhancerViewModel : ObservableObject
         !string.IsNullOrWhiteSpace(SelectedFilePath)
         && Directory.Exists(_preferences.SaveFolderPath)
         && !IsRunning
-        && !(WorkspaceTabIndex == 1 && SourceAudioChannels > 0 && SourceAudioChannels < 2);
+        && !(IncludeVocalRemover && SourceAudioChannels > 0 && SourceAudioChannels < 2);
 
     private bool CanUndoOperation() => _history.CanUndo && !IsRunning;
 
@@ -218,6 +249,155 @@ public partial class AudioEnhancerViewModel : ObservableObject
         }
 
         _history.NotifyEdit();
+        SchedulePreviewRebuildIfNeeded();
+    }
+
+    private void SchedulePreviewRebuildIfNeeded()
+    {
+        if (PreviewListenModeIndex != 1 || string.IsNullOrEmpty(SelectedFilePath) || IsRunning)
+        {
+            return;
+        }
+
+        _previewDebounceCts?.Cancel();
+        _previewDebounceCts = new CancellationTokenSource();
+        var token = _previewDebounceCts.Token;
+        _ = DebouncedPreviewWorkAsync(token);
+    }
+
+    private async Task DebouncedPreviewWorkAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(450, token).ConfigureAwait(true);
+            await RebuildProcessedPreviewCoreAsync(token).ConfigureAwait(true);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private async Task RebuildProcessedPreviewCoreAsync(CancellationToken externalToken)
+    {
+        if (PreviewListenModeIndex != 1 || string.IsNullOrEmpty(SelectedFilePath))
+        {
+            return;
+        }
+
+        if (IncludeVocalRemover && SourceAudioChannels < 2)
+        {
+            PreviewStatusText = "Stereo is required when vocal remover is included.";
+            PreviewMediaUri = null;
+            IsPreviewBuilding = false;
+            return;
+        }
+
+        _previewBuildCts?.Cancel();
+        _previewBuildCts?.Dispose();
+
+        CancellationTokenSource buildCts = externalToken.CanBeCanceled
+            ? CancellationTokenSource.CreateLinkedTokenSource(externalToken)
+            : new CancellationTokenSource();
+        _previewBuildCts = buildCts;
+        var token = buildCts.Token;
+
+        IsPreviewBuilding = true;
+        PreviewStatusText = "Building preview…";
+
+        try
+        {
+            var dir = Path.Combine(Path.GetTempPath(), "MediaTools");
+            Directory.CreateDirectory(dir);
+            var outPath = Path.Combine(dir, $"audio_preview_{Guid.NewGuid():N}.wav");
+
+            var settings = BuildPreviewSettings();
+
+            await _audioProcessingService
+                .ProcessAsync(
+                    SelectedFilePath,
+                    outPath,
+                    settings,
+                    new Progress<AudioProgressReport>(_ => { }),
+                    token,
+                    TimeSpan.FromSeconds(45))
+                .ConfigureAwait(true);
+
+            if (token.IsCancellationRequested || PreviewListenModeIndex != 1)
+            {
+                TryDeleteFileIgnoreErrors(outPath);
+                return;
+            }
+
+            TryDeleteFileIgnoreErrors(_tempPreviewPath);
+            _tempPreviewPath = outPath;
+            PreviewMediaUri = new Uri(outPath);
+            PreviewStatusText = "Preview: first 45 s as WAV (export can use another format).";
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            PreviewStatusText = ex.Message;
+            PreviewMediaUri = null;
+        }
+        finally
+        {
+            IsPreviewBuilding = false;
+        }
+    }
+
+    private static void TryDeleteFileIgnoreErrors(string? path)
+    {
+        if (string.IsNullOrEmpty(path))
+        {
+            return;
+        }
+
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+        catch
+        {
+        }
+    }
+
+    private AudioEnhanceSettings BuildPreviewSettings() => BuildSettings() with { TargetFormat = AudioExportFormat.Wav };
+
+    private void ResetPreviewForClear()
+    {
+        _previewDebounceCts?.Cancel();
+        _previewBuildCts?.Cancel();
+        _previewBuildCts?.Dispose();
+        _previewBuildCts = null;
+        TryDeleteFileIgnoreErrors(_tempPreviewPath);
+        _tempPreviewPath = null;
+        PreviewMediaUri = null;
+        PreviewListenModeIndex = 0;
+        PreviewStatusText = string.Empty;
+        IsPreviewBuilding = false;
+    }
+
+    private void SyncPreviewAfterSnapshotApply()
+    {
+        if (string.IsNullOrEmpty(SelectedFilePath))
+        {
+            ResetPreviewForClear();
+            return;
+        }
+
+        if (PreviewListenModeIndex == 0)
+        {
+            PreviewMediaUri = new Uri(Path.GetFullPath(SelectedFilePath));
+            PreviewStatusText = "Playing original file.";
+            return;
+        }
+
+        _ = RebuildProcessedPreviewCoreAsync(CancellationToken.None);
     }
 
     public void HandleDrop(IEnumerable<string> paths)
@@ -293,7 +473,25 @@ public partial class AudioEnhancerViewModel : ObservableObject
             ProgressDetailText = string.Empty;
             ResultMessage = string.Empty;
             SourceAudioChannels = 0;
+            IncludeVocalRemover = false;
+            IncludeNoiseReduction = false;
+            IncludeSilenceRemover = false;
+            ResetPreviewForClear();
         });
+    }
+
+    [RelayCommand]
+    private void SelectPreviewListenMode(object? parameter)
+    {
+        var idx = parameter switch
+        {
+            int i => i,
+            string s when int.TryParse(s, System.Globalization.NumberStyles.Integer,
+                System.Globalization.CultureInfo.InvariantCulture, out var j) => j,
+            _ => 0
+        };
+
+        PreviewListenModeIndex = Math.Clamp(idx, 0, 1);
     }
 
     [RelayCommand]
@@ -335,23 +533,11 @@ public partial class AudioEnhancerViewModel : ObservableObject
         ResultMessage = string.Empty;
 
         var settings = BuildSettings();
-        ProgressStatusText = settings.Workspace switch
-        {
-            AudioEnhancerWorkspace.VocalRemover => "Removing vocals…",
-            AudioEnhancerWorkspace.NoiseReduction => "Reducing noise…",
-            AudioEnhancerWorkspace.SilenceRemover => "Removing silence…",
-            _ => "Converting…",
-        };
+        ProgressStatusText = "Processing audio…";
 
         var ext = ExtensionFor(settings.TargetFormat);
         var stem = Path.GetFileNameWithoutExtension(SelectedFilePath);
-        var suffix = settings.Workspace switch
-        {
-            AudioEnhancerWorkspace.VocalRemover => "_instrumental",
-            AudioEnhancerWorkspace.NoiseReduction => "_denoised",
-            AudioEnhancerWorkspace.SilenceRemover => "_trimmed",
-            _ => "_converted",
-        };
+        var suffix = HasAnyAudioProcessing(settings) ? "_processed" : "_converted";
         var outputPath = Path.Combine(_preferences.SaveFolderPath, stem + suffix + ext);
 
         var request = new ProcessAudioRequest(SelectedFilePath, outputPath, settings);
@@ -396,13 +582,7 @@ public partial class AudioEnhancerViewModel : ObservableObject
                 ProgressPercent01 = 1;
                 var len = new FileInfo(outputPath).Length;
                 ResultMessage = $"Saved to {outputPath} ({FormatBytes(len)})";
-                toastTitle = settings.Workspace switch
-                {
-                    AudioEnhancerWorkspace.VocalRemover => "Instrumental track saved",
-                    AudioEnhancerWorkspace.NoiseReduction => "Noise reduction complete",
-                    AudioEnhancerWorkspace.SilenceRemover => "Silence trimmed",
-                    _ => "Audio conversion complete",
-                };
+                toastTitle = "Audio export complete";
                 toastBody = $"{Path.GetFileName(outputPath)} · {FormatBytes(len)}";
                 toastSuccess = true;
             }
@@ -498,21 +678,22 @@ public partial class AudioEnhancerViewModel : ObservableObject
             NormalizeLoudness,
             VolumePercent,
             ClarityBoost,
-            MapWorkspaceFromTab(WorkspaceTabIndex),
+            IncludeVocalRemover,
+            IncludeNoiseReduction,
+            IncludeSilenceRemover,
             (float)VocalRemoverStrength,
             (float)NoiseReductionStrength,
             (float)SilenceThresholdDb,
             (float)MinSilenceDurationSec,
             (float)SilenceDetectionWindowSec);
 
-    private static AudioEnhancerWorkspace MapWorkspaceFromTab(int tab) =>
-        tab switch
-        {
-            1 => AudioEnhancerWorkspace.VocalRemover,
-            2 => AudioEnhancerWorkspace.NoiseReduction,
-            3 => AudioEnhancerWorkspace.SilenceRemover,
-            _ => AudioEnhancerWorkspace.EnhanceAndConvert,
-        };
+    private static bool HasAnyAudioProcessing(AudioEnhanceSettings s) =>
+        s.IncludeVocalRemover
+        || s.IncludeNoiseReduction
+        || s.IncludeSilenceRemover
+        || s.ClarityBoost
+        || s.VolumePercent != 100
+        || s.NormalizeLoudness;
 
     private static string ExtensionFor(AudioExportFormat format) =>
         format switch
@@ -540,6 +721,9 @@ public partial class AudioEnhancerViewModel : ObservableObject
             SourceAudioChannels = info.Channels;
             FinishedAttempt = false;
             Succeeded = false;
+            PreviewListenModeIndex = 0;
+            PreviewMediaUri = new Uri(Path.GetFullPath(path));
+            PreviewStatusText = "Playing original file.";
             return true;
         }
         catch (Exception ex)
@@ -560,6 +744,9 @@ public partial class AudioEnhancerViewModel : ObservableObject
             ChannelsDisplay,
             SourceAudioChannels,
             WorkspaceTabIndex,
+            IncludeVocalRemover,
+            IncludeNoiseReduction,
+            IncludeSilenceRemover,
             VocalRemoverStrength,
             NoiseReductionStrength,
             SilenceThresholdDb,
@@ -589,6 +776,9 @@ public partial class AudioEnhancerViewModel : ObservableObject
         ChannelsDisplay = s.ChannelsDisplay;
         SourceAudioChannels = s.SourceAudioChannels;
         WorkspaceTabIndex = s.WorkspaceTabIndex;
+        IncludeVocalRemover = s.IncludeVocalRemover;
+        IncludeNoiseReduction = s.IncludeNoiseReduction;
+        IncludeSilenceRemover = s.IncludeSilenceRemover;
         VocalRemoverStrength = s.VocalRemoverStrength;
         NoiseReductionStrength = s.NoiseReductionStrength;
         SilenceThresholdDb = s.SilenceThresholdDb;
@@ -611,8 +801,8 @@ public partial class AudioEnhancerViewModel : ObservableObject
         OnPropertyChanged(nameof(IsVocalWorkspace));
         OnPropertyChanged(nameof(IsNoiseWorkspace));
         OnPropertyChanged(nameof(IsSilenceWorkspace));
-        OnPropertyChanged(nameof(ProcessPrimaryLabel));
         OnPropertyChanged(nameof(ShowVocalStereoWarning));
+        SyncPreviewAfterSnapshotApply();
     }
 
     partial void OnTargetFormatChanged(AudioExportFormat value)
@@ -631,10 +821,38 @@ public partial class AudioEnhancerViewModel : ObservableObject
 
     partial void OnClarityBoostChanged(bool value) => NotifyUndoableEdit();
 
+    partial void OnIncludeVocalRemoverChanged(bool value) => NotifyUndoableEdit();
+
+    partial void OnIncludeNoiseReductionChanged(bool value) => NotifyUndoableEdit();
+
+    partial void OnIncludeSilenceRemoverChanged(bool value) => NotifyUndoableEdit();
+
     partial void OnWorkspaceTabIndexChanged(int value)
     {
         ProcessAudioCommand.NotifyCanExecuteChanged();
         NotifyUndoableEdit();
+    }
+
+    partial void OnPreviewListenModeIndexChanged(int value)
+    {
+        _previewDebounceCts?.Cancel();
+        if (string.IsNullOrEmpty(SelectedFilePath))
+        {
+            return;
+        }
+
+        if (value == 0)
+        {
+            _previewBuildCts?.Cancel();
+            _previewBuildCts?.Dispose();
+            _previewBuildCts = null;
+            PreviewMediaUri = new Uri(Path.GetFullPath(SelectedFilePath));
+            PreviewStatusText = "Playing original file.";
+            IsPreviewBuilding = false;
+            return;
+        }
+
+        _ = RebuildProcessedPreviewCoreAsync(CancellationToken.None);
     }
 
     partial void OnSourceAudioChannelsChanged(int value) =>
@@ -658,6 +876,15 @@ public partial class AudioEnhancerViewModel : ObservableObject
         ProcessAudioCommand.NotifyCanExecuteChanged();
         UndoCommand.NotifyCanExecuteChanged();
         RedoCommand.NotifyCanExecuteChanged();
+    }
+
+    /// <summary>Called from the page when WPF MediaElement cannot open or decode the preview URI.</summary>
+    public void ReportPreviewPlaybackFailed(string? detail)
+    {
+        PreviewStatusText =
+            string.IsNullOrWhiteSpace(detail)
+                ? "Preview playback failed. Try “With current settings” for a WAV snippet, or convert to MP3/WAV."
+                : $"Preview playback failed: {detail} — Opus/FLAC may not play here; use processed preview (WAV) or another format.";
     }
 
     private static string FormatBytes(long bytes)

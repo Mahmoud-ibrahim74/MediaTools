@@ -47,7 +47,8 @@ public sealed class FfmpegAudioProcessingService(IVideoCompressionService videoC
         string outputPath,
         AudioEnhanceSettings settings,
         IProgress<AudioProgressReport> progress,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        TimeSpan? maxOutputDuration = null)
     {
         await videoCompressionService.EnsureToolsReadyAsync(cancellationToken).ConfigureAwait(false);
 
@@ -65,25 +66,23 @@ public sealed class FfmpegAudioProcessingService(IVideoCompressionService videoC
         conversion.AddParameter("-sn", ParameterPosition.PostInput);
         conversion.AddParameter("-dn", ParameterPosition.PostInput);
 
-        if (settings.Workspace == AudioEnhancerWorkspace.VocalRemover)
+        if (settings.IncludeVocalRemover)
         {
             if (channels < 2)
             {
                 throw new InvalidOperationException(
-                    "Vocal remover needs a stereo track. This file does not have two channels.");
+                    "Vocal remover needs a stereo track. Uncheck it or use a stereo source.");
             }
 
-            var fc = BuildVocalInstrumentalFilterComplex(settings);
+            var fc = BuildVocalMidSideMixFilterComplex(settings);
             conversion.AddParameter($"-filter_complex \"{fc}\"", ParameterPosition.PostInput);
-            conversion.AddParameter("-map \"[aout]\"", ParameterPosition.PostInput);
+            conversion.AddParameter("-map \"[vm]\"", ParameterPosition.PostInput);
         }
-        else
+
+        var postAf = BuildPostVocalAfChain(settings);
+        if (!string.IsNullOrEmpty(postAf))
         {
-            var af = BuildAfChain(settings);
-            if (!string.IsNullOrEmpty(af))
-            {
-                conversion.AddParameter($"-af \"{af}\"", ParameterPosition.PostInput);
-            }
+            conversion.AddParameter($"-af \"{postAf}\"", ParameterPosition.PostInput);
         }
 
         var ar = MapSampleRate(settings.SampleRate);
@@ -118,6 +117,12 @@ public sealed class FfmpegAudioProcessingService(IVideoCompressionService videoC
                 throw new ArgumentOutOfRangeException(nameof(settings), settings.TargetFormat, null);
         }
 
+        if (maxOutputDuration is { TotalSeconds: > 0 } lim)
+        {
+            var sec = lim.TotalSeconds.ToString("0.###", CultureInfo.InvariantCulture);
+            conversion.AddParameter($"-t {sec}", ParameterPosition.PostInput);
+        }
+
         conversion.SetOutput(outputPath);
 
         conversion.OnProgress += (_, args) =>
@@ -143,27 +148,35 @@ public sealed class FfmpegAudioProcessingService(IVideoCompressionService videoC
         }
     }
 
-    private static string BuildAfChain(AudioEnhanceSettings settings)
+    /// <summary>Mid/side blend only; volume/loudnorm/clarity/noise/silence run in -af after map.</summary>
+    private static string BuildVocalMidSideMixFilterComplex(AudioEnhanceSettings settings)
+    {
+        var s = Math.Clamp(settings.VocalRemoverStrength01, 0f, 1f);
+        var wMid = (1 - s).ToString("0.###", CultureInfo.InvariantCulture);
+        var wSide = s.ToString("0.###", CultureInfo.InvariantCulture);
+
+        return "[0:a]asplit=2[msrc][ssrc];"
+            + "[msrc]pan=mono|c0=0.5*c0+0.5*c1[mid];"
+            + "[ssrc]pan=mono|c0=0.5*c0-0.5*c1[side];"
+            + $"[mid][side]amix=inputs=2:weights={wMid} {wSide}:normalize=0[vm]";
+    }
+
+    /// <summary>Everything after optional vocal stage: denoise, silence trim, clarity, volume, loudnorm.</summary>
+    private static string BuildPostVocalAfChain(AudioEnhanceSettings settings)
     {
         var filterParts = new List<string>();
 
-        switch (settings.Workspace)
+        if (settings.IncludeNoiseReduction)
         {
-            case AudioEnhancerWorkspace.EnhanceAndConvert:
-                break;
-            case AudioEnhancerWorkspace.NoiseReduction:
-                filterParts.Add(BuildAfftdn(settings));
-                break;
-            case AudioEnhancerWorkspace.SilenceRemover:
-                filterParts.Add(BuildSilenceRemove(settings));
-                break;
-            case AudioEnhancerWorkspace.VocalRemover:
-                throw new InvalidOperationException("Internal: vocal remover must use filter_complex.");
-            default:
-                throw new ArgumentOutOfRangeException(nameof(settings));
+            filterParts.Add(BuildAfftdn(settings));
         }
 
-        if (settings.Workspace == AudioEnhancerWorkspace.EnhanceAndConvert && settings.ClarityBoost)
+        if (settings.IncludeSilenceRemover)
+        {
+            filterParts.Add(BuildSilenceRemove(settings));
+        }
+
+        if (settings.ClarityBoost)
         {
             filterParts.Add("highpass=f=80");
             filterParts.Add("equalizer=f=6500:width_type=h:width=2800:g=1.2");
@@ -207,36 +220,6 @@ public sealed class FfmpegAudioProcessingService(IVideoCompressionService videoC
             + ":stop_periods=-1"
             + $":stop_duration={dMin}:stop_threshold={thr}"
             + $":window={dWin}";
-    }
-
-    /// <summary>
-    /// Mid/side blend: higher strength favors side (L−R), lower favors mid (L+R) — stereo only.
-    /// </summary>
-    private static string BuildVocalInstrumentalFilterComplex(AudioEnhanceSettings settings)
-    {
-        var s = Math.Clamp(settings.VocalRemoverStrength01, 0f, 1f);
-        var wMid = (1 - s).ToString("0.###", CultureInfo.InvariantCulture);
-        var wSide = s.ToString("0.###", CultureInfo.InvariantCulture);
-
-        var tail = new List<string>();
-        if (settings.VolumePercent != 100)
-        {
-            var lin = Math.Clamp(settings.VolumePercent / 100.0, 0.05, 4.0);
-            tail.Add($"volume={lin.ToString("0.###", CultureInfo.InvariantCulture)}");
-        }
-
-        if (settings.NormalizeLoudness)
-        {
-            tail.Add("loudnorm=I=-16:TP=-1.5:LRA=11");
-        }
-
-        var tailStr = tail.Count > 0 ? string.Join(",", tail) : "volume=1";
-
-        return "[0:a]asplit=2[msrc][ssrc];"
-            + "[msrc]pan=mono|c0=0.5*c0+0.5*c1[mid];"
-            + "[ssrc]pan=mono|c0=0.5*c0-0.5*c1[side];"
-            + $"[mid][side]amix=inputs=2:weights={wMid} {wSide}:normalize=0[vm];"
-            + $"[vm]{tailStr}[aout]";
     }
 
     private static int? MapSampleRate(AudioSampleRateOption option) =>

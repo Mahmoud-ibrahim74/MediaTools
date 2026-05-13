@@ -9,8 +9,10 @@ public sealed record AudioEnhanceSettings(
     bool NormalizeLoudness,
     int VolumePercent,
     bool ClarityBoost,
-    AudioEnhancerWorkspace Workspace,
-    /// <summary>0 = mostly mid (original mono sum), 1 = mostly side (L−R) — requires stereo.</summary>
+    bool IncludeVocalRemover,
+    bool IncludeNoiseReduction,
+    bool IncludeSilenceRemover,
+    /// <summary>0 = mostly mid (original mono sum), 1 = mostly side (L−R) — requires stereo when vocal included.</summary>
     float VocalRemoverStrength01,
     /// <summary>Maps to FFmpeg afftdn strength.</summary>
     float NoiseReductionStrength01,
