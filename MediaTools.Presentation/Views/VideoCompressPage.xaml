@@ -49,6 +49,14 @@
                          FontSize="14"
                          Foreground="#FF5F6B76"
                          Text="Reduce file size while keeping great visual quality using modern codecs and tuned presets." />
+              <TextBlock Margin="0,10,0,0"
+                         FontSize="13"
+                         Foreground="#FF5F6B76"
+                         TextWrapping="Wrap">
+                <Run Text="H.264 / H.265 video encoder: " />
+                <Run FontWeight="SemiBold" Foreground="{DynamicResource AccentPrimaryBrush}" Text="{Binding ExportVideoEncoderDisplay, Mode=OneWay}" />
+                <Run Text=" (from App settings → Hardware Encoder; saved preferences + encoder scan). AV1 and VP9 always encode on the CPU." />
+              </TextBlock>
             </StackPanel>
             <StackPanel Grid.Column="1"
                         Orientation="Horizontal"

@@ -41,6 +41,7 @@ public partial class VideoCompressViewModel : ObservableObject
         _preferences = preferences;
         _toastNotifications = toastNotifications;
         _preferences.SaveFolderPathChanged += OnSaveFolderPathChanged;
+        _preferences.VideoEncoderSettingsChanged += OnVideoEncoderSettingsChanged;
 
         foreach (var b in AudioBitrateOptions)
         {
@@ -66,6 +67,47 @@ public partial class VideoCompressViewModel : ObservableObject
 
     private void OnSaveFolderPathChanged(object? sender, EventArgs e) =>
         StartCompressionCommand.NotifyCanExecuteChanged();
+
+    private void OnVideoEncoderSettingsChanged(object? sender, EventArgs e) =>
+        OnPropertyChanged(nameof(ExportVideoEncoderDisplay));
+
+    /// <summary>Effective H.264/H.265 encoder when GPU path is used (App settings + last encoder scan).</summary>
+    private VideoHardwareEncoderKind ResolveEncoderForExport()
+    {
+        var pref = _preferences.PreferredVideoHardwareEncoder;
+        if (pref == VideoHardwareEncoderKind.Software)
+        {
+            return VideoHardwareEncoderKind.Software;
+        }
+
+        if (_preferences.LastVideoEncoderScan is not { } scan)
+        {
+            return VideoHardwareEncoderKind.Software;
+        }
+
+        return pref switch
+        {
+            VideoHardwareEncoderKind.Nvenc when scan.NvencAvailable => VideoHardwareEncoderKind.Nvenc,
+            VideoHardwareEncoderKind.Amf when scan.AmfAvailable => VideoHardwareEncoderKind.Amf,
+            VideoHardwareEncoderKind.QuickSync when scan.QuickSyncAvailable => VideoHardwareEncoderKind.QuickSync,
+            _ => VideoHardwareEncoderKind.Software
+        };
+    }
+
+    private static string FormatEncoderForUi(VideoHardwareEncoderKind k) =>
+        k switch
+        {
+            VideoHardwareEncoderKind.Nvenc => "NVENC — NVIDIA GPU Encoder",
+            VideoHardwareEncoderKind.Amf => "AMF — AMD GPU Encoder",
+            VideoHardwareEncoderKind.QuickSync => "QuickSync — Intel GPU Encoder",
+            _ => "Software (libx264 / libx265) — CPU"
+        };
+
+    /// <summary>
+    /// For H.264/H.265 exports, reflects App settings hardware choice when the scan says it is available;
+    /// AV1/VP9 always use CPU codecs regardless of this label.
+    /// </summary>
+    public string ExportVideoEncoderDisplay => FormatEncoderForUi(ResolveEncoderForExport());
 
     public ObservableCollection<int> AudioBitrates { get; } = [];
 
@@ -465,7 +507,8 @@ public partial class VideoCompressViewModel : ObservableObject
             h,
             AudioBitrateKbps,
             RemoveAudio,
-            GetExtensionForSelection());
+            GetExtensionForSelection(),
+            ResolveEncoderForExport());
     }
 
     private string GetExtensionForSelection()

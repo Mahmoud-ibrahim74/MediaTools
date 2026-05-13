@@ -8,6 +8,7 @@ using CompressionJobStatus = MediaTools.Domain.Enums.CompressionJobStatus;
 using DomainAudioCodec = MediaTools.Domain.Enums.AudioCodec;
 using DomainEncodePreset = MediaTools.Domain.Enums.EncodePreset;
 using DomainVideoCodec = MediaTools.Domain.Enums.VideoCodec;
+using VideoHardwareEncoderKind = MediaTools.Domain.Enums.VideoHardwareEncoderKind;
 using Xabe.FFmpeg;
 using Xabe.FFmpeg.Downloader;
 using Xabe.FFmpeg.Events;
@@ -254,10 +255,12 @@ public sealed class FfmpegVideoCompressionService : IVideoCompressionService
 
         conversion.AddParameter($"-i \"{inputPath}\"", ParameterPosition.PostInput);
 
-        conversion.AddParameter($"-c:v {MapVideoCodec(profile.VideoCodec)}", ParameterPosition.PostInput);
-        AddEncoderPreset(conversion, profile);
-
-        AddCrfOrQuality(conversion, profile);
+        if (!TryAddHardwareVideoEncode(conversion, profile))
+        {
+            conversion.AddParameter($"-c:v {MapVideoCodec(profile.VideoCodec)}", ParameterPosition.PostInput);
+            AddEncoderPreset(conversion, profile);
+            AddCrfOrQuality(conversion, profile);
+        }
 
         if (profile.TargetWidth is { } w && profile.TargetHeight is { } h)
         {
@@ -411,6 +414,70 @@ public sealed class FfmpegVideoCompressionService : IVideoCompressionService
     {
         var ext = profile.OutputFileExtension.ToLowerInvariant();
         return ext is ".mp4" or ".m4v" or ".mov";
+    }
+
+    /// <summary>
+    /// Uses NVENC/AMF/QSV when <see cref="CompressionProfile.HardwareVideoEncoder"/> is set (from App settings).
+    /// AV1/VP9 stay on CPU codecs.
+    /// </summary>
+    private static bool TryAddHardwareVideoEncode(Xabe.FFmpeg.IConversion conversion, CompressionProfile profile)
+    {
+        if (profile.HardwareVideoEncoder == VideoHardwareEncoderKind.Software)
+        {
+            return false;
+        }
+
+        var q = Math.Clamp(profile.Crf, 14, 40);
+
+        switch (profile.VideoCodec)
+        {
+            case DomainVideoCodec.H264:
+                switch (profile.HardwareVideoEncoder)
+                {
+                    case VideoHardwareEncoderKind.Nvenc:
+                        conversion.AddParameter(
+                            $"-c:v h264_nvenc -preset p4 -cq {q} -pix_fmt yuv420p ",
+                            ParameterPosition.PostInput);
+                        return true;
+                    case VideoHardwareEncoderKind.Amf:
+                        conversion.AddParameter(
+                            $"-c:v h264_amf -quality balanced -rc cqp -qp_i {q} -qp_p {q} -pix_fmt yuv420p ",
+                            ParameterPosition.PostInput);
+                        return true;
+                    case VideoHardwareEncoderKind.QuickSync:
+                        conversion.AddParameter(
+                            $"-c:v h264_qsv -preset medium -global_quality {q} -pix_fmt yuv420p ",
+                            ParameterPosition.PostInput);
+                        return true;
+                    default:
+                        return false;
+                }
+
+            case DomainVideoCodec.H265_HEVC:
+                switch (profile.HardwareVideoEncoder)
+                {
+                    case VideoHardwareEncoderKind.Nvenc:
+                        conversion.AddParameter(
+                            $"-c:v hevc_nvenc -preset p4 -cq {q} -pix_fmt yuv420p ",
+                            ParameterPosition.PostInput);
+                        return true;
+                    case VideoHardwareEncoderKind.Amf:
+                        conversion.AddParameter(
+                            $"-c:v hevc_amf -quality balanced -rc cqp -qp_i {q} -qp_p {q} -pix_fmt yuv420p ",
+                            ParameterPosition.PostInput);
+                        return true;
+                    case VideoHardwareEncoderKind.QuickSync:
+                        conversion.AddParameter(
+                            $"-c:v hevc_qsv -preset medium -global_quality {q} -pix_fmt yuv420p ",
+                            ParameterPosition.PostInput);
+                        return true;
+                    default:
+                        return false;
+                }
+
+            default:
+                return false;
+        }
     }
 
     private static string MapVideoCodec(DomainVideoCodec codec) =>

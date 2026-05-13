@@ -11,7 +11,8 @@ public sealed record CompressionProfile(
     int? TargetHeight,
     int AudioBitrateKbps,
     bool RemoveAudio,
-    string OutputFileExtension)
+    string OutputFileExtension,
+    VideoHardwareEncoderKind HardwareVideoEncoder = VideoHardwareEncoderKind.Software)
 {
     public static CompressionProfile HighQuality => new(
         VideoCodec.H265_HEVC,

@@ -43,7 +43,7 @@
                          TextWrapping="Wrap">
                 <Run Text="Video export encoder: " />
                 <Run FontWeight="SemiBold" Foreground="{DynamicResource AccentPrimaryBrush}" Text="{Binding ExportVideoEncoderDisplay, Mode=OneWay}" />
-                <Run Text=" (change in App settings → Hardware Encoder)." />
+                <Run Text=" (from App settings → Hardware Encoder; saved preferences + encoder scan)." />
               </TextBlock>
             </StackPanel>
             <StackPanel Grid.Column="1"
