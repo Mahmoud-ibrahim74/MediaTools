@@ -579,6 +579,7 @@ public partial class AudioEnhancerViewModel : ObservableObject
             else if (result.IsSuccess && File.Exists(outputPath))
             {
                 Succeeded = true;
+                _preferences.IncrementLifetimeStat(AppLifetimeStatKind.AudioEnhanced);
                 ProgressStatusText = "Complete";
                 ProgressPercent01 = 1;
                 var len = new FileInfo(outputPath).Length;

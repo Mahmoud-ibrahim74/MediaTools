@@ -435,6 +435,7 @@ public partial class PhotoEnhancerViewModel : ObservableObject
                 else if (File.Exists(bgOut))
                 {
                     Succeeded = true;
+                    _preferences.IncrementLifetimeStat(AppLifetimeStatKind.PhotoEnhanced);
                     ProgressStatusText = "Complete";
                     ProgressPercent01 = 1;
                     var len = new FileInfo(bgOut).Length;
@@ -481,6 +482,7 @@ public partial class PhotoEnhancerViewModel : ObservableObject
                 else if (File.Exists(erOut))
                 {
                     Succeeded = true;
+                    _preferences.IncrementLifetimeStat(AppLifetimeStatKind.PhotoEnhanced);
                     ProgressStatusText = "Complete";
                     ProgressPercent01 = 1;
                     var len = new FileInfo(erOut).Length;
@@ -519,6 +521,7 @@ public partial class PhotoEnhancerViewModel : ObservableObject
                 else if (result.IsSuccess && File.Exists(outputPath))
                 {
                     Succeeded = true;
+                    _preferences.IncrementLifetimeStat(AppLifetimeStatKind.PhotoEnhanced);
                     ProgressStatusText = "Complete";
                     ProgressPercent01 = 1;
                     var len = new FileInfo(outputPath).Length;

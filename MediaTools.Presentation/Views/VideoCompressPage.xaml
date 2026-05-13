@@ -4,6 +4,7 @@
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
       xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
+      xmlns:vm="clr-namespace:MediaTools.Presentation.ViewModels"
       mc:Ignorable="d"
       Title="Video Compress"
       AllowDrop="True"
@@ -109,16 +110,16 @@
                 <TextBlock Margin="0,12,0,0"
                            HorizontalAlignment="Center"
                            FontWeight="SemiBold"
-                           Text="Drag &amp; drop a video here" />
+                           Text="Drag &amp; drop video(s) here" />
                 <TextBlock Margin="0,6,0,0"
                            HorizontalAlignment="Center"
                            Foreground="#FF5F6B76"
-                           Text="MP4, MKV, AVI, MOV, WMV, FLV, M4V, WEBM"
+                           Text="MP4, MKV, AVI, MOV, WMV, FLV, M4V, WEBM · batch queue up to 20 files"
                            TextAlignment="Center" />
                 <Button Margin="0,16,0,0"
                         HorizontalAlignment="Center"
                         Command="{Binding BrowseFileCommand}"
-                        Content="Browse File"
+                        Content="Browse files…"
                         Style="{DynamicResource OutlinedButtonStyle}" />
               </StackPanel>
             </Grid>
@@ -135,9 +136,43 @@
               </Grid.ColumnDefinitions>
               <StackPanel>
                 <TextBlock FontWeight="SemiBold"
-                           Text="{Binding FileDisplayName}" />
+                           Text="{Binding FileDisplayName}">
+                  <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                      <Setter Property="Visibility" Value="Visible" />
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsBatchMode}" Value="True">
+                          <Setter Property="Visibility" Value="Collapsed" />
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </TextBlock.Style>
+                </TextBlock>
+                <TextBlock FontWeight="SemiBold"
+                           Text="{Binding BatchSummaryHeadline}">
+                  <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                      <Setter Property="Visibility" Value="Collapsed" />
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsBatchMode}" Value="True">
+                          <Setter Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </TextBlock.Style>
+                </TextBlock>
                 <UniformGrid Margin="0,10,0,0"
                              Columns="3">
+                  <UniformGrid.Style>
+                    <Style TargetType="UniformGrid">
+                      <Setter Property="Visibility" Value="Visible" />
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsBatchMode}" Value="True">
+                          <Setter Property="Visibility" Value="Collapsed" />
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </UniformGrid.Style>
                   <StackPanel Margin="0,0,12,0">
                     <TextBlock FontSize="11"
                                Foreground="#FF5F6B76"
@@ -160,6 +195,22 @@
                                Text="{Binding FormatDisplay}" />
                   </StackPanel>
                 </UniformGrid>
+                <TextBlock Margin="0,10,0,0"
+                           FontSize="13"
+                           Foreground="#FF5F6B76"
+                           TextWrapping="Wrap"
+                           Text="The active compression profile applies to every file in the queue. Failed files are skipped; others continue.">
+                  <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                      <Setter Property="Visibility" Value="Collapsed" />
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsBatchMode}" Value="True">
+                          <Setter Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </TextBlock.Style>
+                </TextBlock>
               </StackPanel>
               <Button Grid.Column="1"
                       Width="36"
@@ -173,6 +224,94 @@
                                               Kind="Close" />
               </Button>
             </Grid>
+          </Border>
+
+          <Border Margin="0,16,0,0"
+                  Padding="16"
+                  Style="{DynamicResource CardBorderStyle}"
+                  Visibility="{Binding ShowFileInfoCard, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel>
+              <StackPanel Orientation="Horizontal"
+                          Margin="0,0,0,12">
+                <iconPacks:PackIconMaterial Width="22"
+                                              Height="22"
+                                              VerticalAlignment="Center"
+                                              Foreground="{DynamicResource AccentPrimaryBrush}"
+                                              Kind="FormatListBulleted" />
+                <TextBlock Margin="10,0,0,0"
+                           VerticalAlignment="Center"
+                           FontWeight="SemiBold"
+                           Text="Queue &amp; log" />
+              </StackPanel>
+              <ItemsControl ItemsSource="{Binding BatchItems}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate DataType="{x:Type vm:BatchCompressEntryViewModel}">
+                    <Border Margin="0,0,0,10"
+                            Padding="10,8"
+                            CornerRadius="8"
+                            Background="#FFF8FAFC"
+                            BorderBrush="#FFE8EEF4"
+                            BorderThickness="1">
+                      <Grid>
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="Auto" />
+                          <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <iconPacks:PackIconMaterial Width="20"
+                                                      Height="20"
+                                                      Margin="0,2,10,0"
+                                                      VerticalAlignment="Top">
+                          <iconPacks:PackIconMaterial.Style>
+                            <Style TargetType="iconPacks:PackIconMaterial">
+                              <Setter Property="Kind" Value="ClockOutline" />
+                              <Setter Property="Foreground" Value="#FF78909C" />
+                              <Style.Triggers>
+                                <DataTrigger Binding="{Binding Status}"
+                                             Value="{x:Static vm:BatchCompressEntryStatus.Running}">
+                                  <Setter Property="Kind" Value="MovieOpenOutline" />
+                                  <Setter Property="Foreground" Value="{DynamicResource AccentPrimaryBrush}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Status}"
+                                             Value="{x:Static vm:BatchCompressEntryStatus.Success}">
+                                  <Setter Property="Kind" Value="CheckCircleOutline" />
+                                  <Setter Property="Foreground" Value="{DynamicResource StatusSuccessBrush}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Status}"
+                                             Value="{x:Static vm:BatchCompressEntryStatus.Failed}">
+                                  <Setter Property="Kind" Value="AlertCircleOutline" />
+                                  <Setter Property="Foreground" Value="{DynamicResource StatusDangerBrush}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Status}"
+                                             Value="{x:Static vm:BatchCompressEntryStatus.Cancelled}">
+                                  <Setter Property="Kind" Value="CloseCircleOutline" />
+                                  <Setter Property="Foreground" Value="{DynamicResource StatusWarningBrush}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Status}"
+                                             Value="{x:Static vm:BatchCompressEntryStatus.Skipped}">
+                                  <Setter Property="Kind" Value="SkipNextOutline" />
+                                  <Setter Property="Foreground" Value="#FF78909C" />
+                                </DataTrigger>
+                              </Style.Triggers>
+                            </Style>
+                          </iconPacks:PackIconMaterial.Style>
+                        </iconPacks:PackIconMaterial>
+                        <StackPanel Grid.Column="1">
+                          <TextBlock FontWeight="SemiBold"
+                                     Foreground="#FF263238"
+                                     Text="{Binding FileName}"
+                                     TextTrimming="CharacterEllipsis" />
+                          <TextBlock Margin="0,4,0,0"
+                                     FontSize="12"
+                                     Foreground="#FF5F6B76"
+                                     Text="{Binding DetailMessage}"
+                                     TextWrapping="Wrap" />
+                        </StackPanel>
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
           </Border>
 
           <Border Margin="0,16,0,0"
@@ -453,7 +592,7 @@
                     Visibility="{Binding ShowCancelButton, Converter={StaticResource BoolToVisibilityConverter}}" />
             <Button MinWidth="180"
                     Command="{Binding StartCompressionCommand}"
-                    Content="Start compression"
+                    Content="{Binding StartCompressionButtonLabel}"
                     Style="{DynamicResource PrimaryButtonStyle}" />
           </StackPanel>
         </StackPanel>

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.Diagnostics;
 using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -21,6 +22,8 @@ public partial class VideoCompressViewModel : ObservableObject
         ".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".m4v", ".webm"
     ];
 
+    private const int MaxBatchVideoFiles = 20;
+
     private readonly CompressVideoUseCase _compressVideoUseCase;
     private readonly IVideoCompressionService _videoCompressionService;
     private readonly IUserPreferencesService _preferences;
@@ -29,6 +32,8 @@ public partial class VideoCompressViewModel : ObservableObject
     private CancellationTokenSource? _compressionCts;
     private long _sourceSizeBytes;
     private bool _suppressUndoNotification;
+
+    public ObservableCollection<BatchCompressEntryViewModel> BatchItems { get; } = [];
 
     public VideoCompressViewModel(
         CompressVideoUseCase compressVideoUseCase,
@@ -63,6 +68,49 @@ public partial class VideoCompressViewModel : ObservableObject
             ApplyVideoSnapshot,
             CaptureVideoSnapshot(),
             OnUndoRedoHistoryChanged);
+
+        BatchItems.CollectionChanged += OnBatchItemsCollectionChanged;
+    }
+
+    private void OnBatchItemsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        OnPropertyChanged(nameof(ShowFileInfoCard));
+        OnPropertyChanged(nameof(IsBatchMode));
+        OnPropertyChanged(nameof(BatchSummaryHeadline));
+        OnPropertyChanged(nameof(StartCompressionButtonLabel));
+        StartCompressionCommand.NotifyCanExecuteChanged();
+        UndoCommand.NotifyCanExecuteChanged();
+        RedoCommand.NotifyCanExecuteChanged();
+    }
+
+    /// <summary>Multiple files queued (batch compression).</summary>
+    public bool IsBatchMode => BatchItems.Count > 1;
+
+    public string BatchSummaryHeadline =>
+        BatchItems.Count <= 1 ? string.Empty : $"{BatchItems.Count} videos · {FormatBytes(BatchTotalBytes)}";
+
+    public string StartCompressionButtonLabel =>
+        BatchItems.Count > 1 ? $"Compress {BatchItems.Count} videos" : "Start compression";
+
+    private long BatchTotalBytes
+    {
+        get
+        {
+            long t = 0;
+            foreach (var item in BatchItems)
+            {
+                try
+                {
+                    t += new FileInfo(item.SourcePath).Length;
+                }
+                catch
+                {
+                    // ignore
+                }
+            }
+
+            return t;
+        }
     }
 
     private void OnSaveFolderPathChanged(object? sender, EventArgs e) =>
@@ -120,7 +168,6 @@ public partial class VideoCompressViewModel : ObservableObject
     public IEnumerable<AudioCodec> AudioCodecItems => Enum.GetValues<AudioCodec>();
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowFileInfoCard))]
     private string? _selectedFilePath;
 
     [ObservableProperty]
@@ -208,7 +255,7 @@ public partial class VideoCompressViewModel : ObservableObject
     [ObservableProperty]
     private bool _isDropHover;
 
-    public bool ShowFileInfoCard => !string.IsNullOrWhiteSpace(SelectedFilePath);
+    public bool ShowFileInfoCard => BatchItems.Count > 0;
 
     public bool ShowProgressCard => IsRunning || CompressionAttemptFinished;
 
@@ -219,13 +266,13 @@ public partial class VideoCompressViewModel : ObservableObject
     public int ProgressPercentDisplay => (int)Math.Round(ProgressPercent01 * 100, MidpointRounding.AwayFromZero);
 
     private bool CanStartCompression() =>
-        !string.IsNullOrWhiteSpace(SelectedFilePath)
+        BatchItems.Count > 0
         && Directory.Exists(_preferences.SaveFolderPath)
         && !IsRunning;
 
-    private bool CanUndoOperation() => _history.CanUndo && !IsRunning;
+    private bool CanUndoOperation() => _history.CanUndo && !IsRunning && BatchItems.Count <= 1;
 
-    private bool CanRedoOperation() => _history.CanRedo && !IsRunning;
+    private bool CanRedoOperation() => _history.CanRedo && !IsRunning && BatchItems.Count <= 1;
 
     private void OnUndoRedoHistoryChanged()
     {
@@ -245,19 +292,40 @@ public partial class VideoCompressViewModel : ObservableObject
 
     public void HandleDrop(IEnumerable<string> paths)
     {
-        foreach (var path in paths)
-        {
-            var ext = Path.GetExtension(path);
-            if (string.IsNullOrEmpty(ext))
-            {
-                continue;
-            }
+        var list = paths
+            .Where(p => AllowedExtensions.Contains(Path.GetExtension(p).ToLowerInvariant()))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
-            if (AllowedExtensions.Contains(ext.ToLowerInvariant()))
-            {
-                _ = LoadFromDropWithUndoAsync(path);
-                break;
-            }
+        if (list.Count == 0)
+        {
+            return;
+        }
+
+        _ = ReplaceBatchFromDropWithUndoAsync(list);
+    }
+
+    private async Task ReplaceBatchFromDropWithUndoAsync(List<string> paths)
+    {
+        _history.BeginUndoGroup();
+        _suppressUndoNotification = true;
+        bool ok;
+        try
+        {
+            ok = await ReplaceBatchFromPathsAsync(paths).ConfigureAwait(true);
+        }
+        finally
+        {
+            _suppressUndoNotification = false;
+        }
+
+        if (ok)
+        {
+            _history.EndUndoGroup();
+        }
+        else
+        {
+            _history.CancelUndoGroup();
         }
     }
 
@@ -266,27 +334,39 @@ public partial class VideoCompressViewModel : ObservableObject
     {
         var dlg = new Microsoft.Win32.OpenFileDialog
         {
+            Multiselect = true,
             Filter = "Video files|*.mp4;*.mkv;*.avi;*.mov;*.wmv;*.flv;*.m4v;*.webm|All files|*.*"
         };
 
-        if (dlg.ShowDialog() != true)
+        if (dlg.ShowDialog() != true || dlg.FileNames.Length == 0)
         {
+            return;
+        }
+
+        var paths = dlg.FileNames
+            .Where(p => AllowedExtensions.Contains(Path.GetExtension(p).ToLowerInvariant()))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (paths.Count == 0)
+        {
+            MessageBoxHelper.ShowWarning("No supported video files were selected.");
             return;
         }
 
         _history.BeginUndoGroup();
         _suppressUndoNotification = true;
-        bool loaded;
+        bool ok;
         try
         {
-            loaded = await LoadSelectedFileAsync(dlg.FileName).ConfigureAwait(true);
+            ok = await ReplaceBatchFromPathsAsync(paths).ConfigureAwait(true);
         }
         finally
         {
             _suppressUndoNotification = false;
         }
 
-        if (loaded)
+        if (ok)
         {
             _history.EndUndoGroup();
         }
@@ -301,6 +381,7 @@ public partial class VideoCompressViewModel : ObservableObject
     {
         _history.PushUndoFrameAnd(() =>
         {
+            BatchItems.Clear();
             SelectedFilePath = null;
             FileDisplayName = string.Empty;
             FileSizeDisplay = string.Empty;
@@ -341,16 +422,23 @@ public partial class VideoCompressViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanStartCompression))]
     private async Task StartCompressionAsync()
     {
-        if (SelectedFilePath is null || !CanStartCompression())
+        if (BatchItems.Count == 0 || !CanStartCompression())
         {
             return;
+        }
+
+        foreach (var item in BatchItems)
+        {
+            item.Status = BatchCompressEntryStatus.Pending;
+            item.DetailMessage = string.Empty;
+            item.ProducedOutputPath = null;
         }
 
         CompressionAttemptFinished = false;
         CompressionSucceeded = false;
         IsRunning = true;
         ProgressPercent01 = 0;
-        ProgressStatusText = "Compressing…";
+        ProgressStatusText = BatchItems.Count > 1 ? "Starting batch…" : "Compressing…";
         ProgressDetailText = "Preparing encoder";
         ElapsedDisplay = FormatShortTime(TimeSpan.Zero);
         EstimatedRemainingDisplay = "—";
@@ -359,34 +447,14 @@ public partial class VideoCompressViewModel : ObservableObject
         var token = _compressionCts.Token;
 
         var profile = BuildCurrentProfile();
-        var outputName = Path.GetFileNameWithoutExtension(SelectedFilePath) + profile.OutputFileExtension;
-        var outputPath = Path.Combine(_preferences.SaveFolderPath, outputName);
-
-        var request = new CompressVideoRequest(SelectedFilePath, outputPath, profile);
+        var outExt = profile.OutputFileExtension;
 
         var dispatcher = global::System.Windows.Application.Current?.Dispatcher;
 
-        var progress = new Progress<CompressionProgressReport>(r =>
-        {
-            void Apply()
-            {
-                ProgressPercent01 = r.Percent01;
-                ProgressDetailText = r.CurrentStepDescription;
-                ElapsedDisplay = FormatShortTime(r.Elapsed);
-                EstimatedRemainingDisplay = r.EstimatedRemaining is { } er
-                    ? FormatShortTime(er)
-                    : "—";
-            }
-
-            if (dispatcher is null || dispatcher.CheckAccess())
-            {
-                Apply();
-            }
-            else
-            {
-                dispatcher.Invoke(Apply);
-            }
-        });
+        var total = BatchItems.Count;
+        var successCount = 0;
+        var failCount = 0;
+        var cancelled = false;
 
         string? toastTitle = null;
         string? toastBody = null;
@@ -394,39 +462,221 @@ public partial class VideoCompressViewModel : ObservableObject
 
         try
         {
-            var result = await _compressVideoUseCase
-                .ExecuteAsync(request, progress, token)
-                .ConfigureAwait(true);
+            for (var i = 0; i < total; i++)
+            {
+                if (token.IsCancellationRequested)
+                {
+                    cancelled = true;
+                    for (var j = i; j < total; j++)
+                    {
+                        var st = BatchItems[j].Status;
+                        if (st == BatchCompressEntryStatus.Pending || st == BatchCompressEntryStatus.Running)
+                        {
+                            BatchItems[j].Status = BatchCompressEntryStatus.Skipped;
+                            BatchItems[j].DetailMessage = "Skipped — cancelled.";
+                        }
+                    }
 
-            if (result.IsCancelled)
+                    break;
+                }
+
+                var entry = BatchItems[i];
+                entry.Status = BatchCompressEntryStatus.Running;
+                entry.DetailMessage = "Compressing…";
+
+                long sourceLen = 0;
+                try
+                {
+                    sourceLen = new FileInfo(entry.SourcePath).Length;
+                }
+                catch
+                {
+                    // ignore
+                }
+
+                var stem = SanitizeFileName(Path.GetFileNameWithoutExtension(entry.SourcePath));
+                if (string.IsNullOrWhiteSpace(stem))
+                {
+                    stem = "video";
+                }
+
+                var outputPath = GetUniqueOutputPath(_preferences.SaveFolderPath, stem, outExt);
+                try
+                {
+                    if (File.Exists(outputPath))
+                    {
+                        File.Delete(outputPath);
+                    }
+                }
+                catch
+                {
+                    // ignore
+                }
+
+                var request = new CompressVideoRequest(entry.SourcePath, outputPath, profile);
+                var fileIndex = i;
+
+                var progress = new Progress<CompressionProgressReport>(r =>
+                {
+                    void Apply()
+                    {
+                        ProgressPercent01 = (fileIndex + r.Percent01) / total;
+                        ProgressDetailText = r.CurrentStepDescription;
+                        ProgressStatusText =
+                            total > 1
+                                ? $"File {fileIndex + 1} of {total}: {entry.FileName}"
+                                : "Compressing…";
+                        ElapsedDisplay = FormatShortTime(r.Elapsed);
+                        EstimatedRemainingDisplay = r.EstimatedRemaining is { } er
+                            ? FormatShortTime(er)
+                            : "—";
+                    }
+
+                    if (dispatcher is null || dispatcher.CheckAccess())
+                    {
+                        Apply();
+                    }
+                    else
+                    {
+                        dispatcher.Invoke(Apply);
+                    }
+                });
+
+                CompressVideoResult result;
+                try
+                {
+                    result = await _compressVideoUseCase
+                        .ExecuteAsync(request, progress, token)
+                        .ConfigureAwait(true);
+                }
+                catch (Exception ex)
+                {
+                    entry.Status = BatchCompressEntryStatus.Failed;
+                    entry.DetailMessage = ex.Message;
+                    failCount++;
+                    ProgressPercent01 = (fileIndex + 1d) / total;
+                    continue;
+                }
+
+                if (result.IsCancelled)
+                {
+                    entry.Status = BatchCompressEntryStatus.Cancelled;
+                    entry.DetailMessage = "Cancelled.";
+                    cancelled = true;
+                    for (var j = i + 1; j < total; j++)
+                    {
+                        if (BatchItems[j].Status == BatchCompressEntryStatus.Pending)
+                        {
+                            BatchItems[j].Status = BatchCompressEntryStatus.Skipped;
+                            BatchItems[j].DetailMessage = "Skipped — batch stopped.";
+                        }
+                    }
+
+                    break;
+                }
+
+                if (result.IsSuccess && File.Exists(outputPath))
+                {
+                    entry.Status = BatchCompressEntryStatus.Success;
+                    entry.ProducedOutputPath = outputPath;
+                    var outLen = new FileInfo(outputPath).Length;
+                    var pct = sourceLen > 0 ? $"{(1 - (double)outLen / sourceLen) * 100:0.#}%" : "0%";
+                    entry.DetailMessage =
+                        $"Saved · {FormatBytes(sourceLen)} → {FormatBytes(outLen)} ({pct} saved)";
+                    successCount++;
+                    _preferences.IncrementLifetimeStat(AppLifetimeStatKind.VideoCompressed);
+
+                    if (total == 1)
+                    {
+                        ResultOriginalSizeDisplay = FormatBytes(sourceLen);
+                        ResultCompressedSizeDisplay = FormatBytes(outLen);
+                        SavedPercentDisplay = pct;
+                        ResultSummaryText =
+                            $"{ResultOriginalSizeDisplay} → {ResultCompressedSizeDisplay} ({SavedPercentDisplay} saved)";
+                    }
+
+                    ProgressPercent01 = (fileIndex + 1d) / total;
+                }
+                else if (result.IsSuccess)
+                {
+                    entry.Status = BatchCompressEntryStatus.Failed;
+                    entry.DetailMessage = result.ErrorMessage ?? "Output file was not created.";
+                    failCount++;
+                    ProgressPercent01 = (fileIndex + 1d) / total;
+                }
+                else
+                {
+                    entry.Status = BatchCompressEntryStatus.Failed;
+                    entry.DetailMessage = result.ErrorMessage ?? "Compression failed.";
+                    failCount++;
+                    ProgressPercent01 = (fileIndex + 1d) / total;
+                }
+            }
+
+            if (cancelled)
             {
                 ProgressStatusText = "Cancelled";
-                CompressionSucceeded = false;
+                CompressionSucceeded = successCount > 0;
+                ProgressPercent01 = successCount > 0 ? 1 : 0;
+                ProgressDetailText = string.Empty;
+                if (total > 1)
+                {
+                    ResultSummaryText = $"Stopped — {successCount} of {total} saved before cancel.";
+                }
+                else if (successCount == 0)
+                {
+                    ResultSummaryText = "Cancelled.";
+                }
+
+                toastTitle = "Compression cancelled";
+                toastBody = successCount > 0
+                    ? $"{successCount} file(s) saved before cancel."
+                    : "No files were saved.";
+                toastSuccess = successCount > 0;
             }
-            else if (result.IsSuccess)
+            else if (failCount == 0 && successCount == total && total > 0)
             {
                 CompressionSucceeded = true;
-                ProgressStatusText = "Complete";
+                ProgressStatusText = total > 1 ? $"Batch complete — {successCount} files." : "Complete";
                 ProgressPercent01 = 1;
-                var outLen = new FileInfo(outputPath).Length;
-                ResultOriginalSizeDisplay = FormatBytes(_sourceSizeBytes);
-                ResultCompressedSizeDisplay = FormatBytes(outLen);
-                SavedPercentDisplay = _sourceSizeBytes > 0
-                    ? $"{(1 - (double)outLen / _sourceSizeBytes) * 100:0.#}%"
-                    : "0%";
-                ResultSummaryText =
-                    $"{ResultOriginalSizeDisplay} → {ResultCompressedSizeDisplay} ({SavedPercentDisplay} saved)";
-                toastTitle = "Video compression complete";
-                toastBody = $"{Path.GetFileName(outputPath)} · {ResultSummaryText}";
+                ProgressDetailText = string.Empty;
+                if (total > 1)
+                {
+                    ResultSummaryText = $"All {successCount} files compressed successfully.";
+                }
+
+                toastTitle = total > 1 ? "Batch compression complete" : "Video compression complete";
+                toastBody = total > 1
+                    ? $"{successCount} file(s) saved to your export folder."
+                    : $"{Path.GetFileName(BatchItems[0].ProducedOutputPath ?? "")} · {ResultSummaryText}";
                 toastSuccess = true;
+            }
+            else if (successCount > 0)
+            {
+                CompressionSucceeded = true;
+                ProgressStatusText = $"Finished — {successCount} succeeded, {failCount} failed.";
+                ProgressPercent01 = 1;
+                ProgressDetailText = string.Empty;
+                ResultSummaryText =
+                    $"{successCount} of {total} succeeded. {failCount} failed — see log below.";
+                toastTitle = "Batch compression finished";
+                toastBody = $"{successCount} ok, {failCount} failed.";
+                toastSuccess = false;
             }
             else
             {
-                ProgressStatusText = "Failed";
                 CompressionSucceeded = false;
-                ProgressDetailText = result.ErrorMessage ?? "Unknown error";
-                toastTitle = "Video compression failed";
-                toastBody = ProgressDetailText;
+                ProgressStatusText = total > 1 ? "Batch failed" : "Failed";
+                ProgressPercent01 = 1;
+                ProgressDetailText = string.Empty;
+                ResultSummaryText =
+                    total > 1
+                        ? $"All {total} file(s) failed. See log below."
+                        : (BatchItems[0].DetailMessage.Length > 0
+                            ? BatchItems[0].DetailMessage
+                            : "Compression failed.");
+                toastTitle = total > 1 ? "Batch compression failed" : "Video compression failed";
+                toastBody = ResultSummaryText;
                 toastSuccess = false;
             }
         }
@@ -521,28 +771,83 @@ public partial class VideoCompressViewModel : ObservableObject
         return ext;
     }
 
-    private async Task LoadFromDropWithUndoAsync(string path)
+    private async Task<bool> ReplaceBatchFromPathsAsync(IEnumerable<string> paths)
     {
-        _history.BeginUndoGroup();
-        _suppressUndoNotification = true;
-        bool loaded;
-        try
+        var candidates = paths
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(p =>
+            {
+                var ext = Path.GetExtension(p).ToLowerInvariant();
+                return AllowedExtensions.Contains(ext) && File.Exists(p);
+            })
+            .ToList();
+
+        if (candidates.Count > MaxBatchVideoFiles)
         {
-            loaded = await LoadSelectedFileAsync(path).ConfigureAwait(true);
-        }
-        finally
-        {
-            _suppressUndoNotification = false;
+            MessageBoxHelper.ShowWarning(
+                $"You can add at most {MaxBatchVideoFiles} videos per batch. Only the first {MaxBatchVideoFiles} will be used.");
+            candidates = candidates.Take(MaxBatchVideoFiles).ToList();
         }
 
-        if (loaded)
+        BatchItems.Clear();
+
+        foreach (var path in candidates)
         {
-            _history.EndUndoGroup();
+            BatchItems.Add(new BatchCompressEntryViewModel(path));
         }
-        else
+
+        if (BatchItems.Count == 0)
         {
-            _history.CancelUndoGroup();
+            MessageBoxHelper.ShowWarning("No valid video files were found.");
+            return false;
         }
+
+        await RefreshBatchPreviewMetadataAsync().ConfigureAwait(true);
+        CompressionSucceeded = false;
+        CompressionAttemptFinished = false;
+        return true;
+    }
+
+    private async Task RefreshBatchPreviewMetadataAsync()
+    {
+        if (BatchItems.Count == 0)
+        {
+            SelectedFilePath = null;
+            FileDisplayName = string.Empty;
+            FileSizeDisplay = string.Empty;
+            DurationDisplay = string.Empty;
+            FormatDisplay = string.Empty;
+            _sourceSizeBytes = 0;
+            return;
+        }
+
+        if (BatchItems.Count == 1)
+        {
+            await LoadSelectedFileAsync(BatchItems[0].SourcePath).ConfigureAwait(true);
+            return;
+        }
+
+        SelectedFilePath = BatchItems[0].SourcePath;
+        FileDisplayName = $"{BatchItems.Count} videos selected";
+        long sum = 0;
+        foreach (var item in BatchItems)
+        {
+            try
+            {
+                sum += new FileInfo(item.SourcePath).Length;
+            }
+            catch
+            {
+                // ignore
+            }
+        }
+
+        _sourceSizeBytes = sum;
+        FileSizeDisplay = FormatBytes(sum);
+        DurationDisplay = "—";
+        FormatDisplay = "Various";
+        CompressionSucceeded = false;
+        CompressionAttemptFinished = false;
     }
 
     private async Task<bool> LoadSelectedFileAsync(string path)
@@ -598,6 +903,12 @@ public partial class VideoCompressViewModel : ObservableObject
 
     private void ApplyVideoSnapshot(VideoCompressUndoSnapshot s)
     {
+        BatchItems.Clear();
+        if (!string.IsNullOrWhiteSpace(s.SelectedFilePath))
+        {
+            BatchItems.Add(new BatchCompressEntryViewModel(s.SelectedFilePath));
+        }
+
         SelectedFilePath = s.SelectedFilePath;
         FileDisplayName = s.FileDisplayName;
         FileSizeDisplay = s.FileSizeDisplay;
@@ -642,14 +953,44 @@ public partial class VideoCompressViewModel : ObservableObject
 
     partial void OnRemoveAudioChanged(bool value) => NotifyUndoableEdit();
 
-    partial void OnSelectedFilePathChanged(string? value) =>
-        StartCompressionCommand.NotifyCanExecuteChanged();
-
     partial void OnIsRunningChanged(bool value)
     {
         StartCompressionCommand.NotifyCanExecuteChanged();
         UndoCommand.NotifyCanExecuteChanged();
         RedoCommand.NotifyCanExecuteChanged();
+    }
+
+    private static string SanitizeFileName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return "video";
+        }
+
+        var invalid = Path.GetInvalidFileNameChars();
+        var chars = name.Select(c => invalid.Contains(c) ? '_' : c).ToArray();
+        return new string(chars);
+    }
+
+    private static string GetUniqueOutputPath(string folder, string stem, string ext)
+    {
+        var safeStem = SanitizeFileName(stem);
+        var basePath = Path.Combine(folder, safeStem + ext);
+        if (!File.Exists(basePath))
+        {
+            return basePath;
+        }
+
+        for (var n = 1; n < 10_000; n++)
+        {
+            var candidate = Path.Combine(folder, $"{safeStem} ({n}){ext}");
+            if (!File.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return Path.Combine(folder, $"{safeStem}_{Guid.NewGuid():N}{ext}");
     }
 
     private static string FormatBytes(long bytes)

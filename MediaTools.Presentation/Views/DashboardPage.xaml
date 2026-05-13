@@ -103,7 +103,7 @@
                          FontSize="13"
                          Foreground="#CCE8F4FF"
                          TextWrapping="Wrap"
-                         Text="Track compression wins, disk capacity, and jump into tools — updated whenever you open this page." />
+                         Text="Lifetime save counts update each time you export from Video / Photo / Audio tools or finish a screen recording. Refresh anytime." />
             </StackPanel>
             <Button Grid.Column="1"
                     VerticalAlignment="Top"
@@ -126,98 +126,201 @@
           </Grid>
         </Border>
 
-        <!-- KPI strip -->
-        <UniformGrid Grid.Row="1"
-                     Margin="0,0,0,20"
-                     Columns="3">
-          <Border Margin="0,0,12,0"
-                  Style="{DynamicResource CardBorderStyle}">
-            <StackPanel>
-              <StackPanel Orientation="Horizontal">
-                <Border Width="36"
-                        Height="36"
-                        CornerRadius="10"
-                        Background="#140078D7">
-                  <iconPacks:PackIconMaterial Width="20"
-                                                Height="20"
-                                                Margin="8"
-                                                HorizontalAlignment="Center"
-                                                VerticalAlignment="Center"
-                                                Foreground="{DynamicResource AccentPrimaryBrush}"
-                                                Kind="MovieOutline" />
-                </Border>
-                <TextBlock Margin="12,0,0,0"
-                           VerticalAlignment="Center"
-                           FontSize="12"
-                           Foreground="#FF5F6B76"
-                           Text="Videos compressed" />
+        <!-- Lifetime saves (increment on each successful export / recording) -->
+        <Grid Grid.Row="1"
+              Margin="0,0,0,16">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+
+          <UniformGrid Grid.Row="0"
+                       Margin="0,0,0,14"
+                       Columns="4">
+            <Border Margin="0,0,10,0"
+                    Style="{DynamicResource CardBorderStyle}">
+              <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                  <Border Width="36"
+                          Height="36"
+                          CornerRadius="10"
+                          Background="#140078D7">
+                    <iconPacks:PackIconMaterial Width="20"
+                                                  Height="20"
+                                                  Margin="8"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"
+                                                  Foreground="{DynamicResource AccentPrimaryBrush}"
+                                                  Kind="FolderZipOutline" />
+                  </Border>
+                  <TextBlock Margin="12,0,0,0"
+                             VerticalAlignment="Center"
+                             FontSize="12"
+                             Foreground="#FF5F6B76"
+                             TextWrapping="Wrap"
+                             Text="Total compressed" />
+                </StackPanel>
+                <TextBlock Margin="0,12,0,0"
+                           FontSize="26"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource AccentPrimaryBrush}"
+                           Text="{Binding LifetimeVideoCompressedCount}" />
               </StackPanel>
-              <TextBlock Margin="0,14,0,0"
-                         FontSize="30"
-                         FontWeight="SemiBold"
-                         Foreground="{DynamicResource AccentPrimaryBrush}"
-                         Text="{Binding TotalVideosCompressed}" />
-            </StackPanel>
-          </Border>
-          <Border Margin="6,0,6,0"
-                  Style="{DynamicResource CardBorderStyle}">
-            <StackPanel>
-              <StackPanel Orientation="Horizontal">
-                <Border Width="36"
-                        Height="36"
-                        CornerRadius="10"
-                        Background="#142E7D32">
-                  <iconPacks:PackIconMaterial Width="20"
-                                                Height="20"
-                                                Margin="8"
-                                                HorizontalAlignment="Center"
-                                                VerticalAlignment="Center"
-                                                Foreground="{DynamicResource StatusSuccessBrush}"
-                                                Kind="DatabaseArrowDownOutline" />
-                </Border>
-                <TextBlock Margin="12,0,0,0"
-                           VerticalAlignment="Center"
-                           FontSize="12"
-                           Foreground="#FF5F6B76"
-                           Text="Total space saved" />
+            </Border>
+            <Border Margin="5,0,5,0"
+                    Style="{DynamicResource CardBorderStyle}">
+              <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                  <Border Width="36"
+                          Height="36"
+                          CornerRadius="10"
+                          Background="#146A1B9A">
+                    <iconPacks:PackIconMaterial Width="20"
+                                                  Height="20"
+                                                  Margin="8"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"
+                                                  Foreground="#FF6A1B9A"
+                                                  Kind="ImageFilterHdrOutline" />
+                  </Border>
+                  <TextBlock Margin="12,0,0,0"
+                             VerticalAlignment="Center"
+                             FontSize="12"
+                             Foreground="#FF5F6B76"
+                             TextWrapping="Wrap"
+                             Text="Photo enhanced" />
+                </StackPanel>
+                <TextBlock Margin="0,12,0,0"
+                           FontSize="26"
+                           FontWeight="SemiBold"
+                           Foreground="#FF6A1B9A"
+                           Text="{Binding LifetimePhotoEnhancedCount}" />
               </StackPanel>
-              <TextBlock Margin="0,14,0,0"
-                         FontSize="30"
-                         FontWeight="SemiBold"
-                         Foreground="{DynamicResource StatusSuccessBrush}"
-                         Text="{Binding TotalSpaceSavedDisplay}" />
-            </StackPanel>
-          </Border>
-          <Border Margin="12,0,0,0"
-                  Style="{DynamicResource CardBorderStyle}">
-            <StackPanel>
-              <StackPanel Orientation="Horizontal">
-                <Border Width="36"
-                        Height="36"
-                        CornerRadius="10"
-                        Background="#14F9A825">
-                  <iconPacks:PackIconMaterial Width="20"
-                                                Height="20"
-                                                Margin="8"
-                                                HorizontalAlignment="Center"
-                                                VerticalAlignment="Center"
-                                                Foreground="{DynamicResource StatusWarningBrush}"
-                                                Kind="ChartArc" />
-                </Border>
-                <TextBlock Margin="12,0,0,0"
-                           VerticalAlignment="Center"
-                           FontSize="12"
-                           Foreground="#FF5F6B76"
-                           Text="Avg. compression" />
+            </Border>
+            <Border Margin="5,0,5,0"
+                    Style="{DynamicResource CardBorderStyle}">
+              <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                  <Border Width="36"
+                          Height="36"
+                          CornerRadius="10"
+                          Background="#14F57C00">
+                    <iconPacks:PackIconMaterial Width="20"
+                                                  Height="20"
+                                                  Margin="8"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"
+                                                  Foreground="#FFF57C00"
+                                                  Kind="MusicNoteOutline" />
+                  </Border>
+                  <TextBlock Margin="12,0,0,0"
+                             VerticalAlignment="Center"
+                             FontSize="12"
+                             Foreground="#FF5F6B76"
+                             TextWrapping="Wrap"
+                             Text="Audio enhanced" />
+                </StackPanel>
+                <TextBlock Margin="0,12,0,0"
+                           FontSize="26"
+                           FontWeight="SemiBold"
+                           Foreground="#FFF57C00"
+                           Text="{Binding LifetimeAudioEnhancedCount}" />
               </StackPanel>
-              <TextBlock Margin="0,14,0,0"
-                         FontSize="30"
-                         FontWeight="SemiBold"
-                         Foreground="{DynamicResource AccentPrimaryBrush}"
-                         Text="{Binding AverageCompressionRatioDisplay}" />
-            </StackPanel>
-          </Border>
-        </UniformGrid>
+            </Border>
+            <Border Margin="10,0,0,0"
+                    Style="{DynamicResource CardBorderStyle}">
+              <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                  <Border Width="36"
+                          Height="36"
+                          CornerRadius="10"
+                          Background="#14C62828">
+                    <iconPacks:PackIconMaterial Width="20"
+                                                  Height="20"
+                                                  Margin="8"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"
+                                                  Foreground="{DynamicResource StatusDangerBrush}"
+                                                  Kind="RecordRec" />
+                  </Border>
+                  <TextBlock Margin="12,0,0,0"
+                             VerticalAlignment="Center"
+                             FontSize="12"
+                             Foreground="#FF5F6B76"
+                             TextWrapping="Wrap"
+                             Text="Screen recordings" />
+                </StackPanel>
+                <TextBlock Margin="0,12,0,0"
+                           FontSize="26"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource AccentDarkBrush}"
+                           Text="{Binding LifetimeScreenRecordedCount}" />
+              </StackPanel>
+            </Border>
+          </UniformGrid>
+
+          <UniformGrid Grid.Row="1"
+                       Columns="2">
+            <Border Margin="0,0,10,0"
+                    Style="{DynamicResource CardBorderStyle}">
+              <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                  <Border Width="36"
+                          Height="36"
+                          CornerRadius="10"
+                          Background="#142E7D32">
+                    <iconPacks:PackIconMaterial Width="20"
+                                                  Height="20"
+                                                  Margin="8"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"
+                                                  Foreground="{DynamicResource StatusSuccessBrush}"
+                                                  Kind="DatabaseArrowDownOutline" />
+                  </Border>
+                  <TextBlock Margin="12,0,0,0"
+                             VerticalAlignment="Center"
+                             FontSize="12"
+                             Foreground="#FF5F6B76"
+                             Text="Total space saved (compress)" />
+                </StackPanel>
+                <TextBlock Margin="0,14,0,0"
+                           FontSize="28"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource StatusSuccessBrush}"
+                           Text="{Binding TotalSpaceSavedDisplay}" />
+              </StackPanel>
+            </Border>
+            <Border Margin="10,0,0,0"
+                    Style="{DynamicResource CardBorderStyle}">
+              <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                  <Border Width="36"
+                          Height="36"
+                          CornerRadius="10"
+                          Background="#14F9A825">
+                    <iconPacks:PackIconMaterial Width="20"
+                                                  Height="20"
+                                                  Margin="8"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"
+                                                  Foreground="{DynamicResource StatusWarningBrush}"
+                                                  Kind="ChartArc" />
+                  </Border>
+                  <TextBlock Margin="12,0,0,0"
+                             VerticalAlignment="Center"
+                             FontSize="12"
+                             Foreground="#FF5F6B76"
+                             Text="Avg. compression" />
+                </StackPanel>
+                <TextBlock Margin="0,14,0,0"
+                           FontSize="28"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource AccentPrimaryBrush}"
+                           Text="{Binding AverageCompressionRatioDisplay}" />
+              </StackPanel>
+            </Border>
+          </UniformGrid>
+        </Grid>
 
         <!-- Charts + storage summary row -->
         <Grid Grid.Row="2"

@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MediaTools.Application.Abstractions;
 using MediaTools.Domain.Enums;
+using MediaTools.Presentation.Services;
 
 namespace MediaTools.Presentation.ViewModels;
 
@@ -11,15 +12,48 @@ public partial class DashboardViewModel : ObservableObject
 {
     private readonly MainWindowViewModel _shell;
     private readonly ICompressionJobRepository _jobs;
+    private readonly IUserPreferencesService _preferences;
 
-    public DashboardViewModel(MainWindowViewModel shell, ICompressionJobRepository jobs)
+    public DashboardViewModel(
+        MainWindowViewModel shell,
+        ICompressionJobRepository jobs,
+        IUserPreferencesService preferences)
     {
         _shell = shell;
         _jobs = jobs;
+        _preferences = preferences;
+        _preferences.LifetimeStatsChanged += OnLifetimeStatsChanged;
+    }
+
+    private void OnLifetimeStatsChanged(object? sender, EventArgs e)
+    {
+        var app = global::System.Windows.Application.Current;
+        if (app?.Dispatcher is null)
+        {
+            return;
+        }
+
+        if (app.Dispatcher.CheckAccess())
+        {
+            RefreshStats();
+        }
+        else
+        {
+            app.Dispatcher.Invoke(RefreshStats);
+        }
     }
 
     [ObservableProperty]
-    private int _totalVideosCompressed;
+    private int _lifetimeVideoCompressedCount;
+
+    [ObservableProperty]
+    private int _lifetimePhotoEnhancedCount;
+
+    [ObservableProperty]
+    private int _lifetimeAudioEnhancedCount;
+
+    [ObservableProperty]
+    private int _lifetimeScreenRecordedCount;
 
     [ObservableProperty]
     private string _totalSpaceSavedDisplay = FormatBytes(0);
@@ -57,8 +91,12 @@ public partial class DashboardViewModel : ObservableObject
 
     public void RefreshStats()
     {
+        LifetimeVideoCompressedCount = _preferences.LifetimeVideoCompressedCount;
+        LifetimePhotoEnhancedCount = _preferences.LifetimePhotoEnhancedCount;
+        LifetimeAudioEnhancedCount = _preferences.LifetimeAudioEnhancedCount;
+        LifetimeScreenRecordedCount = _preferences.LifetimeScreenRecordedCount;
+
         var completed = _jobs.GetAll().Where(j => j.Status == CompressionJobStatus.Completed).ToList();
-        TotalVideosCompressed = completed.Count;
 
         long saved = 0;
         double ratioSum = 0;
@@ -79,22 +117,22 @@ public partial class DashboardViewModel : ObservableObject
             : (1 - ratioSum / ratioCount) * 100;
         AverageCompressionRatioDisplay = $"{AverageCompressionRatioPercent:0}%";
 
-        RebuildCompressionBars(TotalVideosCompressed, saved, AverageCompressionRatioPercent);
+        RebuildCompressionBars(LifetimeVideoCompressedCount, saved, AverageCompressionRatioPercent);
     }
 
-    private void RebuildCompressionBars(int videoCount, long savedBytes, double avgReductionPercent)
+    private void RebuildCompressionBars(int lifetimeVideoSaveCount, long savedBytes, double avgReductionPercent)
     {
         CompressionBars.Clear();
 
-        var videosBar = Math.Min(100, Math.Max(6, videoCount * 12));
+        var videosBar = Math.Min(100, Math.Max(6, lifetimeVideoSaveCount * 12));
         var gbSaved = savedBytes / (1024d * 1024 * 1024);
         var spaceBar = Math.Min(100, gbSaved * 18 + 8);
         var ratioBar = Math.Clamp(avgReductionPercent, 4, 100);
 
         CompressionBars.Add(new CompressionStatBarItem
         {
-            Label = "Videos compressed",
-            ValueText = videoCount.ToString(),
+            Label = "Video compressions (saved)",
+            ValueText = lifetimeVideoSaveCount.ToString(),
             FillPercent = videosBar
         });
 

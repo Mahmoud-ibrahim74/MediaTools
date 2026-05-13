@@ -23,6 +23,11 @@ public sealed class UserPreferencesService : IUserPreferencesService
     private HotkeySetting _screenRecorderStart = DefaultStartHotkey;
     private HotkeySetting _screenRecorderPause = DefaultPauseHotkey;
 
+    private int _lifetimeVideoCompressed;
+    private int _lifetimePhotoEnhanced;
+    private int _lifetimeAudioEnhanced;
+    private int _lifetimeScreenRecorded;
+
     private static HotkeySetting DefaultStartHotkey => new(0, 0x78); // F9
     private static HotkeySetting DefaultPauseHotkey => new(0, 0x79); // F10
 
@@ -47,6 +52,40 @@ public sealed class UserPreferencesService : IUserPreferencesService
     public event EventHandler? VideoEncoderSettingsChanged;
 
     public event EventHandler? ScreenRecorderHotkeysChanged;
+
+    public event EventHandler? LifetimeStatsChanged;
+
+    public int LifetimeVideoCompressedCount => _lifetimeVideoCompressed;
+
+    public int LifetimePhotoEnhancedCount => _lifetimePhotoEnhanced;
+
+    public int LifetimeAudioEnhancedCount => _lifetimeAudioEnhanced;
+
+    public int LifetimeScreenRecordedCount => _lifetimeScreenRecorded;
+
+    public void IncrementLifetimeStat(AppLifetimeStatKind kind)
+    {
+        switch (kind)
+        {
+            case AppLifetimeStatKind.VideoCompressed:
+                _lifetimeVideoCompressed++;
+                break;
+            case AppLifetimeStatKind.PhotoEnhanced:
+                _lifetimePhotoEnhanced++;
+                break;
+            case AppLifetimeStatKind.AudioEnhanced:
+                _lifetimeAudioEnhanced++;
+                break;
+            case AppLifetimeStatKind.ScreenRecorded:
+                _lifetimeScreenRecorded++;
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(kind), kind, null);
+        }
+
+        Persist();
+        LifetimeStatsChanged?.Invoke(this, EventArgs.Empty);
+    }
 
     public HotkeySetting ScreenRecorderStartHotkey => _screenRecorderStart;
 
@@ -156,6 +195,11 @@ public sealed class UserPreferencesService : IUserPreferencesService
             _screenRecorderStart = NormalizeLoadedHotkey(dto.ScreenRecorderStartMods, dto.ScreenRecorderStartVk, DefaultStartHotkey);
             _screenRecorderPause = NormalizeLoadedHotkey(dto.ScreenRecorderPauseMods, dto.ScreenRecorderPauseVk, DefaultPauseHotkey);
 
+            _lifetimeVideoCompressed = dto.LifetimeVideoCompressed ?? 0;
+            _lifetimePhotoEnhanced = dto.LifetimePhotoEnhanced ?? 0;
+            _lifetimeAudioEnhanced = dto.LifetimeAudioEnhanced ?? 0;
+            _lifetimeScreenRecorded = dto.LifetimeScreenRecorded ?? 0;
+
             if (string.IsNullOrWhiteSpace(dto.SaveFolderPath))
             {
                 CreateDefaultFolderAndPersist();
@@ -197,7 +241,11 @@ public sealed class UserPreferencesService : IUserPreferencesService
                 ScreenRecorderStartMods = _screenRecorderStart.Modifiers,
                 ScreenRecorderStartVk = _screenRecorderStart.VirtualKey,
                 ScreenRecorderPauseMods = _screenRecorderPause.Modifiers,
-                ScreenRecorderPauseVk = _screenRecorderPause.VirtualKey
+                ScreenRecorderPauseVk = _screenRecorderPause.VirtualKey,
+                LifetimeVideoCompressed = _lifetimeVideoCompressed,
+                LifetimePhotoEnhanced = _lifetimePhotoEnhanced,
+                LifetimeAudioEnhanced = _lifetimeAudioEnhanced,
+                LifetimeScreenRecorded = _lifetimeScreenRecorded
             };
             var json = JsonSerializer.Serialize(dto, JsonOptions);
             File.WriteAllText(_filePath, json);
@@ -230,6 +278,14 @@ public sealed class UserPreferencesService : IUserPreferencesService
         public uint? ScreenRecorderPauseMods { get; set; }
 
         public uint? ScreenRecorderPauseVk { get; set; }
+
+        public int? LifetimeVideoCompressed { get; set; }
+
+        public int? LifetimePhotoEnhanced { get; set; }
+
+        public int? LifetimeAudioEnhanced { get; set; }
+
+        public int? LifetimeScreenRecorded { get; set; }
     }
 
     private static HotkeySetting NormalizeLoadedHotkey(uint? mods, uint? vk, HotkeySetting fallback)

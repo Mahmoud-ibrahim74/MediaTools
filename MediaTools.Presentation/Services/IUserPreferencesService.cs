@@ -39,4 +39,21 @@ public interface IUserPreferencesService
     void SetScreenRecorderHotkeys(HotkeySetting start, HotkeySetting pause);
 
     event EventHandler? ScreenRecorderHotkeysChanged;
+
+    /// <summary>Persisted count of successful video compressions (increment on each saved export).</summary>
+    int LifetimeVideoCompressedCount { get; }
+
+    /// <summary>Persisted count of successful photo enhancements / exports from Photo Enhancer.</summary>
+    int LifetimePhotoEnhancedCount { get; }
+
+    /// <summary>Persisted count of successful audio exports.</summary>
+    int LifetimeAudioEnhancedCount { get; }
+
+    /// <summary>Persisted count of screen recordings saved to disk.</summary>
+    int LifetimeScreenRecordedCount { get; }
+
+    /// <summary>Increments a lifetime counter and saves settings.</summary>
+    void IncrementLifetimeStat(AppLifetimeStatKind kind);
+
+    event EventHandler? LifetimeStatsChanged;
 }

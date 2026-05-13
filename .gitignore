@@ -364,3 +364,6 @@ FodyWeavers.xsd
 
 # Ad-hoc `dotnet build -o` output (CI/agent verification)
 _build_verify_out*/
+# Prefix patterns catch `_batch_build`, `_batch_limit_build`, `_dash_build_check`, etc.
+_batch*/
+_dash*/

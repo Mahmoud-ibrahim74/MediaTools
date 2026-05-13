@@ -396,6 +396,7 @@ public partial class ScreenRecorderViewModel : ObservableObject
             else if (result.IsSuccess && result.OutputFilePath is not null)
             {
                 Succeeded = true;
+                _preferences.IncrementLifetimeStat(AppLifetimeStatKind.ScreenRecorded);
                 StatusText = "Saved";
                 LastOutputFilePath = result.OutputFilePath;
                 var size = result.OutputFileSizeBytes ?? 0;
