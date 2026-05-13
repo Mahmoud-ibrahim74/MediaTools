@@ -1,4 +1,6 @@
-﻿using System.Windows;
+﻿using System;
+using System.Threading.Tasks;
+using System.Windows;
 using MediaTools.Application.Abstractions;
 using MediaTools.Application.UseCases;
 using MediaTools.Infrastructure;
@@ -10,6 +12,10 @@ using Microsoft.Extensions.Hosting;
 
 namespace MediaTools.Presentation;
 
+/// <summary>
+/// All application configuration (DI host, services, FFmpeg/tools readiness) runs here while
+/// <see cref="SplashWindow"/> is shown; <see cref="MainWindow"/> opens only after that completes.
+/// </summary>
 public partial class App : System.Windows.Application
 {
     private IHost? _host;
@@ -18,58 +24,112 @@ public partial class App : System.Windows.Application
     {
         base.OnStartup(e);
 
-        _host = Host.CreateDefaultBuilder(e.Args)
-            .ConfigureServices(
-                (_, services) =>
-                {
-                    services.AddInfrastructure();
-                    services.AddSingleton<IUserPreferencesService, UserPreferencesService>();
-                    services.AddSingleton<IWindowsToastNotificationService, WindowsToastNotificationService>();
-                    services.AddSingleton<CompressVideoUseCase>();
-                    services.AddSingleton<ProcessPhotoUseCase>();
-                    services.AddSingleton<ProcessAudioUseCase>();
-                    services.AddSingleton<ProcessThumbnailUseCase>();
-                    services.AddSingleton<ProcessSubtitleExtractUseCase>();
-                    services.AddSingleton<StartScreenRecordingUseCase>();
-                    services.AddSingleton<ProcessVideoEnhanceUseCase>();
-                    services.AddSingleton<MainWindowViewModel>();
-                    services.AddTransient<DashboardViewModel>();
-                    services.AddTransient<VideoCompressViewModel>();
-                    services.AddTransient<PhotoEnhancerViewModel>();
-                    services.AddTransient<AudioEnhancerViewModel>();
-                    services.AddTransient<ThumbnailGeneratorViewModel>();
-                    services.AddTransient<ScreenRecorderViewModel>();
-                    services.AddTransient<VideoEnhancerViewModel>();
-                    services.AddTransient<AppSettingsViewModel>();
-                    services.AddTransient<DashboardPage>();
-                    services.AddTransient<VideoCompressPage>();
-                    services.AddTransient<PhotoEnhancerPage>();
-                    services.AddTransient<AudioEnhancerPage>();
-                    services.AddTransient<ThumbnailGeneratorPage>();
-                    services.AddTransient<ScreenRecorderPage>();
-                    services.AddTransient<VideoEnhancerPage>();
-                    services.AddTransient<AppSettingsPage>();
-                    services.AddSingleton<MainWindow>();
-                })
-            .Build();
+        // Closing the splash must not exit the process (default is OnLastWindowClose).
+        ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
-        var mainWindow = _host.Services.GetRequiredService<MainWindow>();
-        mainWindow.Show();
+        var splash = new SplashWindow();
+        splash.Show();
+        splash.SetStartupStatus("Loading configuration…");
+        await Task.Delay(TimeSpan.FromSeconds(3)).ConfigureAwait(true);
 
-        var videoCompression = _host.Services.GetRequiredService<IVideoCompressionService>();
-        _ = PrepareFfmpegInBackgroundAsync(videoCompression);
-    }
-
-    private static async Task PrepareFfmpegInBackgroundAsync(IVideoCompressionService videoCompression)
-    {
         try
         {
-            await videoCompression.EnsureToolsReadyAsync().ConfigureAwait(false);
+            _host = CreateHost(e.Args);
+            splash.SetStartupStatus("Wiring services…");
+
+            await CompleteStartupWithSplashAsync(splash).ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            splash.SetStartupStatus($"Could not start: {ex.Message}", isBusy: false);
+            await Task.Delay(2500).ConfigureAwait(true);
+            Shutdown(1);
+            return;
+        }
+
+        ShowMainWindow();
+    }
+
+    private static IHost CreateHost(string[] args) =>
+        Host.CreateDefaultBuilder(args).ConfigureServices(ConfigureApplicationServices).Build();
+
+    /// <summary>Registers all Presentation + Application + Infrastructure services in one place.</summary>
+    private static void ConfigureApplicationServices(HostBuilderContext _, IServiceCollection services)
+    {
+        services.AddInfrastructure();
+        services.AddSingleton<IUserPreferencesService, UserPreferencesService>();
+        services.AddSingleton<IWindowsToastNotificationService, WindowsToastNotificationService>();
+        services.AddSingleton<CompressVideoUseCase>();
+        services.AddSingleton<ProcessPhotoUseCase>();
+        services.AddSingleton<ProcessAudioUseCase>();
+        services.AddSingleton<ProcessThumbnailUseCase>();
+        services.AddSingleton<ProcessSubtitleExtractUseCase>();
+        services.AddSingleton<StartScreenRecordingUseCase>();
+        services.AddSingleton<ProcessVideoEnhanceUseCase>();
+        services.AddSingleton<MainWindowViewModel>();
+        services.AddTransient<DashboardViewModel>();
+        services.AddTransient<VideoCompressViewModel>();
+        services.AddTransient<PhotoEnhancerViewModel>();
+        services.AddTransient<AudioEnhancerViewModel>();
+        services.AddTransient<ThumbnailGeneratorViewModel>();
+        services.AddTransient<ScreenRecorderViewModel>();
+        services.AddTransient<VideoEnhancerViewModel>();
+        services.AddTransient<AppSettingsViewModel>();
+        services.AddTransient<DashboardPage>();
+        services.AddTransient<VideoCompressPage>();
+        services.AddTransient<PhotoEnhancerPage>();
+        services.AddTransient<AudioEnhancerPage>();
+        services.AddTransient<ThumbnailGeneratorPage>();
+        services.AddTransient<ScreenRecorderPage>();
+        services.AddTransient<VideoEnhancerPage>();
+        services.AddTransient<AppSettingsPage>();
+        services.AddSingleton<MainWindow>();
+    }
+
+    private async Task CompleteStartupWithSplashAsync(SplashWindow splash)
+    {
+        if (_host is null)
+        {
+            throw new InvalidOperationException("Host is not initialized.");
+        }
+
+        var videoCompression = _host.Services.GetRequiredService<IVideoCompressionService>();
+
+        void OnToolsChanged(object? _, EventArgs __)
+        {
+            Dispatcher.Invoke(() => splash.ApplyToolsState(videoCompression));
+        }
+
+        videoCompression.ToolsAvailabilityChanged += OnToolsChanged;
+        splash.SetStartupStatus("Preparing media tools…");
+        splash.ApplyToolsState(videoCompression);
+
+        try
+        {
+            await videoCompression.EnsureToolsReadyAsync().ConfigureAwait(true);
         }
         catch
         {
-            // Failure is reported via IVideoCompressionService.ToolsPrepareError and the main-window gate UI.
+            splash.ApplyToolsState(videoCompression);
         }
+
+        videoCompression.ToolsAvailabilityChanged -= OnToolsChanged;
+        splash.ApplyToolsState(videoCompression);
+        await splash.ShowReadyPauseAsync().ConfigureAwait(true);
+        splash.Close();
+    }
+
+    private void ShowMainWindow()
+    {
+        if (_host is null)
+        {
+            throw new InvalidOperationException("Host is not initialized.");
+        }
+
+        var mainWindow = _host.Services.GetRequiredService<MainWindow>();
+        MainWindow = mainWindow;
+        mainWindow.Show();
+        ShutdownMode = ShutdownMode.OnMainWindowClose;
     }
 
     protected override async void OnExit(ExitEventArgs e)
@@ -81,17 +141,5 @@ public partial class App : System.Windows.Application
         }
 
         base.OnExit(e);
-    }
-    private void CheckHardwareAccelerationSupport()
-    {
-        int renderingTier = (System.Windows.Media.RenderCapability.Tier >> 16);
-        var result = renderingTier switch
-        {
-            0 => "Hardware acceleration is not supported on this system.",
-            1 => "Hardware acceleration is supported, but with limited features.",
-            2 => "Hardware acceleration is fully supported on this system.",
-            _ => "Unable to determine hardware acceleration support."
-        };
-        Console.WriteLine(result);
     }
 }
