@@ -36,7 +36,7 @@ public partial class SplashWindow : Window
         {
             BusyRing.IsActive = true;
             StatusMessageText.Text =
-                "Downloading FFmpeg tools… First launch may take a minute (~100 MB).";
+                "Downloading media tools… First launch may take a minute (~100 MB).";
             return;
         }
 

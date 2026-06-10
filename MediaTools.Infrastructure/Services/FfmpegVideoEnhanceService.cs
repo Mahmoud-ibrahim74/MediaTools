@@ -951,7 +951,7 @@ public sealed class FfmpegVideoEnhanceService(IVideoCompressionService videoComp
 
     private static string? ResolveFfmpegPath()
     {
-        var path = Path.Combine(AppContext.BaseDirectory, "ffmpeg", "ffmpeg.exe");
+        var path = ToolPaths.FfmpegExePath;
         return File.Exists(path) ? path : null;
     }
 

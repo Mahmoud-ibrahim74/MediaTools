@@ -14,41 +14,16 @@ namespace MediaTools.Infrastructure.Services;
 /// </summary>
 public sealed partial class YtDlpYouTubeAudioService : IYouTubeAudioService
 {
-    private static readonly string YtDlpDirectory = Path.Combine(AppContext.BaseDirectory, "yt-dlp");
-    private static readonly string YtDlpExePath = Path.Combine(YtDlpDirectory, "yt-dlp.exe");
-    private static readonly string FfmpegDirectory = Path.Combine(AppContext.BaseDirectory, "ffmpeg");
 
-    private readonly SemaphoreSlim _ensureGate = new(1, 1);
-    private volatile bool _toolsReady;
-
-    public async Task EnsureToolsReadyAsync(CancellationToken cancellationToken = default)
+    public Task EnsureToolsReadyAsync(CancellationToken cancellationToken = default)
     {
-        if (_toolsReady)
+        if (!ToolPaths.IsYtDlpReady)
         {
-            return;
+            throw new InvalidOperationException(
+                "yt-dlp is not installed. Restart the application to trigger the download.");
         }
 
-        await _ensureGate.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            if (_toolsReady)
-            {
-                return;
-            }
-
-            Directory.CreateDirectory(YtDlpDirectory);
-
-            if (!File.Exists(YtDlpExePath))
-            {
-                await DownloadYtDlpAsync(cancellationToken).ConfigureAwait(false);
-            }
-
-            _toolsReady = true;
-        }
-        finally
-        {
-            _ensureGate.Release();
-        }
+        return Task.CompletedTask;
     }
 
     public async Task<YouTubeVideoInfo> FetchVideoInfoAsync(string url, CancellationToken cancellationToken = default)
@@ -62,7 +37,7 @@ public sealed partial class YtDlpYouTubeAudioService : IYouTubeAudioService
 
             var psi = new ProcessStartInfo
             {
-                FileName = YtDlpExePath,
+                FileName = ToolPaths.YtDlpExePath,
                 Arguments = args,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -135,7 +110,7 @@ public sealed partial class YtDlpYouTubeAudioService : IYouTubeAudioService
 
         var args = $"-x --audio-format {formatExt} {bitrateArg} " +
                    $"--no-playlist --newline --no-mtime " +
-                   $"--ffmpeg-location \"{FfmpegDirectory}\" " +
+                   $"--ffmpeg-location \"{ToolPaths.FfmpegDirectory}\" " +
                    $"-o \"{outputTemplate}\" \"{request.Url}\"";
 
         // Run the entire process on the thread pool.
@@ -147,7 +122,7 @@ public sealed partial class YtDlpYouTubeAudioService : IYouTubeAudioService
         {
             var psi = new ProcessStartInfo
             {
-                FileName = YtDlpExePath,
+                FileName = ToolPaths.YtDlpExePath,
                 Arguments = args,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -239,12 +214,15 @@ public sealed partial class YtDlpYouTubeAudioService : IYouTubeAudioService
     {
         // Ensure yt-dlp finds our bundled FFmpeg
         var currentPath = psi.Environment.TryGetValue("PATH", out var p) ? p : "";
-        psi.Environment["PATH"] = FfmpegDirectory + ";" + currentPath;
+        psi.Environment["PATH"] = ToolPaths.FfmpegDirectory + ";" + currentPath;
     }
 
-    private static async Task DownloadYtDlpAsync(CancellationToken cancellationToken)
+    /// <summary>Downloads yt-dlp.exe to the shared tools folder. Called during app startup.</summary>
+    internal static async Task DownloadYtDlpAsync(CancellationToken cancellationToken)
     {
         const string downloadUrl = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe";
+
+        Directory.CreateDirectory(ToolPaths.YtDlpDirectory);
 
         using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
         using var response = await http.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
@@ -252,7 +230,7 @@ public sealed partial class YtDlpYouTubeAudioService : IYouTubeAudioService
         response.EnsureSuccessStatusCode();
 
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        await using var file = File.Create(YtDlpExePath);
+        await using var file = File.Create(ToolPaths.YtDlpExePath);
         await stream.CopyToAsync(file, cancellationToken).ConfigureAwait(false);
     }
 

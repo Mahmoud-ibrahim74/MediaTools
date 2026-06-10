@@ -5,13 +5,13 @@ namespace MediaTools.Infrastructure.Services;
 
 /// <summary>
 /// Terminates FFmpeg/ffprobe processes that were started from this app's bundled tools directory
-/// (<c>AppContext.BaseDirectory/ffmpeg</c>). Used on shutdown so orphaned encoder processes do not keep running.
+/// (<c>%TEMP%\MediaTools\ffmpeg</c>). Used on shutdown so orphaned encoder processes do not keep running.
 /// </summary>
 public static class BundledFfmpegProcessCleanup
 {
     public static void KillRemainingBundledToolProcesses()
     {
-        var toolsDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "ffmpeg"));
+        var toolsDir = Path.GetFullPath(ToolPaths.FfmpegDirectory);
         if (!Directory.Exists(toolsDir))
         {
             return;

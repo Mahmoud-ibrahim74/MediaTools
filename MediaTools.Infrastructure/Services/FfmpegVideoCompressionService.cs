@@ -83,11 +83,11 @@ public sealed class FfmpegVideoCompressionService : IVideoCompressionService
 
             try
             {
-                var ffmpegDirectory = Path.Combine(AppContext.BaseDirectory, "ffmpeg");
+                var ffmpegDirectory = ToolPaths.FfmpegDirectory;
                 Directory.CreateDirectory(ffmpegDirectory);
 
-                var ffmpegExe = Path.Combine(ffmpegDirectory, "ffmpeg.exe");
-                var ffprobeExe = Path.Combine(ffmpegDirectory, "ffprobe.exe");
+                var ffmpegExe = ToolPaths.FfmpegExePath;
+                var ffprobeExe = ToolPaths.FfprobeExePath;
                 var markerPath = Path.Combine(ffmpegDirectory, BtbNWindowsFfmpegDownload.MarkerFileName);
 
                 var missingBinary = !File.Exists(ffmpegExe) || !File.Exists(ffprobeExe);
@@ -117,6 +117,11 @@ public sealed class FfmpegVideoCompressionService : IVideoCompressionService
                 {
                     await FFmpegDownloader.GetLatestVersion(FFmpegVersion.Official, ffmpegDirectory)
                         .ConfigureAwait(false);
+                }
+
+                if (!ToolPaths.IsYtDlpReady)
+                {
+                    await YtDlpYouTubeAudioService.DownloadYtDlpAsync(cancellationToken).ConfigureAwait(false);
                 }
 
                 FFmpeg.SetExecutablesPath(

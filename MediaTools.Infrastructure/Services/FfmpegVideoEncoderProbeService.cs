@@ -11,7 +11,7 @@ public sealed class FfmpegVideoEncoderProbeService(IVideoCompressionService vide
     {
         await videoCompressionService.EnsureToolsReadyAsync(cancellationToken).ConfigureAwait(false);
 
-        var ffmpegExe = Path.Combine(AppContext.BaseDirectory, "ffmpeg", "ffmpeg.exe");
+        var ffmpegExe = ToolPaths.FfmpegExePath;
         if (!File.Exists(ffmpegExe))
         {
             return new VideoEncoderScanResult(false, false, false);
