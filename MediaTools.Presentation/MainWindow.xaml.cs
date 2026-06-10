@@ -109,6 +109,7 @@ public partial class MainWindow : MetroWindow
             "ThumbnailGenerator" => _services.GetRequiredService<ThumbnailGeneratorPage>(),
             "ScreenRecorder" => _services.GetRequiredService<ScreenRecorderPage>(),
             "VideoEnhancer" => _services.GetRequiredService<VideoEnhancerPage>(),
+            "YouTubeAudio" => _services.GetRequiredService<YouTubeAudioPage>(),
             "AppSettings" => _services.GetRequiredService<AppSettingsPage>(),
             _ => null
         };

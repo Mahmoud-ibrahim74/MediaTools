@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
 using System.Windows;
 using MediaTools.Application.Abstractions;
@@ -67,6 +67,7 @@ public partial class App : System.Windows.Application
         services.AddSingleton<ProcessSubtitleExtractUseCase>();
         services.AddSingleton<StartScreenRecordingUseCase>();
         services.AddSingleton<ProcessVideoEnhanceUseCase>();
+        services.AddSingleton<DownloadYouTubeAudioUseCase>();
         services.AddSingleton<MainWindowViewModel>();
         services.AddSingleton<DashboardViewModel>();
         services.AddSingleton<VideoCompressViewModel>();
@@ -76,6 +77,7 @@ public partial class App : System.Windows.Application
         services.AddSingleton<ScreenRecorderViewModel>();
         services.AddSingleton<VideoEnhancerViewModel>();
         services.AddSingleton<AppSettingsViewModel>();
+        services.AddSingleton<YouTubeAudioViewModel>();
         services.AddSingleton<DashboardPage>();
         services.AddSingleton<VideoCompressPage>();
         services.AddSingleton<PhotoEnhancerPage>();
@@ -84,6 +86,7 @@ public partial class App : System.Windows.Application
         services.AddSingleton<ScreenRecorderPage>();
         services.AddSingleton<VideoEnhancerPage>();
         services.AddSingleton<AppSettingsPage>();
+        services.AddSingleton<YouTubeAudioPage>();
         services.AddSingleton<MainWindow>();
     }
 
