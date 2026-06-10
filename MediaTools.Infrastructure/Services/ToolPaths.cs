@@ -22,7 +22,7 @@ public static class ToolPaths
     /// <summary>Full path to ffprobe.exe.</summary>
     public static readonly string FfprobeExePath =
         Path.Combine(FfmpegDirectory, "ffprobe.exe");
-
+    
     /// <summary>Directory containing yt-dlp.exe.</summary>
     public static readonly string YtDlpDirectory =
         Path.Combine(RootDirectory, "yt-dlp");

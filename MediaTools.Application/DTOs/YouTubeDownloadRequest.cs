@@ -7,4 +7,5 @@ public sealed record YouTubeDownloadRequest(
     string Url,
     string OutputFolderPath,
     YouTubeAudioFormat AudioFormat,
-    int BitrateKbps);
+    int BitrateKbps,
+    bool IsPlaylist = false);

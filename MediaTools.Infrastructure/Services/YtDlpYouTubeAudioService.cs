@@ -33,7 +33,7 @@ public sealed partial class YtDlpYouTubeAudioService : IYouTubeAudioService
         // Run the entire process on the thread pool so blocking reads never freeze the UI.
         return await Task.Run(async () =>
         {
-            var args = $"--dump-json --no-playlist --no-download \"{url}\"";
+            var args = $"--dump-single-json --flat-playlist --no-download \"{url}\"";
 
             var psi = new ProcessStartInfo
             {
@@ -68,19 +68,83 @@ public sealed partial class YtDlpYouTubeAudioService : IYouTubeAudioService
             using var doc = JsonDocument.Parse(stdout);
             var root = doc.RootElement;
 
-            var title = root.GetProperty("title").GetString() ?? "Unknown";
-            var channel = root.TryGetProperty("channel", out var ch) ? ch.GetString() ?? "" :
-                          root.TryGetProperty("uploader", out var up) ? up.GetString() ?? "" : "";
-            var durationSec = root.TryGetProperty("duration", out var dur) ? dur.GetDouble() : 0;
-            var thumbnail = root.TryGetProperty("thumbnail", out var th) ? th.GetString() : null;
-            var viewCount = root.TryGetProperty("view_count", out var vc) ? vc.GetInt64() : 0;
+            bool isPlaylist = false;
+            if (root.TryGetProperty("_type", out var typeProp) && typeProp.GetString() == "playlist")
+            {
+                isPlaylist = true;
+            }
+
+            var title = root.TryGetProperty("title", out var tProp) ? tProp.GetString() ?? "Unknown" : "Unknown";
+            var channel = root.TryGetProperty("uploader", out var upProp) ? upProp.GetString() ?? "" :
+                          root.TryGetProperty("playlist_uploader", out var plUpProp) ? plUpProp.GetString() ?? "" :
+                          root.TryGetProperty("channel", out var chProp) ? chProp.GetString() ?? "" : "";
+
+            string? thumbnail = null;
+            if (root.TryGetProperty("thumbnail", out var thProp))
+            {
+                thumbnail = thProp.GetString();
+            }
+            if (string.IsNullOrEmpty(thumbnail) && root.TryGetProperty("thumbnails", out var thsProp) && thsProp.ValueKind == JsonValueKind.Array && thsProp.GetArrayLength() > 0)
+            {
+                var lastTh = thsProp[thsProp.GetArrayLength() - 1];
+                if (lastTh.TryGetProperty("url", out var urlProp))
+                {
+                    thumbnail = urlProp.GetString();
+                }
+            }
+
+            TimeSpan duration = TimeSpan.Zero;
+            long viewCount = 0;
+            int videoCount = 0;
+            List<PlaylistItemInfo>? playlistItems = null;
+
+            if (isPlaylist)
+            {
+                if (root.TryGetProperty("entries", out var entriesProp) && entriesProp.ValueKind == JsonValueKind.Array)
+                {
+                    playlistItems = new List<PlaylistItemInfo>();
+                    foreach (var entry in entriesProp.EnumerateArray())
+                    {
+                        var itemTitle = entry.TryGetProperty("title", out var itProp) ? itProp.GetString() ?? "Unknown" : "Unknown";
+                        
+                        var itemUrl = entry.TryGetProperty("url", out var iuProp) ? iuProp.GetString() : null;
+                        if (string.IsNullOrEmpty(itemUrl) && entry.TryGetProperty("id", out var idProp))
+                        {
+                            itemUrl = $"https://www.youtube.com/watch?v={idProp.GetString()}";
+                        }
+                        
+                        var itemChannel = entry.TryGetProperty("uploader", out var iuprProp) ? iuprProp.GetString() : null;
+                        var itemDurationSec = entry.TryGetProperty("duration", out var idurProp) && idurProp.ValueKind == JsonValueKind.Number ? idurProp.GetDouble() : 0;
+
+                        if (!string.IsNullOrEmpty(itemUrl))
+                        {
+                            playlistItems.Add(new PlaylistItemInfo(itemTitle, itemUrl, itemChannel, TimeSpan.FromSeconds(itemDurationSec)));
+                        }
+                    }
+                    videoCount = playlistItems.Count;
+                }
+                
+                if (videoCount == 0 && root.TryGetProperty("playlist_count", out var plcProp))
+                {
+                    videoCount = plcProp.GetInt32();
+                }
+            }
+            else
+            {
+                var durationSec = root.TryGetProperty("duration", out var dur) ? dur.GetDouble() : 0;
+                duration = TimeSpan.FromSeconds(durationSec);
+                viewCount = root.TryGetProperty("view_count", out var vc) ? vc.GetInt64() : 0;
+            }
 
             return new YouTubeVideoInfo(
                 Title: title,
                 ChannelName: channel,
-                Duration: TimeSpan.FromSeconds(durationSec),
+                Duration: duration,
                 ThumbnailUrl: thumbnail,
-                ViewCount: viewCount);
+                ViewCount: viewCount,
+                IsPlaylist: isPlaylist,
+                VideoCount: videoCount,
+                PlaylistItems: playlistItems);
         }, cancellationToken).ConfigureAwait(false);
     }
 
@@ -100,7 +164,7 @@ public sealed partial class YtDlpYouTubeAudioService : IYouTubeAudioService
         // --audio-format = target format
         // --audio-quality = bitrate for lossy
         // -o  = output template
-        // --no-playlist = single video only
+        // --no-playlist/--yes-playlist = playlist handling
         // --newline = progress on each line
         // --ffmpeg-location = use our bundled ffmpeg
         var outputTemplate = Path.Combine(request.OutputFolderPath, "%(title)s.%(ext)s");
@@ -108,8 +172,10 @@ public sealed partial class YtDlpYouTubeAudioService : IYouTubeAudioService
             ? $"--audio-quality {request.BitrateKbps}K"
             : "--audio-quality 0";
 
+        var playlistArg = request.IsPlaylist ? "--yes-playlist" : "--no-playlist";
+
         var args = $"-x --audio-format {formatExt} {bitrateArg} " +
-                   $"--no-playlist --newline --no-mtime " +
+                   $"{playlistArg} --newline --no-mtime " +
                    $"--ffmpeg-location \"{ToolPaths.FfmpegDirectory}\" " +
                    $"-o \"{outputTemplate}\" \"{request.Url}\"";
 
@@ -134,6 +200,8 @@ public sealed partial class YtDlpYouTubeAudioService : IYouTubeAudioService
 
             using var proc = new Process { StartInfo = psi };
             var outputFilePath = string.Empty;
+            int currentVideoIndex = 1;
+            int totalVideos = 1;
 
             proc.Start();
 
@@ -152,6 +220,20 @@ public sealed partial class YtDlpYouTubeAudioService : IYouTubeAudioService
                     continue;
                 }
 
+                // Detect playlist item indexing: [download] Downloading item 1 of 5
+                var playlistMatch = PlaylistIndexRegex().Match(line);
+                if (playlistMatch.Success)
+                {
+                    if (int.TryParse(playlistMatch.Groups[1].Value, out var idx))
+                    {
+                        currentVideoIndex = idx;
+                    }
+                    if (int.TryParse(playlistMatch.Groups[2].Value, out var tot))
+                    {
+                        totalVideos = tot;
+                    }
+                }
+
                 // Detect output file path from yt-dlp output
                 var destMatch = DestinationRegex().Match(line);
                 if (destMatch.Success)
@@ -167,9 +249,23 @@ public sealed partial class YtDlpYouTubeAudioService : IYouTubeAudioService
                     var speed = progressMatch.Groups.Count > 2 ? progressMatch.Groups[2].Value : null;
                     var eta = progressMatch.Groups.Count > 3 ? progressMatch.Groups[3].Value : null;
 
+                    double overallPct;
+                    string statusText;
+                    if (request.IsPlaylist)
+                    {
+                        overallPct = ((currentVideoIndex - 1) * 100.0 + pct) / totalVideos;
+                        overallPct = Math.Clamp(overallPct, 0, 100);
+                        statusText = $"Downloading video {currentVideoIndex} of {totalVideos} ({pct:0.0}%)";
+                    }
+                    else
+                    {
+                        overallPct = pct;
+                        statusText = $"Downloading… {pct:0.0}%";
+                    }
+
                     progress.Report(new YouTubeDownloadProgress(
-                        ProgressPercent: pct,
-                        StatusText: $"Downloading… {pct:0.0}%",
+                        ProgressPercent: overallPct,
+                        StatusText: statusText,
                         DownloadSpeedDisplay: speed,
                         EtaDisplay: eta));
                 }
@@ -177,9 +273,18 @@ public sealed partial class YtDlpYouTubeAudioService : IYouTubeAudioService
                 // Detect post-processing phase
                 if (line.Contains("[ExtractAudio]") || line.Contains("[ffmpeg]"))
                 {
+                    double overallPct = 95;
+                    string statusText = "Converting audio…";
+                    if (request.IsPlaylist)
+                    {
+                        overallPct = ((currentVideoIndex - 1) * 100.0 + 95) / totalVideos;
+                        overallPct = Math.Clamp(overallPct, 0, 100);
+                        statusText = $"Converting video {currentVideoIndex} of {totalVideos}…";
+                    }
+
                     progress.Report(new YouTubeDownloadProgress(
-                        ProgressPercent: 95,
-                        StatusText: "Converting audio…",
+                        ProgressPercent: overallPct,
+                        StatusText: statusText,
                         DownloadSpeedDisplay: null,
                         EtaDisplay: null));
                 }
@@ -192,6 +297,17 @@ public sealed partial class YtDlpYouTubeAudioService : IYouTubeAudioService
             {
                 throw new InvalidOperationException(
                     $"yt-dlp download failed (exit {proc.ExitCode}): {stderr.Trim()}");
+            }
+
+            if (request.IsPlaylist)
+            {
+                progress.Report(new YouTubeDownloadProgress(
+                    ProgressPercent: 100,
+                    StatusText: "Download complete",
+                    DownloadSpeedDisplay: null,
+                    EtaDisplay: null));
+
+                return request.OutputFolderPath;
             }
 
             // If we didn't catch the destination from stdout, try to find the file
@@ -266,4 +382,7 @@ public sealed partial class YtDlpYouTubeAudioService : IYouTubeAudioService
 
     [GeneratedRegex(@"(?:Destination|Merging formats into|has already been downloaded).*?[:\s]+(.+\.\w+)")]
     private static partial Regex DestinationRegex();
+
+    [GeneratedRegex(@"\[download\]\s+Downloading\s+(?:item|video)\s+(\d+)\s+of\s+(\d+)")]
+    private static partial Regex PlaylistIndexRegex();
 }

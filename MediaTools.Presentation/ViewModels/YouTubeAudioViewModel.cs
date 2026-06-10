@@ -21,6 +21,7 @@ public partial class YouTubeAudioViewModel : ObservableObject
     private readonly IYouTubeAudioService _youTubeAudio;
     private readonly IUserPreferencesService _preferences;
     private CancellationTokenSource? _downloadCts;
+    private bool _isPlaylist;
 
     public YouTubeAudioViewModel(
         DownloadYouTubeAudioUseCase downloadUseCase,
@@ -56,6 +57,11 @@ public partial class YouTubeAudioViewModel : ObservableObject
 
     [ObservableProperty]
     private BitmapImage? _thumbnailImage;
+
+    public ObservableCollection<PlaylistItemViewModel> PlaylistItems { get; } = [];
+
+    [ObservableProperty]
+    private bool _showPlaylistItems;
 
     // ── Format & quality ───────────────────────────────────
 
@@ -151,10 +157,36 @@ public partial class YouTubeAudioViewModel : ObservableObject
         {
             var info = await _youTubeAudio.FetchVideoInfoAsync(YoutubeUrl.Trim()).ConfigureAwait(true);
 
+            _isPlaylist = info.IsPlaylist;
             VideoTitle = info.Title;
             ChannelName = info.ChannelName;
-            DurationDisplay = FormatDuration(info.Duration);
-            ViewCountDisplay = FormatViewCount(info.ViewCount);
+
+            if (info.IsPlaylist)
+            {
+                DurationDisplay = $"{info.VideoCount} videos";
+                ViewCountDisplay = "Playlist";
+                PlaylistItems.Clear();
+                if (info.PlaylistItems != null)
+                {
+                    foreach (var item in info.PlaylistItems)
+                    {
+                        PlaylistItems.Add(new PlaylistItemViewModel(
+                            item.Title,
+                            item.Url,
+                            item.ChannelName ?? ChannelName,
+                            item.Duration,
+                            async (vm) => await DownloadItemCommand(vm).ConfigureAwait(false)));
+                    }
+                }
+                ShowPlaylistItems = PlaylistItems.Count > 0;
+            }
+            else
+            {
+                DurationDisplay = FormatDuration(info.Duration);
+                ViewCountDisplay = FormatViewCount(info.ViewCount);
+                PlaylistItems.Clear();
+                ShowPlaylistItems = false;
+            }
 
             // Load thumbnail
             if (!string.IsNullOrWhiteSpace(info.ThumbnailUrl))
@@ -186,23 +218,49 @@ public partial class YouTubeAudioViewModel : ObservableObject
     private async Task DownloadAudioAsync()
     {
         IsDownloading = true;
-        ShowProgressCard = true;
         ShowResultCard = false;
         ShowErrorCard = false;
+
+        _downloadCts?.Dispose();
+        _downloadCts = new CancellationTokenSource();
+
+        if (_isPlaylist && PlaylistItems.Count > 0)
+        {
+            ShowProgressCard = false;
+            foreach (var item in PlaylistItems)
+            {
+                if (_downloadCts.Token.IsCancellationRequested)
+                    break;
+                
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+                    _downloadCts.Token, 
+                    item.GetNewToken());
+
+                await DownloadSingleVideoAsync(item, linkedCts.Token).ConfigureAwait(true);
+            }
+            
+            if (!_downloadCts.Token.IsCancellationRequested)
+            {
+                ResultMessage = "All downloads complete!";
+                ShowResultCard = true;
+            }
+            IsDownloading = false;
+            return;
+        }
+
+        ShowProgressCard = true;
         ProgressPercent = 0;
         ProgressPercentDisplay = 0;
         ProgressStatusText = "Starting download…";
         DownloadSpeedDisplay = string.Empty;
         EtaDisplay = string.Empty;
 
-        _downloadCts?.Dispose();
-        _downloadCts = new CancellationTokenSource();
-
         var request = new YouTubeDownloadRequest(
             Url: YoutubeUrl.Trim(),
             OutputFolderPath: _preferences.SaveFolderPath,
             AudioFormat: ParseFormat(SelectedFormat),
-            BitrateKbps: SelectedBitrate);
+            BitrateKbps: SelectedBitrate,
+            IsPlaylist: false);
 
         var progress = new Progress<YouTubeDownloadProgress>(report =>
         {
@@ -256,6 +314,72 @@ public partial class YouTubeAudioViewModel : ObservableObject
         }
     }
 
+    private async Task DownloadItemCommand(PlaylistItemViewModel vm)
+    {
+        if (IsDownloading && _isPlaylist) return; // Ignore if global download is active
+        
+        IsDownloading = true;
+        await DownloadSingleVideoAsync(vm, vm.GetNewToken()).ConfigureAwait(true);
+        IsDownloading = false;
+    }
+
+    private async Task DownloadSingleVideoAsync(PlaylistItemViewModel vm, CancellationToken? externalToken = null)
+    {
+        vm.IsDownloading = true;
+        vm.IsSuccess = false;
+        vm.IsError = false;
+        vm.ProgressPercent = 0;
+        vm.ProgressPercentDisplay = 0;
+        vm.ProgressStatusText = "Starting download…";
+
+        var request = new YouTubeDownloadRequest(
+            Url: vm.Url,
+            OutputFolderPath: _preferences.SaveFolderPath,
+            AudioFormat: ParseFormat(SelectedFormat),
+            BitrateKbps: SelectedBitrate,
+            IsPlaylist: false);
+
+        var progress = new Progress<YouTubeDownloadProgress>(report =>
+        {
+            vm.ProgressPercent = report.ProgressPercent;
+            vm.ProgressPercentDisplay = Math.Round(report.ProgressPercent);
+            vm.ProgressStatusText = report.StatusText;
+        });
+
+        var token = externalToken ?? _downloadCts?.Token ?? default;
+
+        try
+        {
+            var result = await _downloadUseCase
+                .ExecuteAsync(request, progress, token)
+                .ConfigureAwait(true);
+
+            if (result.IsSuccess)
+            {
+                vm.IsSuccess = true;
+                vm.ProgressStatusText = "Complete";
+                vm.ProgressPercent = 100;
+                vm.ProgressPercentDisplay = 100;
+            }
+            else
+            {
+                vm.IsError = true;
+                vm.ErrorMessage = result.IsCancelled ? "Cancelled" : (result.ErrorMessage ?? "Error");
+                vm.ProgressStatusText = "Error";
+            }
+        }
+        catch (Exception ex)
+        {
+            vm.IsError = true;
+            vm.ErrorMessage = ex.Message;
+            vm.ProgressStatusText = "Error";
+        }
+        finally
+        {
+            vm.IsDownloading = false;
+        }
+    }
+
     [RelayCommand]
     private void Cancel()
     {
@@ -265,9 +389,16 @@ public partial class YouTubeAudioViewModel : ObservableObject
     [RelayCommand]
     private void OpenOutputFolder()
     {
-        var folder = OutputFilePath is not null
-            ? Path.GetDirectoryName(OutputFilePath)
-            : _preferences.SaveFolderPath;
+        var folder = OutputFilePath;
+        if (folder is not null && File.Exists(folder))
+        {
+            folder = Path.GetDirectoryName(folder);
+        }
+
+        if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
+        {
+            folder = _preferences.SaveFolderPath;
+        }
 
         if (!string.IsNullOrWhiteSpace(folder) && Directory.Exists(folder))
         {
