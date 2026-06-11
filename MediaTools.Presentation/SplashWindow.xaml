@@ -12,6 +12,8 @@
         WindowStartupLocation="CenterScreen"
         ShowInTaskbar="False"
         AllowsTransparency="True"
+        Topmost="True"
+        Deactivated="Window_Deactivated"
         Background="Transparent">
   <Window.Resources>
     <ResourceDictionary>

@@ -57,4 +57,15 @@ public partial class SplashWindow : Window
     {
         await Task.Delay(milliseconds).ConfigureAwait(true);
     }
+
+    private void Window_Deactivated(object sender, System.EventArgs e)
+    {
+        // Force the splash window to stay focused and on top
+        if (this.IsVisible)
+        {
+            this.Topmost = true;
+            this.Activate();
+            this.Focus();
+        }
+    }
 }

@@ -72,8 +72,14 @@ We provide an automated installer that will set up Media Tools on your system.
 3. During setup, you can customize the installation and choose to add a **Desktop Shortcut** or **Start Menu Shortcut**.
 4. Launch the app!
 
-### First Launch
-Upon launching the app for the first time, Media Tools will automatically detect and download required external dependencies (like FFmpeg) in the background. Please wait for the setup to complete.
+### First Launch & Internet Requirement 🌐
+Upon launching the app for the very first time (or after resetting your cache), Media Tools requires an **active internet connection**. The app will automatically detect and securely download its core dependencies to your local `%TEMP%\MediaTools` folder in the background. 
+
+**Tools downloaded automatically:**
+- `FFmpeg` (Required for video compression, audio enhancement, and screen recording)
+- `yt-dlp` (Required for downloading YouTube videos and audio)
+
+You will see the progress on the Splash Screen. Please wait for the setup to complete! Once downloaded, the tools are cached and you will not need an internet connection again for the offline features.
 
 ---
 
