@@ -63,6 +63,17 @@ public partial class YouTubeAudioViewModel : ObservableObject
     [ObservableProperty]
     private bool _showPlaylistItems;
 
+    [ObservableProperty]
+    private bool _selectAllItems = true;
+
+    partial void OnSelectAllItemsChanged(bool value)
+    {
+        foreach (var item in PlaylistItems)
+        {
+            item.IsSelected = value;
+        }
+    }
+
     // ── Format & quality ───────────────────────────────────
 
     public ObservableCollection<string> AvailableFormats { get; } =
@@ -91,7 +102,10 @@ public partial class YouTubeAudioViewModel : ObservableObject
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(FetchVideoInfoCommand))]
     [NotifyCanExecuteChangedFor(nameof(DownloadAudioCommand))]
+    [NotifyPropertyChangedFor(nameof(IsNotDownloading))]
     private bool _isDownloading;
+
+    public bool IsNotDownloading => !IsDownloading;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(DownloadAudioCommand))]
@@ -178,6 +192,7 @@ public partial class YouTubeAudioViewModel : ObservableObject
                             async (vm) => await DownloadItemCommand(vm).ConfigureAwait(false)));
                     }
                 }
+                SelectAllItems = true; // reset
                 ShowPlaylistItems = PlaylistItems.Count > 0;
             }
             else
@@ -226,8 +241,17 @@ public partial class YouTubeAudioViewModel : ObservableObject
 
         if (_isPlaylist && PlaylistItems.Count > 0)
         {
+            var selectedItems = PlaylistItems.Where(i => i.IsSelected).ToList();
+            if (selectedItems.Count == 0)
+            {
+                ResultMessage = "No videos selected.";
+                ShowResultCard = true;
+                IsDownloading = false;
+                return;
+            }
+
             ShowProgressCard = false;
-            foreach (var item in PlaylistItems)
+            foreach (var item in selectedItems)
             {
                 if (_downloadCts.Token.IsCancellationRequested)
                     break;

@@ -32,6 +32,9 @@ public partial class PlaylistItemViewModel : ObservableObject
     }
 
     [ObservableProperty]
+    private bool _isSelected = true;
+
+    [ObservableProperty]
     private string _title;
 
     [ObservableProperty]
