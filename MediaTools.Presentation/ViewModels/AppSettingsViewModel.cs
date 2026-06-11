@@ -487,4 +487,42 @@ public partial class AppSettingsViewModel : ObservableObject
             MessageBoxHelper.ShowWarning($"Could not save settings: {ex.Message}");
         }
     }
+
+    [RelayCommand]
+    private void ResetApp()
+    {
+        var result = MessageBoxHelper.Show(
+            "Are you sure you want to delete the cached tools and reset all settings to defaults?\n\nThis will force the app to redownload tools on the next run.",
+            "Reset App",
+            System.Windows.MessageBoxButton.YesNo,
+            System.Windows.MessageBoxImage.Warning);
+
+        if (result != System.Windows.MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        try
+        {
+            var tempDir = MediaTools.Infrastructure.Services.ToolPaths.RootDirectory;
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBoxHelper.ShowWarning($"Could not fully delete the cache folder: {ex.Message}");
+        }
+
+        var defaultFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+        _preferences.SetSaveFolderPath(defaultFolder);
+        _preferences.SetToastNotificationsEnabled(true);
+        _preferences.SetVideoEncoderSettings(VideoHardwareEncoderKind.Software, new VideoEncoderScanResult(false, false, false));
+        _preferences.SetScreenRecorderHotkeys(HotkeySetting.Empty, HotkeySetting.Empty);
+
+        RefreshFromPreferences();
+
+        MessageBoxHelper.ShowInformation("App settings have been reset and cache cleared.");
+    }
 }

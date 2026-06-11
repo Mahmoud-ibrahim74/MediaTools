@@ -271,13 +271,30 @@
             </StackPanel>
           </Border>
 
+          <Border Margin="0,16,0,0" Padding="20" Style="{DynamicResource CardBorderStyle}">
+            <StackPanel>
+              <TextBlock FontWeight="SemiBold" Foreground="{DynamicResource MahApps.Brushes.SystemControlErrorText}" Text="Reset App &amp; Cache" />
+              <TextBlock Margin="0,6,0,0"
+                         FontSize="12"
+                         Foreground="#FF5F6B76"
+                         TextWrapping="Wrap"
+                         Text="Deletes all cached tools and resets your preferences back to their defaults." />
+              <Button Margin="0,14,0,0"
+                      HorizontalAlignment="Left"
+                      MinWidth="160"
+                      Command="{Binding ResetAppCommand}"
+                      Content="Reset to Defaults"
+                      Style="{DynamicResource OutlinedButtonStyle}" />
+            </StackPanel>
+          </Border>
+
           <Border Margin="0,16,0,0"
                   Padding="16"
                   Background="#FFF5F7FA"
                   BorderBrush="{DynamicResource CardBorderBrush}"
                   BorderThickness="1"
                   CornerRadius="8">
-            <StackPanel Orientation="Horizontal">
+            <!-- <StackPanel Orientation="Horizontal">
               <iconPacks:PackIconMaterial Width="20"
                                           Height="20"
                                           VerticalAlignment="Top"
@@ -287,7 +304,7 @@
                          Foreground="#FF5F6B76"
                          TextWrapping="Wrap"
                          Text="Settings (folder path, hardware encoder choice, scan results, notification toggle, and screen recorder hotkeys) are stored under your user profile (AppData\Roaming\MediaTools\settings.json)." />
-            </StackPanel>
+            </StackPanel> -->
           </Border>
 
           <StackPanel Margin="0,24,0,32"
