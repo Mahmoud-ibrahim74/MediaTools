@@ -56,6 +56,11 @@ Extract high-quality audio tracks from YouTube.
 - **What it does:** Downloads YouTube videos and automatically converts them to your preferred audio format (e.g., MP3). Supports batch playlist downloading.
 - **How to use:** Navigate to **YouTube Audio** under Audio Tools, paste the URL, search, select your tracks, and hit download.
 
+### ⚙️ 9. App Settings
+Configure your workspace and preferences for the entire suite.
+- **What it does:** Centralized configuration for output paths, hardware acceleration (GPU encoder detection), global hotkeys for screen recording, and Windows Toast notification settings.
+- **How to use:** Navigate to **App Settings** at the bottom of the sidebar. You can run the hardware encoder detection here to ensure your GPU is being fully utilized by the media tools.
+
 ---
 
 ## 💻 Installation
