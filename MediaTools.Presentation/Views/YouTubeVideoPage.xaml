@@ -37,7 +37,7 @@
             <StackPanel Grid.Column="0">
               <TextBlock FontSize="26" FontWeight="SemiBold" Text="YouTube Video Downloader" />
               <TextBlock Margin="0,6,0,0" FontSize="14" Foreground="#FF5F6B76" TextWrapping="Wrap"
-                         Text="Paste a YouTube link below to download high-quality video. Choose your format and resolution, then download. Powered by yt-dlp &amp; FFmpeg — runs 100% locally." />
+                         Text="Paste a YouTube link below to download high-quality video. Choose your format and resolution, then download." />
             </StackPanel>
 
             <!-- Animated waveform decoration -->
@@ -309,11 +309,13 @@
                                             Kind="TuneVariant" />
                 <TextBlock Margin="10,0,0,0" VerticalAlignment="Center"
                            FontWeight="SemiBold" FontSize="15"
-                           Text="Format &amp; Resolution" />
+                           Text="Format, Resolution &amp; Quality" />
               </StackPanel>
 
               <Grid>
                 <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="16" />
                   <ColumnDefinition Width="*" />
                   <ColumnDefinition Width="16" />
                   <ColumnDefinition Width="*" />
@@ -332,10 +334,17 @@
                             ItemsSource="{Binding AvailableResolutions}"
                             SelectedItem="{Binding SelectedResolution}" />
                 </StackPanel>
+
+                <StackPanel Grid.Column="4">
+                  <TextBlock FontSize="12" Foreground="#FF5F6B76" Text="Video quality" />
+                  <ComboBox Margin="0,6,0,0"
+                            ItemsSource="{Binding AvailableQualities}"
+                            SelectedItem="{Binding SelectedQuality}" />
+                </StackPanel>
               </Grid>
 
               <TextBlock Margin="0,12,0,0" FontSize="11" Foreground="#FF9AA7B8" TextWrapping="Wrap"
-                         Text="MP4 is universally supported. MKV supports advanced features. Higher resolutions mean larger file sizes." />
+                         Text="Quality changes the video compression bitrate. High preserves quality but increases size. Low minimizes file size." />
             </StackPanel>
           </Border>
 

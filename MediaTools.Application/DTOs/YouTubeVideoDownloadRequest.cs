@@ -8,4 +8,5 @@ public sealed record YouTubeVideoDownloadRequest(
     string OutputFolderPath,
     YouTubeVideoFormat VideoFormat,
     string Resolution,
+    string VideoQuality = "High",
     bool IsPlaylist = false);

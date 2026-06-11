@@ -33,6 +33,7 @@ public partial class YouTubeVideoViewModel : ObservableObject
         _preferences = preferences;
         _selectedFormat = AvailableFormats[0];
         _selectedResolution = AvailableResolutions[0]; // Best default
+        _selectedQuality = AvailableQualities[0]; // High default
     }
 
     // ── URL input ──────────────────────────────────────────
@@ -82,11 +83,17 @@ public partial class YouTubeVideoViewModel : ObservableObject
     public ObservableCollection<string> AvailableResolutions { get; } =
         ["Best", "4K (2160p)", "1440p", "1080p", "720p", "480p"];
 
+    public ObservableCollection<string> AvailableQualities { get; } =
+        ["High", "Medium", "Low"];
+
     [ObservableProperty]
     private string _selectedFormat;
 
     [ObservableProperty]
     private string _selectedResolution;
+
+    [ObservableProperty]
+    private string _selectedQuality;
 
     // ── State flags ────────────────────────────────────────
 
@@ -280,6 +287,7 @@ public partial class YouTubeVideoViewModel : ObservableObject
             OutputFolderPath: _preferences.SaveFolderPath,
             VideoFormat: ParseFormat(SelectedFormat),
             Resolution: SelectedResolution,
+            VideoQuality: SelectedQuality,
             IsPlaylist: false);
 
         var progress = new Progress<YouTubeDownloadProgress>(report =>
@@ -357,6 +365,7 @@ public partial class YouTubeVideoViewModel : ObservableObject
             OutputFolderPath: _preferences.SaveFolderPath,
             VideoFormat: ParseFormat(SelectedFormat),
             Resolution: SelectedResolution,
+            VideoQuality: SelectedQuality,
             IsPlaylist: false);
 
         var progress = new Progress<YouTubeDownloadProgress>(report =>

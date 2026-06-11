@@ -156,13 +156,13 @@ public sealed partial class YtDlpYouTubeVideoService : IYouTubeVideoService
         Directory.CreateDirectory(request.OutputFolderPath);
 
         var formatExt = MapFormatToExtension(request.VideoFormat);
-        var resolutionFilter = MapResolutionToFilter(request.Resolution);
+        var sortFilter = BuildSortFilter(request.Resolution, request.VideoQuality);
 
         var outputTemplate = Path.Combine(request.OutputFolderPath, "%(title)s.%(ext)s");
         var playlistArg = request.IsPlaylist ? "--yes-playlist" : "--no-playlist";
 
         // yt-dlp arguments for video downloading and merging
-        var args = $"-f \"{resolutionFilter}\" " +
+        var args = $"-f \"bv+ba/b\" -S \"{sortFilter}\" " +
                    $"--merge-output-format {formatExt} " +
                    $"{playlistArg} --newline --no-mtime " +
                    $"--ffmpeg-location \"{ToolPaths.FfmpegDirectory}\" " +
@@ -323,17 +323,31 @@ public sealed partial class YtDlpYouTubeVideoService : IYouTubeVideoService
             _ => "mp4"
         };
 
-    private static string MapResolutionToFilter(string resolution) =>
-        resolution switch
+    private static string BuildSortFilter(string resolution, string quality)
+    {
+        var resPart = resolution switch
         {
-            "4K (2160p)" => "bestvideo[height<=2160]+bestaudio/best",
-            "1440p" => "bestvideo[height<=1440]+bestaudio/best",
-            "1080p" => "bestvideo[height<=1080]+bestaudio/best",
-            "720p" => "bestvideo[height<=720]+bestaudio/best",
-            "480p" => "bestvideo[height<=480]+bestaudio/best",
-            "Best" => "bestvideo+bestaudio/best",
-            _ => "bestvideo+bestaudio/best"
+            "4K (2160p)" => "res:2160",
+            "1440p" => "res:1440",
+            "1080p" => "res:1080",
+            "720p" => "res:720",
+            "480p" => "res:480",
+            _ => ""
         };
+
+        var qualPart = quality switch
+        {
+            "High" => "br",
+            "Low" => "+br",
+            _ => "" // Medium uses default yt-dlp sort after resolution
+        };
+
+        var parts = new List<string>();
+        if (!string.IsNullOrEmpty(resPart)) parts.Add(resPart);
+        if (!string.IsNullOrEmpty(qualPart)) parts.Add(qualPart);
+
+        return parts.Count > 0 ? string.Join(",", parts) : "res";
+    }
 
     private static string? FindLatestFileInDirectory(string directory, string pattern)
     {

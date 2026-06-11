@@ -37,7 +37,7 @@
             <StackPanel Grid.Column="0">
               <TextBlock FontSize="26" FontWeight="SemiBold" Text="YouTube Audio Downloader" />
               <TextBlock Margin="0,6,0,0" FontSize="14" Foreground="#FF5F6B76" TextWrapping="Wrap"
-                         Text="Paste a YouTube link below and extract high-quality audio. Choose your format and quality, then download. Powered by yt-dlp &amp; FFmpeg — runs 100% locally." />
+                         Text="Paste a YouTube link below and extract high-quality audio. Choose your format and quality, then download." />
             </StackPanel>
 
             <!-- Animated waveform decoration -->
