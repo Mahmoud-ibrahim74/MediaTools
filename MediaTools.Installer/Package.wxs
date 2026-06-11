@@ -1,0 +1,55 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+  <Package Name="Media Tools" Manufacturer="Mahmoud Ibrahim" Version="1.0.0.0" UpgradeCode="d9e18b45-1c32-4d26-a0b5-123456789abc">
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+
+    <!-- Feature selection UI -->
+    <ui:WixUI Id="WixUI_FeatureTree" />
+
+    <Feature Id="Main" Title="Media Tools Core" Description="The core application files." Level="1" AllowAbsent="no">
+      <ComponentGroupRef Id="AppComponents" />
+    </Feature>
+
+    <Feature Id="StartMenuShortcutFeature" Title="Start Menu Shortcut" Description="Creates a shortcut in the Start Menu." Level="1">
+      <ComponentRef Id="ApplicationShortcut" />
+    </Feature>
+
+    <Feature Id="DesktopShortcutFeature" Title="Desktop Shortcut" Description="Creates a shortcut on the Desktop." Level="1">
+      <ComponentRef Id="DesktopShortcutComponent" />
+    </Feature>
+    
+    <!-- Install to Program Files -->
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="Media Tools" />
+    </StandardDirectory>
+
+    <!-- Start Menu Shortcut -->
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ApplicationProgramsFolder" Name="Media Tools" />
+    </StandardDirectory>
+
+    <DirectoryRef Id="ApplicationProgramsFolder">
+      <Component Id="ApplicationShortcut" Guid="e8c56c32-6a54-47b2-9d32-abcdef123456">
+        <Shortcut Id="ApplicationStartMenuShortcut"
+                  Name="Media Tools"
+                  Description="A collection of powerful media tools"
+                  Target="[INSTALLFOLDER]MediaTools.exe"
+                  WorkingDirectory="INSTALLFOLDER" />
+        <RemoveFolder Id="CleanUpShortCut" Directory="ApplicationProgramsFolder" On="uninstall" />
+        <RegistryValue Root="HKCU" Key="Software\MahmoudIbrahim\MediaTools\StartMenu" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <!-- Desktop Shortcut -->
+    <StandardDirectory Id="DesktopFolder">
+      <Component Id="DesktopShortcutComponent" Guid="a1b2c3d4-e5f6-47b2-9d32-abcdef123456">
+        <Shortcut Id="ApplicationDesktopShortcut"
+                  Name="Media Tools"
+                  Description="A collection of powerful media tools"
+                  Target="[INSTALLFOLDER]MediaTools.exe"
+                  WorkingDirectory="INSTALLFOLDER" />
+        <RegistryValue Root="HKCU" Key="Software\MahmoudIbrahim\MediaTools\Desktop" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </StandardDirectory>
+
+  </Package>
+</Wix>
