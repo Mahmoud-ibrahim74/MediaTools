@@ -110,6 +110,7 @@ public partial class MainWindow : MetroWindow
             "ScreenRecorder" => _services.GetRequiredService<ScreenRecorderPage>(),
             "VideoEnhancer" => _services.GetRequiredService<VideoEnhancerPage>(),
             "YouTubeAudio" => _services.GetRequiredService<YouTubeAudioPage>(),
+            "YouTubeVideo" => _services.GetRequiredService<YouTubeVideoPage>(),
             "AppSettings" => _services.GetRequiredService<AppSettingsPage>(),
             _ => null
         };

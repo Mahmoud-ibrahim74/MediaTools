@@ -19,6 +19,7 @@ public static class DependencyInjection
         services.AddSingleton<IVideoEncoderProbeService, FfmpegVideoEncoderProbeService>();
         services.AddSingleton<ICompressionJobRepository, InMemoryCompressionJobRepository>();
         services.AddSingleton<IYouTubeAudioService, YtDlpYouTubeAudioService>();
+        services.AddSingleton<IYouTubeVideoService, YtDlpYouTubeVideoService>();
         return services;
     }
 }

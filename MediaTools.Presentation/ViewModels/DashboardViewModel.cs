@@ -242,6 +242,9 @@ public partial class DashboardViewModel : ObservableObject
     [RelayCommand]
     private void GoToYouTubeAudio() => _shell.NavigateCommand.Execute("YouTubeAudio");
 
+    [RelayCommand]
+    private void GoToYouTubeVideo() => _shell.NavigateCommand.Execute("YouTubeVideo");
+
     private static string FormatBytes(long bytes)
     {
         const long kb = 1024;
