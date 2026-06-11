@@ -24,6 +24,7 @@ public static class GitHubUpdateHelper
         {
             using var client = new HttpClient();
             client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("MediaToolsApp", "1.0"));
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "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");
 
             var response = await client.GetAsync(RepoUrl).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
