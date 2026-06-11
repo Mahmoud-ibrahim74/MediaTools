@@ -99,6 +99,17 @@ Media Tools is built on the modern **.NET 9** framework.
 
 To build the setup installer, simply build the solution in `Release` configuration. The `MediaTools.Installer.wixproj` will automatically harvest the output files and generate an MSI.
 
+### Publishing Updates (GitHub Releases)
+The "Check for Updates" feature inside the app's About Window queries this repository's GitHub API to see if a newer version is available. To trigger an update for your users:
+1. Build the new installer (`MediaToolsInstaller.msi`) by building the solution in `Release` mode.
+2. Go to the [Releases page](https://github.com/Mahmoud-ibrahim74/MediaTools/releases) on GitHub and click **Draft a new release**.
+3. Choose or create a new tag. **Important:** The tag must match your new version number (e.g., `v1.0.1` or `1.0.1`).
+4. Set the Release Title (e.g., "Media Tools v1.0.1").
+5. Upload the built `MediaToolsInstaller.msi` to the "Attach binaries" section.
+6. Click **Publish release**.
+
+When users click "Check for Updates" in the app, it will see the new tag, compare it to their current version, and prompt them to download the new `.msi`!
+
 ---
 
 ## 👨‍💻 About the Developer

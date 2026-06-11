@@ -59,7 +59,12 @@
                 <TextBlock Text="Mahmoud Ibrahim" FontSize="26" FontWeight="SemiBold" HorizontalAlignment="Center"/>
                 <TextBlock Text="Software Engineer &amp; .NET Developer" FontSize="14" Foreground="#FF5F6B76" HorizontalAlignment="Center" Margin="0,6,0,24"/>
                 
-                <TextBlock x:Name="VersionText" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentPrimaryBrush}" HorizontalAlignment="Center" Margin="0,0,0,32"/>
+                <TextBlock x:Name="VersionText" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentPrimaryBrush}" HorizontalAlignment="Center" Margin="0,0,0,16"/>
+                
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,32">
+                    <Button x:Name="CheckUpdateBtn" Content="Check for updates" Click="CheckUpdate_Click" Style="{DynamicResource OutlinedButtonStyle}" MinWidth="140" />
+                    <mah:ProgressRing x:Name="UpdateProgress" Width="20" Height="20" Margin="10,0,0,0" Visibility="Collapsed" IsActive="False" />
+                </StackPanel>
                 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                     <Button Margin="10" CommandParameter="https://www.linkedin.com/in/mahmoud-ibrahim74?utm_source=share_via&amp;utm_content=profile&amp;utm_medium=member_android" Click="OpenLink_Click" Style="{StaticResource SocialButtonStyle}" ToolTip="LinkedIn">

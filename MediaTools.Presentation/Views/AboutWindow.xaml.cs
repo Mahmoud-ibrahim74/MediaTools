@@ -35,4 +35,46 @@ public partial class AboutWindow : MetroWindow
             }
         }
     }
+
+    private async void CheckUpdate_Click(object sender, RoutedEventArgs e)
+    {
+        CheckUpdateBtn.IsEnabled = false;
+        UpdateProgress.Visibility = Visibility.Visible;
+        UpdateProgress.IsActive = true;
+
+        var result = await Helpers.GitHubUpdateHelper.CheckForUpdatesAsync();
+
+        UpdateProgress.IsActive = false;
+        UpdateProgress.Visibility = Visibility.Collapsed;
+        CheckUpdateBtn.IsEnabled = true;
+
+        if (result.IsUpdateAvailable)
+        {
+            var msgResult = Helpers.MessageBoxHelper.Show(
+                $"A new version ({result.LatestVersion}) is available on GitHub!\n\nWould you like to open the download page?",
+                "Update Available",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Information);
+
+            if (msgResult == MessageBoxResult.Yes)
+            {
+                try
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = result.ReleaseUrl,
+                        UseShellExecute = true
+                    });
+                }
+                catch
+                {
+                    // Ignore
+                }
+            }
+        }
+        else
+        {
+            Helpers.MessageBoxHelper.ShowInformation("You have the latest version!", "Up to Date");
+        }
+    }
 }
