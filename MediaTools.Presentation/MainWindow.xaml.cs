@@ -120,4 +120,13 @@ public partial class MainWindow : MetroWindow
             ContentFrame.Navigate(page);
         }
     }
+
+    private void AboutButton_Click(object sender, RoutedEventArgs e)
+    {
+        var aboutWindow = new AboutWindow
+        {
+            Owner = this
+        };
+        aboutWindow.ShowDialog();
+    }
 }

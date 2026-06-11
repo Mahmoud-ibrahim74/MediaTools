@@ -38,6 +38,7 @@
 
   <ItemGroup>
     <Resource Include="optimizing.png" />
+    <Resource Include="owner.jpg" />
   </ItemGroup>
 
 </Project>
