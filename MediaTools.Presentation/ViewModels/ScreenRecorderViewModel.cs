@@ -131,7 +131,14 @@ public partial class ScreenRecorderViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowMicrophonePicker))]
+    [NotifyPropertyChangedFor(nameof(ShowMicMutedWarning))]
     private bool _includeMicrophone;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowMicMutedWarning))]
+    private bool _isMicrophoneMuted;
+
+    public bool ShowMicMutedWarning => IncludeMicrophone && IsMicrophoneMuted;
 
     [ObservableProperty]
     private AudioInputDeviceDto? _selectedMicrophone;
@@ -289,6 +296,24 @@ public partial class ScreenRecorderViewModel : ObservableObject
             {
                 MessageBoxHelper.ShowWarning("No microphone device was found. Disable microphone or connect a device.");
                 return;
+            }
+        }
+
+        // Re-check mute state right before recording starts.
+        if (IncludeMicrophone)
+        {
+            CheckMicrophoneMuteState();
+            if (IsMicrophoneMuted)
+            {
+                var answer = MessageBoxHelper.Show(
+                    "Your microphone is currently muted in Windows.\nThe recording will capture silence from the mic.\n\nDo you want to continue anyway?",
+                    "Microphone Muted",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+                if (answer != MessageBoxResult.Yes)
+                {
+                    return;
+                }
             }
         }
 
@@ -557,7 +582,11 @@ public partial class ScreenRecorderViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void RefreshDevices() => _ = LoadMicrophonesAsync();
+    private async Task RefreshDevicesAsync()
+    {
+        await LoadMicrophonesAsync().ConfigureAwait(true);
+        CheckMicrophoneMuteState();
+    }
 
     private ScreenRecordingSettings BuildSettings()
     {
@@ -684,6 +713,35 @@ public partial class ScreenRecorderViewModel : ObservableObject
         if (value)
         {
             _ = LoadMicrophonesAsync();
+            CheckMicrophoneMuteState();
+        }
+        else
+        {
+            IsMicrophoneMuted = false;
+        }
+    }
+
+    partial void OnSelectedMicrophoneChanged(AudioInputDeviceDto? value)
+    {
+        if (IncludeMicrophone)
+        {
+            CheckMicrophoneMuteState();
+        }
+    }
+
+    /// <summary>
+    /// Queries the Windows Core Audio API to determine whether the default
+    /// capture device is muted, and updates <see cref="IsMicrophoneMuted"/>.
+    /// </summary>
+    private void CheckMicrophoneMuteState()
+    {
+        try
+        {
+            IsMicrophoneMuted = MicrophoneMuteHelper.IsDefaultMicrophoneMuted();
+        }
+        catch
+        {
+            IsMicrophoneMuted = false;
         }
     }
 
