@@ -51,7 +51,7 @@ public partial class AboutWindow : MetroWindow
         if (result.IsUpdateAvailable)
         {
             var msgResult = Helpers.MessageBoxHelper.Show(
-                $"A new version ({result.LatestVersion}) is available on GitHub!\n\nWould you like to open the download page?",
+                $"A new version ({result.LatestVersion}) is available on GitHub!\n\nWould you like to download the update?",
                 "Update Available",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Information);
@@ -62,7 +62,7 @@ public partial class AboutWindow : MetroWindow
                 {
                     Process.Start(new ProcessStartInfo
                     {
-                        FileName = result.ReleaseUrl,
+                        FileName = result.DownloadUrl,
                         UseShellExecute = true
                     });
                 }

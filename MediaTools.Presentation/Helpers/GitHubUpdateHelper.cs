@@ -11,7 +11,7 @@ public class GitHubUpdateResult
 {
     public bool IsUpdateAvailable { get; set; }
     public string LatestVersion { get; set; } = string.Empty;
-    public string ReleaseUrl { get; set; } = string.Empty;
+    public string DownloadUrl { get; set; } = string.Empty;
 }
 
 public static class GitHubUpdateHelper
@@ -59,7 +59,7 @@ public static class GitHubUpdateHelper
                     {
                         IsUpdateAvailable = true,
                         LatestVersion = tagName,
-                        ReleaseUrl = htmlUrl
+                        DownloadUrl = $"https://github.com/Mahmoud-ibrahim74/MediaTools/releases/download/{tagName}/MediaToolsInstaller.msi"
                     };
                 }
             }
