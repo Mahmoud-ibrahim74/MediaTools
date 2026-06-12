@@ -129,4 +129,13 @@ public partial class MainWindow : MetroWindow
         };
         aboutWindow.ShowDialog();
     }
+
+    private void SupportButton_Click(object sender, RoutedEventArgs e)
+    {
+        var supportWindow = new SupportUsWindow
+        {
+            Owner = this
+        };
+        supportWindow.ShowDialog();
+    }
 }
