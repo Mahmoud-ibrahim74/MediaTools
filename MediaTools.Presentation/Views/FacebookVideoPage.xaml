@@ -11,7 +11,7 @@
         Background="{DynamicResource ContentBackgroundBrush}"
         UseLayoutRounding="True">
     <ScrollViewer x:Name="FacebookVideoScroll"
-                  Padding="24"
+                  Padding="20"
                   HorizontalAlignment="Stretch"
                   VerticalAlignment="Stretch"
                   HorizontalScrollBarVisibility="Disabled"
@@ -19,18 +19,18 @@
       <Grid Width="{Binding ViewportWidth, ElementName=FacebookVideoScroll}"
             HorizontalAlignment="Stretch">
         <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="*" MinWidth="340" />
+          <ColumnDefinition Width="*" MinWidth="320" />
           <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
 
         <StackPanel Grid.Column="0"
-                    Margin="0,0,24,0"
+                    Margin="0,0,16,0"
                     HorizontalAlignment="Stretch">
 
           <!-- ══════════════════════════════════════════════════════ -->
           <!-- HEADER with animated waveform bars                    -->
           <!-- ══════════════════════════════════════════════════════ -->
-          <Grid Margin="0,0,0,24">
+          <Grid Margin="0,0,0,20">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="Auto" />
@@ -41,9 +41,11 @@
                                             VerticalAlignment="Center"
                                             Foreground="#FF1877F2"
                                             Kind="Facebook" />
-                <TextBlock Margin="10,0,0,0" FontSize="26" FontWeight="SemiBold" Text="Facebook Video Queue Downloader" />
+                <TextBlock Margin="10,0,0,0" FontSize="24" FontWeight="SemiBold"
+                           TextWrapping="Wrap"
+                           Text="Facebook Video Queue Downloader" />
               </StackPanel>
-              <TextBlock Margin="0,6,0,0" FontSize="14" Foreground="#FF5F6B76" TextWrapping="Wrap"
+              <TextBlock Margin="0,6,0,0" FontSize="13" Foreground="#FF5F6B76" TextWrapping="Wrap"
                          Text="Add multiple Facebook Video or Reel links to the sequential download queue. Downloads proceed safely one by one to avoid Facebook rate limits and bot bans." />
             </StackPanel>
 
@@ -51,7 +53,7 @@
             <StackPanel Grid.Column="1"
                         Orientation="Horizontal"
                         VerticalAlignment="Center"
-                        Margin="16,0,0,0"
+                        Margin="12,0,0,0"
                         Opacity="0.6">
               <StackPanel.Resources>
                 <Storyboard x:Key="WaveAnim" RepeatBehavior="Forever">
@@ -88,7 +90,7 @@
           <!-- ══════════════════════════════════════════════════════ -->
           <!-- URL INPUT & FORMAT SELECTION CARD                      -->
           <!-- ══════════════════════════════════════════════════════ -->
-          <Border Padding="20" Style="{DynamicResource CardBorderStyle}">
+          <Border Padding="18" Style="{DynamicResource CardBorderStyle}">
             <StackPanel>
               <TextBlock FontWeight="SemiBold" FontSize="15" Margin="0,0,0,10"
                          Text="Add Facebook Video to Queue" />
@@ -101,7 +103,7 @@
                 </Grid.ColumnDefinitions>
 
                 <TextBox Grid.Column="0"
-                         Padding="12,10"
+                         Padding="12,9"
                          FontSize="14"
                          Text="{Binding FacebookUrl, UpdateSourceTrigger=PropertyChanged}"
                          VerticalContentAlignment="Center"
@@ -122,7 +124,7 @@
                         Style="{DynamicResource OutlinedButtonStyle}"
                         ToolTip="Paste URL from clipboard">
                   <StackPanel Orientation="Horizontal">
-                    <iconPacks:PackIconMaterial Width="16" Height="16"
+                    <iconPacks:PackIconMaterial Width="15" Height="15"
                                                 Margin="0,0,6,0"
                                                 VerticalAlignment="Center"
                                                 Kind="ContentPaste" />
@@ -132,12 +134,13 @@
 
                 <Button Grid.Column="2"
                         Margin="8,0,0,0"
-                        MinWidth="130"
+                        MinWidth="120"
+                        Padding="14,8"
                         Command="{Binding AddToQueueCommand}"
                         Style="{DynamicResource PrimaryButtonStyle}">
                   <StackPanel Orientation="Horizontal">
-                    <iconPacks:PackIconMaterial Width="16" Height="16"
-                                                Margin="0,0,8,0"
+                    <iconPacks:PackIconMaterial Width="15" Height="15"
+                                                Margin="0,0,6,0"
                                                 VerticalAlignment="Center"
                                                 Kind="PlaylistPlus" />
                     <TextBlock VerticalAlignment="Center" Text="Add to Queue" />
@@ -145,33 +148,33 @@
                 </Button>
               </Grid>
 
-              <!-- Format, Resolution & Quality Selection for added items -->
-              <Grid Margin="0,16,0,0">
+              <!-- Format, Resolution & Quality Selection (Responsive Grid) -->
+              <Grid Margin="0,14,0,0">
                 <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="*" />
-                  <ColumnDefinition Width="16" />
-                  <ColumnDefinition Width="*" />
-                  <ColumnDefinition Width="16" />
-                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="*" MinWidth="100" />
+                  <ColumnDefinition Width="12" />
+                  <ColumnDefinition Width="*" MinWidth="100" />
+                  <ColumnDefinition Width="12" />
+                  <ColumnDefinition Width="*" MinWidth="100" />
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0">
                   <TextBlock FontSize="12" Foreground="#FF5F6B76" Text="Format" />
-                  <ComboBox Margin="0,6,0,0"
+                  <ComboBox Margin="0,5,0,0"
                             ItemsSource="{Binding AvailableFormats}"
                             SelectedItem="{Binding SelectedFormat}" />
                 </StackPanel>
 
                 <StackPanel Grid.Column="2">
                   <TextBlock FontSize="12" Foreground="#FF5F6B76" Text="Resolution" />
-                  <ComboBox Margin="0,6,0,0"
+                  <ComboBox Margin="0,5,0,0"
                             ItemsSource="{Binding AvailableResolutions}"
                             SelectedItem="{Binding SelectedResolution}" />
                 </StackPanel>
 
                 <StackPanel Grid.Column="4">
                   <TextBlock FontSize="12" Foreground="#FF5F6B76" Text="Video Quality" />
-                  <ComboBox Margin="0,6,0,0"
+                  <ComboBox Margin="0,5,0,0"
                             ItemsSource="{Binding AvailableQualities}"
                             SelectedItem="{Binding SelectedQuality}" />
                 </StackPanel>
@@ -189,120 +192,117 @@
           </Border>
 
           <!-- ══════════════════════════════════════════════════════ -->
-          <!-- QUEUE CONTROLS & OVERALL STATUS CARD                   -->
+          <!-- RESPONSIVE QUEUE CONTROLS & OVERALL STATUS CARD        -->
           <!-- ══════════════════════════════════════════════════════ -->
-          <Border Margin="0,16,0,0" Padding="20" Style="{DynamicResource CardBorderStyle}">
+          <Border Margin="0,14,0,0" Padding="18" Style="{DynamicResource CardBorderStyle}">
             <StackPanel>
-              <Grid>
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="*" />
-                  <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-
-                <!-- Queue status header -->
-                <StackPanel Grid.Column="0">
-                  <StackPanel Orientation="Horizontal">
-                    <iconPacks:PackIconMaterial Width="20" Height="20"
-                                                VerticalAlignment="Center"
-                                                Foreground="{DynamicResource AccentPrimaryBrush}"
-                                                Kind="TrayFull" />
-                    <TextBlock Margin="10,0,0,0" VerticalAlignment="Center"
-                               FontWeight="SemiBold" FontSize="16"
-                               Text="Sequential Download Queue" />
-                    <Border Margin="12,0,0,0" Padding="8,3" CornerRadius="10"
-                            Background="#1A1877F2" VerticalAlignment="Center">
-                      <TextBlock FontSize="11" FontWeight="SemiBold" Foreground="#FF1877F2"
-                                 Text="{Binding TotalQueueCount, StringFormat='{}{0} item(s)'}" />
-                    </Border>
-                  </StackPanel>
-                  <TextBlock Margin="0,6,0,0" FontSize="13" Foreground="#FF5F6B76"
-                             Text="{Binding QueueStatusMessage}" />
+              <!-- Responsive Header & Controls with WrapPanel -->
+              <WrapPanel HorizontalAlignment="Stretch" VerticalAlignment="Center">
+                <!-- Status Title & Item Count Badge -->
+                <StackPanel Orientation="Horizontal" Margin="0,0,16,10" VerticalAlignment="Center">
+                  <iconPacks:PackIconMaterial Width="20" Height="20"
+                                              VerticalAlignment="Center"
+                                              Foreground="{DynamicResource AccentPrimaryBrush}"
+                                              Kind="TrayFull" />
+                  <TextBlock Margin="8,0,0,0" VerticalAlignment="Center"
+                             FontWeight="SemiBold" FontSize="16"
+                             Text="Sequential Download Queue" />
+                  <Border Margin="10,0,0,0" Padding="8,2" CornerRadius="10"
+                          Background="#1A1877F2" VerticalAlignment="Center">
+                    <TextBlock FontSize="11" FontWeight="SemiBold" Foreground="#FF1877F2"
+                               Text="{Binding TotalQueueCount, StringFormat='{}{0} item(s)'}" />
+                  </Border>
                 </StackPanel>
 
-                <!-- Action buttons -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                  <Button Margin="0,0,8,0" Padding="12,7"
+                <!-- Action buttons WrapPanel (Wraps smoothly when window shrinks) -->
+                <WrapPanel VerticalAlignment="Center" Margin="0,0,0,10">
+                  <Button Margin="0,0,6,4" Padding="10,6"
                           Command="{Binding ClearCompletedCommand}"
                           IsEnabled="{Binding IsNotQueueRunning}"
                           Style="{DynamicResource OutlinedButtonStyle}"
                           ToolTip="Remove finished downloads from list">
                     <StackPanel Orientation="Horizontal">
-                      <iconPacks:PackIconMaterial Width="14" Height="14" Margin="0,0,6,0" Kind="CheckAll" />
-                      <TextBlock Text="Clear Done" />
+                      <iconPacks:PackIconMaterial Width="13" Height="13" Margin="0,0,4,0" Kind="CheckAll" />
+                      <TextBlock FontSize="12" Text="Clear Done" />
                     </StackPanel>
                   </Button>
 
-                  <Button Margin="0,0,8,0" Padding="12,7"
+                  <Button Margin="0,0,6,4" Padding="10,6"
                           Command="{Binding ClearAllCommand}"
                           IsEnabled="{Binding IsNotQueueRunning}"
                           Style="{DynamicResource OutlinedButtonStyle}"
                           ToolTip="Clear entire queue">
                     <StackPanel Orientation="Horizontal">
-                      <iconPacks:PackIconMaterial Width="14" Height="14" Margin="0,0,6,0" Kind="DeleteSweepOutline" />
-                      <TextBlock Text="Clear All" />
+                      <iconPacks:PackIconMaterial Width="13" Height="13" Margin="0,0,4,0" Kind="DeleteSweepOutline" />
+                      <TextBlock FontSize="12" Text="Clear All" />
                     </StackPanel>
                   </Button>
 
-                  <Button MinWidth="140" Padding="16,8"
+                  <Button MinWidth="120" Margin="0,0,0,4" Padding="14,6"
                           Command="{Binding StartQueueCommand}"
                           Visibility="{Binding IsNotQueueRunning, Converter={StaticResource BoolToVisibilityConverter}}"
                           Style="{DynamicResource PrimaryButtonStyle}">
                     <StackPanel Orientation="Horizontal">
-                      <iconPacks:PackIconMaterial Width="16" Height="16" Margin="0,0,8,0" Kind="Play" />
-                      <TextBlock Text="Start Queue" FontWeight="SemiBold" />
+                      <iconPacks:PackIconMaterial Width="14" Height="14" Margin="0,0,6,0" Kind="Play" />
+                      <TextBlock FontSize="12" Text="Start Queue" FontWeight="SemiBold" />
                     </StackPanel>
                   </Button>
 
-                  <Button MinWidth="130" Padding="16,8"
+                  <Button MinWidth="120" Margin="0,0,0,4" Padding="14,6"
                           Command="{Binding CancelQueueCommand}"
                           Visibility="{Binding IsQueueRunning, Converter={StaticResource BoolToVisibilityConverter}}"
                           Style="{DynamicResource OutlinedButtonStyle}">
                     <StackPanel Orientation="Horizontal">
-                      <iconPacks:PackIconMaterial Width="16" Height="16" Margin="0,0,8,0" Kind="Stop" />
-                      <TextBlock Text="Stop Queue" FontWeight="SemiBold" />
+                      <iconPacks:PackIconMaterial Width="14" Height="14" Margin="0,0,6,0" Kind="Stop" />
+                      <TextBlock FontSize="12" Text="Stop Queue" FontWeight="SemiBold" />
                     </StackPanel>
                   </Button>
-                </StackPanel>
-              </Grid>
+                </WrapPanel>
+              </WrapPanel>
+
+              <!-- Queue status description -->
+              <TextBlock FontSize="13" Foreground="#FF5F6B76" TextWrapping="Wrap"
+                         Text="{Binding QueueStatusMessage}" />
 
               <!-- Overall progress bar -->
-              <Grid Margin="0,16,0,0">
-                <ProgressBar Height="8" Maximum="100"
+              <Grid Margin="0,12,0,0">
+                <ProgressBar Height="7" Maximum="100"
                              Style="{DynamicResource MetroProgressBarRounded}"
                              Value="{Binding OverallProgressPercent}" />
               </Grid>
 
               <!-- Anti-Ban Protection Banner (shown during inter-download delay) -->
-              <Border Margin="0,12,0,0" Padding="12,8" CornerRadius="6"
+              <Border Margin="0,10,0,0" Padding="10,7" CornerRadius="6"
                       Background="#141877F2" BorderBrush="#FF1877F2" BorderThickness="1"
                       Visibility="{Binding ShowCooldownNotice, Converter={StaticResource BoolToVisibilityConverter}}">
                 <StackPanel Orientation="Horizontal">
-                  <iconPacks:PackIconMaterial Width="16" Height="16" VerticalAlignment="Center"
+                  <iconPacks:PackIconMaterial Width="15" Height="15" VerticalAlignment="Center"
                                               Foreground="#FF1877F2" Kind="ShieldCheck" />
                   <TextBlock Margin="8,0,0,0" VerticalAlignment="Center" FontSize="12" FontWeight="Medium"
-                             Foreground="#FF1877F2" Text="{Binding CooldownMessage}" />
+                             Foreground="#FF1877F2" TextWrapping="Wrap"
+                             Text="{Binding CooldownMessage}" />
                 </StackPanel>
               </Border>
             </StackPanel>
           </Border>
 
           <!-- ══════════════════════════════════════════════════════ -->
-          <!-- QUEUE ITEMS LIST                                       -->
+          <!-- RESPONSIVE QUEUE ITEMS LIST                            -->
           <!-- ══════════════════════════════════════════════════════ -->
-          <StackPanel Margin="0,16,0,32">
+          <StackPanel Margin="0,14,0,32">
             <!-- Empty state placeholder -->
-            <Border Padding="40,32" Style="{DynamicResource CardBorderStyle}"
+            <Border Padding="36,28" Style="{DynamicResource CardBorderStyle}"
                     Visibility="{Binding IsEmptyQueue, Converter={StaticResource BoolToVisibilityConverter}}">
               <StackPanel HorizontalAlignment="Center">
-                <iconPacks:PackIconMaterial Width="48" Height="48"
+                <iconPacks:PackIconMaterial Width="44" Height="44"
                                             HorizontalAlignment="Center"
                                             Foreground="#FF9AA7B8"
                                             Kind="PlaylistMusicOutline" />
-                <TextBlock Margin="0,12,0,0" FontSize="16" FontWeight="SemiBold"
+                <TextBlock Margin="0,10,0,0" FontSize="15" FontWeight="SemiBold"
                            HorizontalAlignment="Center" Foreground="#FF5F6B76"
                            Text="Your download queue is empty" />
-                <TextBlock Margin="0,4,0,0" FontSize="13" Foreground="#FF9AA7B8"
-                           HorizontalAlignment="Center"
+                <TextBlock Margin="0,4,0,0" FontSize="12" Foreground="#FF9AA7B8"
+                           HorizontalAlignment="Center" TextWrapping="Wrap"
                            Text="Paste one or more Facebook links above and click 'Add to Queue'." />
               </StackPanel>
             </Border>
@@ -311,21 +311,22 @@
             <ItemsControl ItemsSource="{Binding QueueItems}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type vm:FacebookQueueItemViewModel}">
-                  <Border Margin="0,0,0,12" Padding="16" Style="{DynamicResource CardBorderStyle}">
+                  <Border Margin="0,0,0,10" Padding="14" Style="{DynamicResource CardBorderStyle}">
                     <Grid>
                       <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" MinWidth="180" />
                         <ColumnDefinition Width="Auto" />
                       </Grid.ColumnDefinitions>
 
                       <!-- Thumbnail or default icon -->
-                      <Border Grid.Column="0" Width="80" Height="54" CornerRadius="6"
-                              ClipToBounds="True" Background="#FF1E293B" Margin="0,0,16,0">
+                      <Border Grid.Column="0" Width="72" Height="48" CornerRadius="6"
+                              ClipToBounds="True" Background="#FF1E293B" Margin="0,0,12,0"
+                              VerticalAlignment="Center">
                         <Grid>
                           <Image Source="{Binding ThumbnailImage}" Stretch="UniformToFill" />
                           <!-- Fallback icon if no thumbnail -->
-                          <iconPacks:PackIconMaterial Width="24" Height="24"
+                          <iconPacks:PackIconMaterial Width="22" Height="22"
                                                       HorizontalAlignment="Center"
                                                       VerticalAlignment="Center"
                                                       Foreground="#FF94A3B8"
@@ -333,23 +334,25 @@
                         </Grid>
                       </Border>
 
-                      <!-- Info & Progress details -->
+                      <!-- Info & Progress details (Responsive layout) -->
                       <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                        <!-- Title line -->
-                        <TextBlock FontSize="14" FontWeight="SemiBold"
+                        <!-- Title line (Ellipsis on resize) -->
+                        <TextBlock FontSize="13.5" FontWeight="SemiBold"
                                    TextTrimming="CharacterEllipsis"
                                    Text="{Binding Title}" />
 
-                        <!-- Author & Status line -->
-                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                          <TextBlock FontSize="12" Foreground="#FF5F6B76"
+                        <!-- Author, Duration, Status & Metrics (WrapPanel for adaptive width) -->
+                        <WrapPanel Margin="0,4,0,0" VerticalAlignment="Center">
+                          <TextBlock FontSize="12" Foreground="#FF5F6B76" Margin="0,0,8,0"
+                                     TextTrimming="CharacterEllipsis"
+                                     MaxWidth="180"
                                      Text="{Binding AuthorName}" />
-                          <TextBlock Margin="8,0,0,0" FontSize="12" Foreground="#FF9AA7B8"
+                          <TextBlock FontSize="12" Foreground="#FF9AA7B8" Margin="0,0,8,0"
                                      Text="{Binding DurationDisplay}"
                                      Visibility="{Binding HasDuration, Converter={StaticResource BoolToVisibilityConverter}}" />
                           
                           <!-- Status badge -->
-                          <TextBlock Margin="10,0,0,0" FontSize="12" FontWeight="SemiBold">
+                          <TextBlock FontSize="12" FontWeight="SemiBold" Margin="0,0,8,0">
                             <TextBlock.Style>
                               <Style TargetType="TextBlock">
                                 <Setter Property="Text" Value="{Binding ProgressStatusText}" />
@@ -372,17 +375,17 @@
                             </TextBlock.Style>
                           </TextBlock>
 
-                          <!-- Speed & ETA if active -->
-                          <TextBlock Margin="12,0,0,0" FontSize="11" Foreground="#FF9AA7B8"
+                          <!-- Speed & ETA when downloading -->
+                          <TextBlock FontSize="11" Foreground="#FF9AA7B8" Margin="0,0,6,0"
                                      Text="{Binding DownloadSpeedDisplay}"
                                      Visibility="{Binding IsActive, Converter={StaticResource BoolToVisibilityConverter}}" />
-                          <TextBlock Margin="8,0,0,0" FontSize="11" Foreground="#FF9AA7B8"
+                          <TextBlock FontSize="11" Foreground="#FF9AA7B8"
                                      Text="{Binding EtaDisplay, StringFormat='ETA: {0}'}"
                                      Visibility="{Binding IsActive, Converter={StaticResource BoolToVisibilityConverter}}" />
-                        </StackPanel>
+                        </WrapPanel>
 
                         <!-- Individual Progress bar -->
-                        <ProgressBar Height="4" Margin="0,8,0,0" Maximum="100"
+                        <ProgressBar Height="4" Margin="0,6,0,0" Maximum="100"
                                      Style="{DynamicResource MetroProgressBarRounded}"
                                      Value="{Binding ProgressPercentDisplay}"
                                      Visibility="{Binding IsActive, Converter={StaticResource BoolToVisibilityConverter}}" />
@@ -393,10 +396,10 @@
                                    Visibility="{Binding HasError, Converter={StaticResource BoolToVisibilityConverter}}" />
                       </StackPanel>
 
-                      <!-- Action Button on Right -->
-                      <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                      <!-- Action Buttons on Right -->
+                      <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
                         <!-- Open Folder Button -->
-                        <Button Padding="10,6" Margin="0,0,6,0"
+                        <Button Padding="9,5" Margin="0,0,6,0"
                                 Command="{Binding OpenFolderCommand}"
                                 ToolTip="Open folder with downloaded file">
                           <Button.Style>
@@ -410,18 +413,18 @@
                             </Style>
                           </Button.Style>
                           <StackPanel Orientation="Horizontal">
-                            <iconPacks:PackIconMaterial Width="14" Height="14" Margin="0,0,4,0" Kind="FolderOpen" />
-                            <TextBlock FontSize="12" Text="Open" />
+                            <iconPacks:PackIconMaterial Width="13" Height="13" Margin="0,0,4,0" Kind="FolderOpen" />
+                            <TextBlock FontSize="11" Text="Open" />
                           </StackPanel>
                         </Button>
 
                         <!-- Remove from queue button -->
-                        <Button Padding="8,6"
+                        <Button Padding="7,5"
                                 Command="{Binding RemoveCommand}"
                                 IsEnabled="{Binding CanRemove}"
                                 Style="{DynamicResource OutlinedButtonStyle}"
                                 ToolTip="Remove from queue">
-                          <iconPacks:PackIconMaterial Width="14" Height="14" Kind="Close" />
+                          <iconPacks:PackIconMaterial Width="13" Height="13" Kind="Close" />
                         </Button>
                       </StackPanel>
                     </Grid>
@@ -436,8 +439,8 @@
         <!-- TIPS SIDEBAR                                          -->
         <!-- ══════════════════════════════════════════════════════ -->
         <Expander Grid.Column="1"
-                  MinWidth="260"
-                  MaxWidth="400"
+                  MinWidth="240"
+                  MaxWidth="340"
                   HorizontalAlignment="Stretch"
                   Background="Transparent"
                   BorderThickness="0"
@@ -445,24 +448,24 @@
                   Header="Tips &amp; queue safety"
                   IsExpanded="False">
           <StackPanel>
-            <Border Padding="16" Style="{DynamicResource CardBorderStyle}">
+            <Border Padding="14" Style="{DynamicResource CardBorderStyle}">
               <StackPanel>
-                <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Anti-Ban Protection" />
-                <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
+                <TextBlock Margin="0,0,0,6" FontWeight="SemiBold" Text="Anti-Ban Protection" />
+                <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap" FontSize="12"
                            Text="Downloading multiple videos simultaneously can trigger Facebook's rate-limits or temporary IP block. The queue downloads strictly one video at a time with a safety cooldown." />
               </StackPanel>
             </Border>
-            <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">
+            <Border Margin="0,12,0,0" Padding="14" Style="{DynamicResource CardBorderStyle}">
               <StackPanel>
-                <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Batch URL Adding" />
-                <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
+                <TextBlock Margin="0,0,0,6" FontWeight="SemiBold" Text="Batch URL Adding" />
+                <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap" FontSize="12"
                            Text="You can paste multiple links at once separated by newlines or spaces. They will all be validated and queued in order." />
               </StackPanel>
             </Border>
-            <Border Margin="0,16,0,0" Padding="16" Style="{DynamicResource CardBorderStyle}">
+            <Border Margin="0,12,0,0" Padding="14" Style="{DynamicResource CardBorderStyle}">
               <StackPanel>
-                <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="DASH Stream Merging" />
-                <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap"
+                <TextBlock Margin="0,0,0,6" FontWeight="SemiBold" Text="DASH Stream Merging" />
+                <TextBlock Foreground="#FF5F6B76" TextWrapping="Wrap" FontSize="12"
                            Text="Facebook serves high-definition video and audio in separate tracks. FFmpeg multiplexes each item into a clean, standalone MP4 file upon download completion." />
               </StackPanel>
             </Border>
