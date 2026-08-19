@@ -18,7 +18,7 @@ public partial class MainWindowViewModel : ObservableObject
         _videoCompression.ToolsAvailabilityChanged += OnToolsAvailabilityChanged;
 
         var v = Assembly.GetExecutingAssembly().GetName().Version;
-        AppVersionDisplay = v is null ? "1.0" : $"{v.Major}.{v.Minor}.{v.Build}";
+        AppVersionDisplay = v is null ? "2.0.0" : $"{v.Major}.{v.Minor}.{v.Build}";
 
         SyncFfmpegFromService();
     }
@@ -55,7 +55,7 @@ public partial class MainWindowViewModel : ObservableObject
     private string _currentNavigationKey = "Dashboard";
 
     [ObservableProperty]
-    private string _appVersionDisplay = "1.0";
+    private string _appVersionDisplay = "2.0.0";
 
     [ObservableProperty]
     private bool _isFfmpegReady;

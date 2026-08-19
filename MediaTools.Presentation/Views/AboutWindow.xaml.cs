@@ -13,7 +13,7 @@ public partial class AboutWindow : MetroWindow
         InitializeComponent();
         
         var v = Assembly.GetExecutingAssembly().GetName().Version;
-        var versionString = v is null ? "1.0" : $"{v.Major}.{v.Minor}.{v.Build}";
+        var versionString = v is null ? "2.0.0" : $"{v.Major}.{v.Minor}.{v.Build}";
         VersionText.Text = $"Media Tools v{versionString}";
     }
 

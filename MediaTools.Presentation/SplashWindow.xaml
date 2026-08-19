@@ -189,7 +189,7 @@
                        FontSize="56"
                        FontWeight="Normal"
                        Foreground="#FFF5F8FB"
-                       Text="" />
+                       Text="v2.0.0" />
 
             <!-- Logo + titles -->
             <StackPanel Grid.Column="1"

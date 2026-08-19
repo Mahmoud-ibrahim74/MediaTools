@@ -9,7 +9,7 @@
                  mc:Ignorable="d"
                  Title="Media Tools"
                  Width="1200"
-                 Height="830"
+                 Height="850"
                  MinWidth="960"
                  MinHeight="600"
                  WindowStartupLocation="CenterScreen"
