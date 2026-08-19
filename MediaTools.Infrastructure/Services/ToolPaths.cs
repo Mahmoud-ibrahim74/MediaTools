@@ -2,14 +2,13 @@ namespace MediaTools.Infrastructure.Services;
 
 /// <summary>
 /// Central location for all external tool paths.
-/// Tools are stored under <c>%TEMP%\MediaTools\</c> so the application directory stays clean
-/// and tools survive across app updates in the same location.
+/// Tools are stored in the application base directory (<c>AppContext.BaseDirectory\Tools\</c>).
 /// </summary>
 public static class ToolPaths
 {
-    /// <summary>Root directory for all downloaded tools.</summary>
+    /// <summary>Root directory for all downloaded tools within the application folder.</summary>
     public static readonly string RootDirectory =
-        Path.Combine(Path.GetTempPath(), "MediaTools");
+        Path.Combine(AppContext.BaseDirectory, "Tools");
 
     /// <summary>Directory containing ffmpeg.exe and ffprobe.exe.</summary>
     public static readonly string FfmpegDirectory =

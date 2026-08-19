@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.14.37216.2
+# Visual Studio Version 18
+VisualStudioVersion = 18.10.12113.136 insiders
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MediaTools.Domain", "MediaTools.Domain\MediaTools.Domain.csproj", "{41712994-2F63-4C2A-BF82-486D32B5A8DA}"
 EndProject
@@ -10,8 +10,6 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MediaTools.Infrastructure", "MediaTools.Infrastructure\MediaTools.Infrastructure.csproj", "{A5231CA9-DB19-430A-96D8-99F4A3A0D3B9}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MediaTools.Presentation", "MediaTools.Presentation\MediaTools.Presentation.csproj", "{46FF8EF1-52CE-4782-B3E0-B3F06E29A019}"
-EndProject
-Project("{930C7802-8A8C-48F9-8165-68863BCCD9DD}") = "MediaTools.Installer", "MediaTools.Installer\MediaTools.Installer.wixproj", "{C5C7214F-4D99-480D-964A-364204BAE4BA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -71,12 +69,6 @@ Global
 		{46FF8EF1-52CE-4782-B3E0-B3F06E29A019}.Release|x64.Build.0 = Release|Any CPU
 		{46FF8EF1-52CE-4782-B3E0-B3F06E29A019}.Release|x86.ActiveCfg = Release|Any CPU
 		{46FF8EF1-52CE-4782-B3E0-B3F06E29A019}.Release|x86.Build.0 = Release|Any CPU
-		{C5C7214F-4D99-480D-964A-364204BAE4BA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{C5C7214F-4D99-480D-964A-364204BAE4BA}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{C5C7214F-4D99-480D-964A-364204BAE4BA}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{C5C7214F-4D99-480D-964A-364204BAE4BA}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{C5C7214F-4D99-480D-964A-364204BAE4BA}.Release|x64.ActiveCfg = Release|Any CPU
-		{C5C7214F-4D99-480D-964A-364204BAE4BA}.Release|x86.ActiveCfg = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
