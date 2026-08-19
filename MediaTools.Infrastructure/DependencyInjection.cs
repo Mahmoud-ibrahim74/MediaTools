@@ -20,6 +20,7 @@ public static class DependencyInjection
         services.AddSingleton<ICompressionJobRepository, InMemoryCompressionJobRepository>();
         services.AddSingleton<IYouTubeAudioService, YtDlpYouTubeAudioService>();
         services.AddSingleton<IYouTubeVideoService, YtDlpYouTubeVideoService>();
+        services.AddSingleton<IFacebookVideoService, YtDlpFacebookVideoService>();
         return services;
     }
 }

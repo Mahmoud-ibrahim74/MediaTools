@@ -1,6 +1,7 @@
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
   <Package Name="Media Tools" Manufacturer="Mahmoud Ibrahim" Version="1.0.0.0" UpgradeCode="d9e18b45-1c32-4d26-a0b5-123456789abc">
     <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+    <MediaTemplate EmbedCab="yes" />
 
     <!-- Feature selection UI -->
     <ui:WixUI Id="WixUI_FeatureTree" />

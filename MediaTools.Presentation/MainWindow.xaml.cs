@@ -111,6 +111,7 @@ public partial class MainWindow : MetroWindow
             "VideoEnhancer" => _services.GetRequiredService<VideoEnhancerPage>(),
             "YouTubeAudio" => _services.GetRequiredService<YouTubeAudioPage>(),
             "YouTubeVideo" => _services.GetRequiredService<YouTubeVideoPage>(),
+            "FacebookVideo" => _services.GetRequiredService<FacebookVideoPage>(),
             "AppSettings" => _services.GetRequiredService<AppSettingsPage>(),
             _ => null
         };
