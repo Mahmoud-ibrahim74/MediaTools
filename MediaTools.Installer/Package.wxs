@@ -17,37 +17,78 @@
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLFOLDER" Name="Media Tools">
         <Component Id="MainExecutableComponent" Guid="D2A8F340-08B5-46F2-99EA-3DF5E1805541">
+          <!-- Executable & Configs -->
           <File Id="MainExecutable"
                 Source="$(var.PublishDir)MediaTools.exe"
                 KeyPath="yes" />
           <File Source="$(var.PublishDir)MediaTools.dll" />
           <File Source="$(var.PublishDir)MediaTools.runtimeconfig.json" />
           <File Source="$(var.PublishDir)MediaTools.deps.json" />
+
+          <!-- Internal Project DLLs -->
           <File Source="$(var.PublishDir)MediaTools.Domain.dll" />
           <File Source="$(var.PublishDir)MediaTools.Application.dll" />
           <File Source="$(var.PublishDir)MediaTools.Infrastructure.dll" />
+
+          <!-- UI & Metro Libraries -->
           <File Source="$(var.PublishDir)MahApps.Metro.dll" />
-          <File Source="$(var.PublishDir)MahApps.Metro.IconPacks.Material.dll" />
           <File Source="$(var.PublishDir)MahApps.Metro.IconPacks.Core.dll" />
-          <File Source="$(var.PublishDir)CommunityToolkit.Mvvm.dll" />
-          <File Source="$(var.PublishDir)Microsoft.Toolkit.Uwp.Notifications.dll" />
+          <File Source="$(var.PublishDir)MahApps.Metro.IconPacks.Material.dll" />
+          <File Source="$(var.PublishDir)ControlzEx.dll" />
+          <File Source="$(var.PublishDir)Microsoft.Xaml.Behaviors.dll" />
           <File Source="$(var.PublishDir)Ookii.Dialogs.Wpf.dll" />
+
+          <!-- Community Toolkit MVVM & Media -->
+          <File Source="$(var.PublishDir)CommunityToolkit.Mvvm.dll" />
+          <File Source="$(var.PublishDir)SixLabors.ImageSharp.dll" />
+          <File Source="$(var.PublishDir)Xabe.FFmpeg.dll" />
+          <File Source="$(var.PublishDir)Xabe.FFmpeg.Downloader.dll" />
+
+          <!-- Windows SDK & Notifications -->
+          <File Source="$(var.PublishDir)Microsoft.Toolkit.Uwp.Notifications.dll" />
+          <File Source="$(var.PublishDir)Microsoft.Windows.SDK.NET.dll" />
+          <File Source="$(var.PublishDir)WinRT.Runtime.dll" />
+
+          <!-- Microsoft Extensions DI & Hosting -->
           <File Source="$(var.PublishDir)Microsoft.Extensions.DependencyInjection.dll" />
           <File Source="$(var.PublishDir)Microsoft.Extensions.DependencyInjection.Abstractions.dll" />
           <File Source="$(var.PublishDir)Microsoft.Extensions.Hosting.dll" />
           <File Source="$(var.PublishDir)Microsoft.Extensions.Hosting.Abstractions.dll" />
+
+          <!-- Microsoft Extensions Logging & Diagnostics -->
           <File Source="$(var.PublishDir)Microsoft.Extensions.Logging.dll" />
           <File Source="$(var.PublishDir)Microsoft.Extensions.Logging.Abstractions.dll" />
+          <File Source="$(var.PublishDir)Microsoft.Extensions.Logging.Configuration.dll" />
+          <File Source="$(var.PublishDir)Microsoft.Extensions.Logging.Console.dll" />
+          <File Source="$(var.PublishDir)Microsoft.Extensions.Logging.Debug.dll" />
+          <File Source="$(var.PublishDir)Microsoft.Extensions.Logging.EventLog.dll" />
+          <File Source="$(var.PublishDir)Microsoft.Extensions.Logging.EventSource.dll" />
+          <File Source="$(var.PublishDir)Microsoft.Extensions.Diagnostics.dll" />
+          <File Source="$(var.PublishDir)Microsoft.Extensions.Diagnostics.Abstractions.dll" />
+
+          <!-- Microsoft Extensions Configuration (All Transitive Providers) -->
           <File Source="$(var.PublishDir)Microsoft.Extensions.Configuration.dll" />
           <File Source="$(var.PublishDir)Microsoft.Extensions.Configuration.Abstractions.dll" />
+          <File Source="$(var.PublishDir)Microsoft.Extensions.Configuration.Binder.dll" />
+          <File Source="$(var.PublishDir)Microsoft.Extensions.Configuration.CommandLine.dll" />
+          <File Source="$(var.PublishDir)Microsoft.Extensions.Configuration.EnvironmentVariables.dll" />
+          <File Source="$(var.PublishDir)Microsoft.Extensions.Configuration.FileExtensions.dll" />
+          <File Source="$(var.PublishDir)Microsoft.Extensions.Configuration.Json.dll" />
+          <File Source="$(var.PublishDir)Microsoft.Extensions.Configuration.UserSecrets.dll" />
+          <File Source="$(var.PublishDir)Microsoft.Extensions.FileProviders.Abstractions.dll" />
+          <File Source="$(var.PublishDir)Microsoft.Extensions.FileProviders.Physical.dll" />
+          <File Source="$(var.PublishDir)Microsoft.Extensions.FileSystemGlobbing.dll" />
           <File Source="$(var.PublishDir)Microsoft.Extensions.Options.dll" />
+          <File Source="$(var.PublishDir)Microsoft.Extensions.Options.ConfigurationExtensions.dll" />
           <File Source="$(var.PublishDir)Microsoft.Extensions.Primitives.dll" />
-          <File Source="$(var.PublishDir)Microsoft.Xaml.Behaviors.dll" />
-          <File Source="$(var.PublishDir)SixLabors.ImageSharp.dll" />
-          <File Source="$(var.PublishDir)Xabe.FFmpeg.dll" />
-          <File Source="$(var.PublishDir)Xabe.FFmpeg.Downloader.dll" />
-          <File Source="$(var.PublishDir)ControlzEx.dll" />
         </Component>
+
+        <!-- Satellite Resource Directory -->
+        <Directory Id="DeFolder" Name="de">
+          <Component Id="DeResourceComponent" Guid="E8F31C92-56D2-47BA-9104-E65893B8A721">
+            <File Source="$(var.PublishDir)de\MahApps.Metro.resources.dll" KeyPath="yes" />
+          </Component>
+        </Directory>
       </Directory>
     </StandardDirectory>
 
@@ -80,6 +121,7 @@
 
     <Feature Id="MainFeature" Title="Media Tools" Level="1">
       <ComponentRef Id="MainExecutableComponent" />
+      <ComponentRef Id="DeResourceComponent" />
       <ComponentRef Id="ApplicationShortcut" />
       <ComponentRef Id="DesktopShortcutComponent" />
     </Feature>
