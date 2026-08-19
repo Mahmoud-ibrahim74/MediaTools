@@ -1,8 +1,6 @@
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
-using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -21,7 +19,7 @@ public partial class FacebookVideoViewModel : ObservableObject
     private readonly DownloadFacebookVideoUseCase _downloadUseCase;
     private readonly IFacebookVideoService _facebookVideoService;
     private readonly IUserPreferencesService _preferences;
-    private CancellationTokenSource? _downloadCts;
+    private CancellationTokenSource? _queueCts;
 
     public FacebookVideoViewModel(
         DownloadFacebookVideoUseCase downloadUseCase,
@@ -36,30 +34,9 @@ public partial class FacebookVideoViewModel : ObservableObject
         _selectedQuality = AvailableQualities[0]; // High
     }
 
-    // ── URL input ──────────────────────────────────────────
+    // ── Observable Collections & Queue ──────────────────────
 
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(FetchVideoInfoCommand))]
-    private string _facebookUrl = string.Empty;
-
-    // ── Video metadata ─────────────────────────────────────
-
-    [ObservableProperty]
-    private string _videoTitle = string.Empty;
-
-    [ObservableProperty]
-    private string _authorName = string.Empty;
-
-    [ObservableProperty]
-    private string _durationDisplay = string.Empty;
-
-    [ObservableProperty]
-    private string _viewCountDisplay = string.Empty;
-
-    [ObservableProperty]
-    private BitmapImage? _thumbnailImage;
-
-    // ── Format & quality ───────────────────────────────────
+    public ObservableCollection<FacebookQueueItemViewModel> QueueItems { get; } = [];
 
     public ObservableCollection<string> AvailableFormats { get; } =
         ["MP4", "MKV", "WebM"];
@@ -70,6 +47,12 @@ public partial class FacebookVideoViewModel : ObservableObject
     public ObservableCollection<string> AvailableQualities { get; } =
         ["High", "Medium", "Low"];
 
+    // ── Bindable Properties ─────────────────────────────────
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(AddToQueueCommand))]
+    private string _facebookUrl = string.Empty;
+
     [ObservableProperty]
     private string _selectedFormat;
 
@@ -79,222 +62,302 @@ public partial class FacebookVideoViewModel : ObservableObject
     [ObservableProperty]
     private string _selectedQuality;
 
-    // ── State flags ────────────────────────────────────────
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(StartQueueCommand))]
+    [NotifyCanExecuteChangedFor(nameof(AddToQueueCommand))]
+    [NotifyPropertyChangedFor(nameof(IsNotQueueRunning))]
+    private bool _isQueueRunning;
+
+    public bool IsNotQueueRunning => !IsQueueRunning;
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(FetchVideoInfoCommand))]
-    [NotifyCanExecuteChangedFor(nameof(DownloadVideoCommand))]
-    private bool _isFetching;
+    private string _queueStatusMessage = "Queue is idle";
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(FetchVideoInfoCommand))]
-    [NotifyCanExecuteChangedFor(nameof(DownloadVideoCommand))]
-    [NotifyPropertyChangedFor(nameof(IsNotDownloading))]
-    private bool _isDownloading;
-
-    public bool IsNotDownloading => !IsDownloading;
+    private double _overallProgressPercent;
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(DownloadVideoCommand))]
-    private bool _showVideoInfo;
+    private int _completedCount;
 
     [ObservableProperty]
-    private bool _showProgressCard;
+    private int _totalQueueCount;
 
     [ObservableProperty]
-    private bool _showResultCard;
+    private bool _isEmptyQueue = true;
 
     [ObservableProperty]
-    private bool _showErrorCard;
-
-    // ── Progress ───────────────────────────────────────────
+    private bool _hasQueueItems;
 
     [ObservableProperty]
-    private double _progressPercent;
+    private bool _hasInputError;
 
     [ObservableProperty]
-    private double _progressPercentDisplay;
+    private string _inputErrorMessage = string.Empty;
 
     [ObservableProperty]
-    private string _progressStatusText = string.Empty;
+    private bool _showCooldownNotice;
 
     [ObservableProperty]
-    private string _downloadSpeedDisplay = string.Empty;
-
-    [ObservableProperty]
-    private string _etaDisplay = string.Empty;
-
-    [ObservableProperty]
-    private bool _isMuxing;
-
-    // ── Result ──────────────────────────────────────────────
-
-    [ObservableProperty]
-    private string _resultMessage = string.Empty;
-
-    [ObservableProperty]
-    private string? _outputFilePath;
-
-    [ObservableProperty]
-    private string _errorMessage = string.Empty;
-
-    [ObservableProperty]
-    private string _fetchButtonText = "Fetch Info";
+    private string _cooldownMessage = string.Empty;
 
     // ── Commands ────────────────────────────────────────────
 
-    private bool CanFetchVideoInfo => !string.IsNullOrWhiteSpace(FacebookUrl) && !IsFetching && !IsDownloading;
+    private bool CanAddToQueue => !string.IsNullOrWhiteSpace(FacebookUrl) && !IsQueueRunning;
 
-    [RelayCommand(CanExecute = nameof(CanFetchVideoInfo))]
-    private async Task FetchVideoInfoAsync()
+    [RelayCommand(CanExecute = nameof(CanAddToQueue))]
+    private void AddToQueue()
     {
-        IsFetching = true;
-        FetchButtonText = "Fetching…";
-        ShowVideoInfo = false;
-        ShowResultCard = false;
-        ShowErrorCard = false;
-        ErrorMessage = string.Empty;
+        HasInputError = false;
+        InputErrorMessage = string.Empty;
 
-        try
+        if (string.IsNullOrWhiteSpace(FacebookUrl))
         {
-            var info = await _facebookVideoService.FetchVideoInfoAsync(FacebookUrl.Trim()).ConfigureAwait(true);
+            return;
+        }
 
-            VideoTitle = info.Title;
-            AuthorName = info.AuthorName;
-            DurationDisplay = FormatDuration(info.Duration);
-            ViewCountDisplay = FormatViewCount(info.ViewCount);
+        // Split by lines or spaces to support batch URL addition
+        var rawUrls = FacebookUrl.Split(['\r', '\n', ',', ' '], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var addedCount = 0;
+        var invalidCount = 0;
 
-            if (!string.IsNullOrWhiteSpace(info.ThumbnailUrl))
+        foreach (var rawUrl in rawUrls)
+        {
+            if (YtDlpFacebookVideoService.IsValidFacebookUrl(rawUrl))
             {
-                await LoadThumbnailAsync(info.ThumbnailUrl).ConfigureAwait(true);
+                // Check if already in queue
+                if (QueueItems.Any(item => item.Url.Equals(rawUrl, StringComparison.OrdinalIgnoreCase) && item.Status is not (FacebookQueueItemStatus.Completed or FacebookQueueItemStatus.Failed or FacebookQueueItemStatus.Cancelled)))
+                {
+                    continue;
+                }
+
+                var queueItem = new FacebookQueueItemViewModel(
+                    url: rawUrl,
+                    format: ParseFormat(SelectedFormat),
+                    resolution: SelectedResolution,
+                    quality: SelectedQuality,
+                    onRemoveRequested: RemoveQueueItem);
+
+                QueueItems.Add(queueItem);
+                addedCount++;
             }
             else
             {
-                ThumbnailImage = null;
+                invalidCount++;
             }
+        }
 
-            ShowVideoInfo = true;
-        }
-        catch (Exception ex)
+        if (addedCount > 0)
         {
-            ErrorMessage = $"Could not fetch video info: {ex.Message}";
-            ShowErrorCard = true;
+            FacebookUrl = string.Empty;
+            UpdateQueueStats();
+            QueueStatusMessage = $"{addedCount} video(s) added to queue.";
         }
-        finally
+
+        if (invalidCount > 0)
         {
-            IsFetching = false;
-            FetchButtonText = "Fetch Info";
+            HasInputError = true;
+            InputErrorMessage = $"{invalidCount} URL(s) were not recognized as valid Facebook video links.";
         }
+
+        StartQueueCommand.NotifyCanExecuteChanged();
     }
 
-    private bool CanDownloadVideo => ShowVideoInfo && !IsFetching && !IsDownloading;
+    private bool CanStartQueue => QueueItems.Any(i => i.Status is FacebookQueueItemStatus.Queued or FacebookQueueItemStatus.Failed) && !IsQueueRunning;
 
-    [RelayCommand(CanExecute = nameof(CanDownloadVideo))]
-    private async Task DownloadVideoAsync()
+    [RelayCommand(CanExecute = nameof(CanStartQueue))]
+    private async Task StartQueueAsync()
     {
-        IsDownloading = true;
-        ShowResultCard = false;
-        ShowErrorCard = false;
-        ShowProgressCard = true;
-        IsMuxing = false;
-        ProgressPercent = 0;
-        ProgressPercentDisplay = 0;
-        ProgressStatusText = "Starting download…";
-        DownloadSpeedDisplay = string.Empty;
-        EtaDisplay = string.Empty;
+        if (IsQueueRunning) return;
 
-        _downloadCts?.Dispose();
-        _downloadCts = new CancellationTokenSource();
+        IsQueueRunning = true;
+        ShowCooldownNotice = false;
+        _queueCts?.Dispose();
+        _queueCts = new CancellationTokenSource();
+        var token = _queueCts.Token;
 
-        var request = new FacebookVideoDownloadRequest(
-            Url: FacebookUrl.Trim(),
-            OutputFolderPath: _preferences.SaveFolderPath,
-            VideoFormat: ParseFormat(SelectedFormat),
-            Resolution: SelectedResolution,
-            VideoQuality: SelectedQuality);
+        // Build FIFO Queue data structure to ensure strictly sequential URL-by-URL processing
+        var downloadQueue = new Queue<FacebookQueueItemViewModel>(
+            QueueItems.Where(i => i.Status is FacebookQueueItemStatus.Queued or FacebookQueueItemStatus.Failed));
 
-        var progress = new Progress<FacebookDownloadProgress>(report =>
+        if (downloadQueue.Count == 0)
         {
-            ProgressPercent = report.ProgressPercent;
-            ProgressPercentDisplay = Math.Round(report.ProgressPercent, 1);
-            ProgressStatusText = report.StatusText;
-            DownloadSpeedDisplay = report.DownloadSpeedDisplay ?? string.Empty;
-            EtaDisplay = report.EtaDisplay ?? string.Empty;
-            IsMuxing = report.IsMuxing;
-        });
+            IsQueueRunning = false;
+            return;
+        }
+
+        var initialQueueTotal = downloadQueue.Count;
+        var processedSoFar = 0;
 
         try
         {
-            var result = await _downloadUseCase
-                .ExecuteAsync(request, progress, _downloadCts.Token)
-                .ConfigureAwait(true);
+            while (downloadQueue.Count > 0)
+            {
+                token.ThrowIfCancellationRequested();
 
-            ShowProgressCard = false;
+                // 1. Dequeue next URL
+                var currentItem = downloadQueue.Dequeue();
+                processedSoFar++;
 
-            if (result.IsSuccess)
-            {
-                OutputFilePath = result.OutputFilePath;
-                ResultMessage = $"Saved: {Path.GetFileName(result.OutputFilePath)}";
-                ShowResultCard = true;
+                QueueStatusMessage = $"Processing {processedSoFar} of {initialQueueTotal}…";
+
+                // 2. Fetch Video Metadata
+                currentItem.Status = FacebookQueueItemStatus.FetchingInfo;
+                currentItem.ProgressStatusText = "Fetching info…";
+
+                try
+                {
+                    var info = await _facebookVideoService.FetchVideoInfoAsync(currentItem.Url, token).ConfigureAwait(true);
+                    currentItem.Title = info.Title;
+                    currentItem.AuthorName = info.AuthorName;
+                    currentItem.DurationDisplay = FormatDuration(info.Duration);
+
+                    if (!string.IsNullOrWhiteSpace(info.ThumbnailUrl))
+                    {
+                        currentItem.ThumbnailImage = await LoadThumbnailAsync(info.ThumbnailUrl).ConfigureAwait(true);
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    currentItem.Status = FacebookQueueItemStatus.Cancelled;
+                    currentItem.ProgressStatusText = "Cancelled";
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    currentItem.Status = FacebookQueueItemStatus.Failed;
+                    currentItem.ErrorMessage = ex.Message;
+                    currentItem.ProgressStatusText = "Metadata error";
+                    UpdateQueueStats();
+                    continue; // Proceed to next in queue
+                }
+
+                // 3. Download & DASH Merge
+                currentItem.Status = FacebookQueueItemStatus.Downloading;
+                currentItem.ProgressPercent = 0;
+                currentItem.ProgressPercentDisplay = 0;
+                currentItem.ProgressStatusText = "Starting download…";
+
+                var request = new FacebookVideoDownloadRequest(
+                    Url: currentItem.Url,
+                    OutputFolderPath: _preferences.SaveFolderPath,
+                    VideoFormat: currentItem.Format,
+                    Resolution: currentItem.Resolution,
+                    VideoQuality: currentItem.Quality);
+
+                var progress = new Progress<FacebookDownloadProgress>(report =>
+                {
+                    currentItem.ProgressPercent = report.ProgressPercent;
+                    currentItem.ProgressPercentDisplay = Math.Round(report.ProgressPercent, 1);
+                    currentItem.ProgressStatusText = report.StatusText;
+                    currentItem.DownloadSpeedDisplay = report.DownloadSpeedDisplay ?? string.Empty;
+                    currentItem.EtaDisplay = report.EtaDisplay ?? string.Empty;
+
+                    if (report.IsMuxing)
+                    {
+                        currentItem.Status = FacebookQueueItemStatus.Muxing;
+                    }
+                });
+
+                try
+                {
+                    var result = await _downloadUseCase.ExecuteAsync(request, progress, token).ConfigureAwait(true);
+
+                    if (result.IsSuccess)
+                    {
+                        currentItem.Status = FacebookQueueItemStatus.Completed;
+                        currentItem.ProgressPercent = 100;
+                        currentItem.ProgressPercentDisplay = 100;
+                        currentItem.ProgressStatusText = "Completed";
+                        currentItem.OutputFilePath = result.OutputFilePath;
+                    }
+                    else if (result.IsCancelled)
+                    {
+                        currentItem.Status = FacebookQueueItemStatus.Cancelled;
+                        currentItem.ProgressStatusText = "Cancelled";
+                    }
+                    else
+                    {
+                        currentItem.Status = FacebookQueueItemStatus.Failed;
+                        currentItem.ErrorMessage = result.ErrorMessage ?? "Download failed";
+                        currentItem.ProgressStatusText = "Failed";
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    currentItem.Status = FacebookQueueItemStatus.Cancelled;
+                    currentItem.ProgressStatusText = "Cancelled";
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    currentItem.Status = FacebookQueueItemStatus.Failed;
+                    currentItem.ErrorMessage = ex.Message;
+                    currentItem.ProgressStatusText = "Error";
+                }
+
+                UpdateQueueStats();
+
+                // 4. Polite Anti-Ban Delay before next URL (3 seconds cooldown)
+                if (downloadQueue.Count > 0 && !token.IsCancellationRequested)
+                {
+                    ShowCooldownNotice = true;
+                    for (int i = 3; i > 0; i--)
+                    {
+                        CooldownMessage = $"Rate-limit protection: Pausing {i}s before next download…";
+                        await Task.Delay(1000, token).ConfigureAwait(true);
+                    }
+                    ShowCooldownNotice = false;
+                }
             }
-            else if (result.IsCancelled)
-            {
-                ErrorMessage = "Download was cancelled.";
-                ShowErrorCard = true;
-            }
-            else
-            {
-                ErrorMessage = result.ErrorMessage ?? "Unknown error occurred.";
-                ShowErrorCard = true;
-            }
+
+            QueueStatusMessage = token.IsCancellationRequested
+                ? "Queue was cancelled."
+                : "Queue processing completed!";
         }
         catch (OperationCanceledException)
         {
-            ShowProgressCard = false;
-            ErrorMessage = "Download was cancelled.";
-            ShowErrorCard = true;
-        }
-        catch (Exception ex)
-        {
-            ShowProgressCard = false;
-            ErrorMessage = ex.Message;
-            ShowErrorCard = true;
+            QueueStatusMessage = "Queue was cancelled.";
         }
         finally
         {
-            IsDownloading = false;
-            IsMuxing = false;
+            IsQueueRunning = false;
+            ShowCooldownNotice = false;
+            UpdateQueueStats();
+            StartQueueCommand.NotifyCanExecuteChanged();
         }
     }
 
     [RelayCommand]
-    private void Cancel()
+    private void CancelQueue()
     {
-        _downloadCts?.Cancel();
+        if (IsQueueRunning)
+        {
+            QueueStatusMessage = "Cancelling queue…";
+            _queueCts?.Cancel();
+        }
     }
 
     [RelayCommand]
-    private void OpenOutputFolder()
+    private void ClearCompleted()
     {
-        var folder = OutputFilePath;
-        if (folder is not null && File.Exists(folder))
+        var completed = QueueItems.Where(i => i.Status is FacebookQueueItemStatus.Completed or FacebookQueueItemStatus.Cancelled).ToList();
+        foreach (var item in completed)
         {
-            folder = Path.GetDirectoryName(folder);
+            QueueItems.Remove(item);
         }
+        UpdateQueueStats();
+        StartQueueCommand.NotifyCanExecuteChanged();
+    }
 
-        if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
-        {
-            folder = _preferences.SaveFolderPath;
-        }
+    [RelayCommand]
+    private void ClearAll()
+    {
+        if (IsQueueRunning) return;
 
-        if (!string.IsNullOrWhiteSpace(folder) && Directory.Exists(folder))
-        {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = folder,
-                UseShellExecute = true
-            });
-        }
+        QueueItems.Clear();
+        UpdateQueueStats();
+        QueueStatusMessage = "Queue cleared.";
+        StartQueueCommand.NotifyCanExecuteChanged();
     }
 
     [RelayCommand]
@@ -305,62 +368,57 @@ public partial class FacebookVideoViewModel : ObservableObject
             if (Clipboard.ContainsText())
             {
                 var text = Clipboard.GetText().Trim();
-                if (YtDlpFacebookVideoService.IsValidFacebookUrl(text))
-                {
-                    FacebookUrl = text;
-                }
+                FacebookUrl = text;
+                AddToQueue();
             }
         }
         catch
         {
-            // Clipboard access can fail when locked by another process.
+            // Ignore clipboard access exceptions
         }
     }
 
-    // ── Helpers ──────────────────────────────────────────────
+    private void RemoveQueueItem(FacebookQueueItemViewModel item)
+    {
+        if (IsQueueRunning && item.IsActive) return;
 
-    private async Task LoadThumbnailAsync(string url)
+        QueueItems.Remove(item);
+        UpdateQueueStats();
+        StartQueueCommand.NotifyCanExecuteChanged();
+    }
+
+    private void UpdateQueueStats()
+    {
+        TotalQueueCount = QueueItems.Count;
+        CompletedCount = QueueItems.Count(i => i.Status == FacebookQueueItemStatus.Completed);
+        IsEmptyQueue = TotalQueueCount == 0;
+        HasQueueItems = TotalQueueCount > 0;
+        OverallProgressPercent = TotalQueueCount == 0 ? 0 : (double)CompletedCount / TotalQueueCount * 100;
+    }
+
+    private static async Task<BitmapImage?> LoadThumbnailAsync(string url)
     {
         try
         {
-            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
             var data = await http.GetByteArrayAsync(url).ConfigureAwait(true);
             var image = new BitmapImage();
             image.BeginInit();
             image.StreamSource = new MemoryStream(data);
             image.CacheOption = BitmapCacheOption.OnLoad;
-            image.DecodePixelWidth = 480;
+            image.DecodePixelWidth = 240;
             image.EndInit();
             image.Freeze();
-            ThumbnailImage = image;
+            return image;
         }
         catch
         {
-            ThumbnailImage = null;
+            return null;
         }
     }
 
-    private static string FormatDuration(TimeSpan ts)
-    {
-        if (ts.TotalHours >= 1)
-        {
-            return ts.ToString(@"h\:mm\:ss");
-        }
-
-        return ts.ToString(@"m\:ss");
-    }
-
-    private static string FormatViewCount(long views)
-    {
-        return views switch
-        {
-            >= 1_000_000_000 => $"{views / 1_000_000_000d:0.#}B views",
-            >= 1_000_000 => $"{views / 1_000_000d:0.#}M views",
-            >= 1_000 => $"{views / 1_000d:0.#}K views",
-            _ when views > 0 => $"{views:N0} views",
-            _ => "Facebook Video"
-        };
-    }
+    private static string FormatDuration(TimeSpan ts) =>
+        ts.TotalHours >= 1 ? ts.ToString(@"h\:mm\:ss") : ts.ToString(@"m\:ss");
 
     private static FacebookVideoFormat ParseFormat(string display) =>
         display switch

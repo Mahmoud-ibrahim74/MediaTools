@@ -1,4 +1,4 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
 VisualStudioVersion = 18.10.12113.136 insiders
@@ -10,6 +10,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MediaTools.Infrastructure", "MediaTools.Infrastructure\MediaTools.Infrastructure.csproj", "{A5231CA9-DB19-430A-96D8-99F4A3A0D3B9}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MediaTools.Presentation", "MediaTools.Presentation\MediaTools.Presentation.csproj", "{46FF8EF1-52CE-4782-B3E0-B3F06E29A019}"
+EndProject
+Project("{930C7802-8A8C-48F9-8165-E44974B30A0D}") = "MediaTools.Installer", "MediaTools.Installer\MediaTools.Installer.wixproj", "{6D2B12F0-276C-49CE-981F-A6CEE0B91568}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -69,6 +71,18 @@ Global
 		{46FF8EF1-52CE-4782-B3E0-B3F06E29A019}.Release|x64.Build.0 = Release|Any CPU
 		{46FF8EF1-52CE-4782-B3E0-B3F06E29A019}.Release|x86.ActiveCfg = Release|Any CPU
 		{46FF8EF1-52CE-4782-B3E0-B3F06E29A019}.Release|x86.Build.0 = Release|Any CPU
+		{6D2B12F0-276C-49CE-981F-A6CEE0B91568}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{6D2B12F0-276C-49CE-981F-A6CEE0B91568}.Debug|Any CPU.Build.0 = Debug|x64
+		{6D2B12F0-276C-49CE-981F-A6CEE0B91568}.Debug|x64.ActiveCfg = Debug|x64
+		{6D2B12F0-276C-49CE-981F-A6CEE0B91568}.Debug|x64.Build.0 = Debug|x64
+		{6D2B12F0-276C-49CE-981F-A6CEE0B91568}.Debug|x86.ActiveCfg = Debug|x86
+		{6D2B12F0-276C-49CE-981F-A6CEE0B91568}.Debug|x86.Build.0 = Debug|x86
+		{6D2B12F0-276C-49CE-981F-A6CEE0B91568}.Release|Any CPU.ActiveCfg = Release|x64
+		{6D2B12F0-276C-49CE-981F-A6CEE0B91568}.Release|Any CPU.Build.0 = Release|x64
+		{6D2B12F0-276C-49CE-981F-A6CEE0B91568}.Release|x64.ActiveCfg = Release|x64
+		{6D2B12F0-276C-49CE-981F-A6CEE0B91568}.Release|x64.Build.0 = Release|x64
+		{6D2B12F0-276C-49CE-981F-A6CEE0B91568}.Release|x86.ActiveCfg = Release|x86
+		{6D2B12F0-276C-49CE-981F-A6CEE0B91568}.Release|x86.Build.0 = Release|x86
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

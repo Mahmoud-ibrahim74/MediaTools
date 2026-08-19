@@ -1,0 +1,93 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+  <Package Name="Media Tools"
+           Manufacturer="Mahmoud Ibrahim"
+           Version="2.0.0"
+           UpgradeCode="72DE71B9-71E5-4C3D-B7E7-59DA39E7019C"
+           Scope="perMachine">
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+    
+    <MediaTemplate EmbedCab="yes" />
+
+    <Icon Id="AppIcon" SourceFile="..\MediaTools.Presentation\optimizing_enhanced.ico" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/Mahmoud-ibrahim74/MediaTools" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="Media Tools">
+        <Component Id="MainExecutableComponent" Guid="D2A8F340-08B5-46F2-99EA-3DF5E1805541">
+          <File Id="MainExecutable"
+                Source="$(var.PublishDir)MediaTools.exe"
+                KeyPath="yes" />
+          <File Source="$(var.PublishDir)MediaTools.dll" />
+          <File Source="$(var.PublishDir)MediaTools.runtimeconfig.json" />
+          <File Source="$(var.PublishDir)MediaTools.deps.json" />
+          <File Source="$(var.PublishDir)MediaTools.Domain.dll" />
+          <File Source="$(var.PublishDir)MediaTools.Application.dll" />
+          <File Source="$(var.PublishDir)MediaTools.Infrastructure.dll" />
+          <File Source="$(var.PublishDir)MahApps.Metro.dll" />
+          <File Source="$(var.PublishDir)MahApps.Metro.IconPacks.Material.dll" />
+          <File Source="$(var.PublishDir)MahApps.Metro.IconPacks.Core.dll" />
+          <File Source="$(var.PublishDir)CommunityToolkit.Mvvm.dll" />
+          <File Source="$(var.PublishDir)Microsoft.Toolkit.Uwp.Notifications.dll" />
+          <File Source="$(var.PublishDir)Ookii.Dialogs.Wpf.dll" />
+          <File Source="$(var.PublishDir)Microsoft.Extensions.DependencyInjection.dll" />
+          <File Source="$(var.PublishDir)Microsoft.Extensions.DependencyInjection.Abstractions.dll" />
+          <File Source="$(var.PublishDir)Microsoft.Extensions.Hosting.dll" />
+          <File Source="$(var.PublishDir)Microsoft.Extensions.Hosting.Abstractions.dll" />
+          <File Source="$(var.PublishDir)Microsoft.Extensions.Logging.dll" />
+          <File Source="$(var.PublishDir)Microsoft.Extensions.Logging.Abstractions.dll" />
+          <File Source="$(var.PublishDir)Microsoft.Extensions.Configuration.dll" />
+          <File Source="$(var.PublishDir)Microsoft.Extensions.Configuration.Abstractions.dll" />
+          <File Source="$(var.PublishDir)Microsoft.Extensions.Options.dll" />
+          <File Source="$(var.PublishDir)Microsoft.Extensions.Primitives.dll" />
+          <File Source="$(var.PublishDir)Microsoft.Xaml.Behaviors.dll" />
+          <File Source="$(var.PublishDir)SixLabors.ImageSharp.dll" />
+          <File Source="$(var.PublishDir)Xabe.FFmpeg.dll" />
+          <File Source="$(var.PublishDir)Xabe.FFmpeg.Downloader.dll" />
+          <File Source="$(var.PublishDir)ControlzEx.dll" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ApplicationProgramsFolder" Name="Media Tools">
+        <Component Id="ApplicationShortcut" Guid="724B2788-DCE2-4CB2-BAA6-C5A2C876274E">
+          <Shortcut Id="ApplicationStartMenuShortcut"
+                    Name="Media Tools"
+                    Description="Media Tools - Media Processing Suite"
+                    Target="[!MainExecutable]"
+                    WorkingDirectory="INSTALLFOLDER"
+                    Icon="AppIcon" />
+          <RemoveFolder Id="CleanUpShortCut" Directory="ApplicationProgramsFolder" On="uninstall" />
+          <RegistryValue Root="HKCU" Key="Software\MediaTools" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="DesktopFolder">
+      <Component Id="DesktopShortcutComponent" Guid="415BEF32-8419-4C41-8F0E-02A4BE929424">
+        <Shortcut Id="ApplicationDesktopShortcut"
+                  Name="Media Tools"
+                  Description="Media Tools - Media Processing Suite"
+                  Target="[!MainExecutable]"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Icon="AppIcon" />
+        <RegistryValue Root="HKCU" Key="Software\MediaTools" Name="desktopShortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </StandardDirectory>
+
+    <Feature Id="MainFeature" Title="Media Tools" Level="1">
+      <ComponentRef Id="MainExecutableComponent" />
+      <ComponentRef Id="ApplicationShortcut" />
+      <ComponentRef Id="DesktopShortcutComponent" />
+    </Feature>
+
+    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+    <WixVariable Id="WixUILicenseRtf" Value="license.rtf" />
+    <WixVariable Id="WixUIDialogBmp" Value="dialog.bmp" />
+    <WixVariable Id="WixUIBannerBmp" Value="banner.bmp" />
+
+  </Package>
+</Wix>
