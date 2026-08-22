@@ -2,13 +2,12 @@ namespace MediaTools.Infrastructure.Services;
 
 /// <summary>
 /// Central location for all external tool paths.
-/// Tools are stored in the application base directory (<c>AppContext.BaseDirectory\Tools\</c>).
+/// Dynamically uses local app data (<c>%LocalAppData%\MediaTools\Tools\</c>) or application base directory if writable.
 /// </summary>
 public static class ToolPaths
 {
-    /// <summary>Root directory for all downloaded tools within the application folder.</summary>
-    public static readonly string RootDirectory =
-        Path.Combine(AppContext.BaseDirectory, "Tools");
+    /// <summary>Root directory for all downloaded tools.</summary>
+    public static readonly string RootDirectory = ResolveRootDirectory();
 
     /// <summary>Directory containing ffmpeg.exe and ffprobe.exe.</summary>
     public static readonly string FfmpegDirectory =
@@ -37,4 +36,38 @@ public static class ToolPaths
     /// <summary>Returns true when yt-dlp.exe exists.</summary>
     public static bool IsYtDlpReady =>
         File.Exists(YtDlpExePath);
+
+    private static string ResolveRootDirectory()
+    {
+        // 1. Check if AppContext.BaseDirectory\Tools exists and is writable (dev/portable mode)
+        var appBaseTools = Path.Combine(AppContext.BaseDirectory, "Tools");
+        if (Directory.Exists(appBaseTools) && IsDirectoryWritable(appBaseTools))
+        {
+            return appBaseTools;
+        }
+
+        // 2. Standard Windows installed location: %LocalAppData%\MediaTools\Tools
+        var localAppDataTools = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "MediaTools",
+            "Tools");
+
+        return localAppDataTools;
+    }
+
+    private static bool IsDirectoryWritable(string directoryPath)
+    {
+        try
+        {
+            Directory.CreateDirectory(directoryPath);
+            var testFile = Path.Combine(directoryPath, $".write_test_{Guid.NewGuid():N}.tmp");
+            File.WriteAllText(testFile, "write_test");
+            File.Delete(testFile);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 }
