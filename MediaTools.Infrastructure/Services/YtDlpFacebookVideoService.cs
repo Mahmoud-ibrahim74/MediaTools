@@ -13,8 +13,10 @@ namespace MediaTools.Infrastructure.Services;
 /// </summary>
 public sealed partial class YtDlpFacebookVideoService : IFacebookVideoService
 {
-    public Task EnsureToolsReadyAsync(CancellationToken cancellationToken = default)
+    public async Task EnsureToolsReadyAsync(CancellationToken cancellationToken = default)
     {
+        await YtDlpProcessHelper.EnsureYtDlpReadyAndUpdatedAsync(cancellationToken).ConfigureAwait(false);
+
         if (!ToolPaths.IsYtDlpReady)
         {
             throw new InvalidOperationException(
@@ -26,8 +28,6 @@ public sealed partial class YtDlpFacebookVideoService : IFacebookVideoService
             throw new InvalidOperationException(
                 "FFmpeg is not installed. FFmpeg is required to merge Facebook DASH video and audio streams.");
         }
-
-        return Task.CompletedTask;
     }
 
     public async Task<FacebookVideoInfo> FetchVideoInfoAsync(string url, CancellationToken cancellationToken = default)
@@ -41,7 +41,8 @@ public sealed partial class YtDlpFacebookVideoService : IFacebookVideoService
 
         return await Task.Run(async () =>
         {
-            var args = $"--dump-single-json --no-download --no-playlist \"{url.Trim()}\"";
+            var rawArgs = $"--dump-single-json --no-download --no-playlist \"{url.Trim()}\"";
+            var args = YtDlpProcessHelper.EnhanceArguments(rawArgs);
 
             var psi = new ProcessStartInfo
             {
@@ -50,12 +51,10 @@ public sealed partial class YtDlpFacebookVideoService : IFacebookVideoService
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
-                CreateNoWindow = true,
-                StandardOutputEncoding = System.Text.Encoding.UTF8,
-                StandardErrorEncoding = System.Text.Encoding.UTF8
+                CreateNoWindow = true
             };
 
-            SetFfmpegEnvVars(psi);
+            YtDlpProcessHelper.ConfigureProcessStartInfo(psi);
 
             using var proc = new Process { StartInfo = psi };
             proc.Start();
@@ -150,12 +149,10 @@ public sealed partial class YtDlpFacebookVideoService : IFacebookVideoService
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
-                CreateNoWindow = true,
-                StandardOutputEncoding = System.Text.Encoding.UTF8,
-                StandardErrorEncoding = System.Text.Encoding.UTF8
+                CreateNoWindow = true
             };
 
-            SetFfmpegEnvVars(psi);
+            YtDlpProcessHelper.ConfigureProcessStartInfo(psi);
 
             using var proc = new Process { StartInfo = psi };
             var outputFilePath = string.Empty;

@@ -119,10 +119,7 @@ public sealed class FfmpegVideoCompressionService : IVideoCompressionService
                         .ConfigureAwait(false);
                 }
 
-                if (!ToolPaths.IsYtDlpReady)
-                {
-                    await YtDlpYouTubeAudioService.DownloadYtDlpAsync(cancellationToken).ConfigureAwait(false);
-                }
+                await YtDlpProcessHelper.EnsureYtDlpReadyAndUpdatedAsync(cancellationToken).ConfigureAwait(false);
 
                 FFmpeg.SetExecutablesPath(
                     ffmpegDirectory,

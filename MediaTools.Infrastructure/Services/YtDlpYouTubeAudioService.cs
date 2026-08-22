@@ -14,26 +14,34 @@ namespace MediaTools.Infrastructure.Services;
 /// </summary>
 public sealed partial class YtDlpYouTubeAudioService : IYouTubeAudioService
 {
-
-    public Task EnsureToolsReadyAsync(CancellationToken cancellationToken = default)
+    public async Task EnsureToolsReadyAsync(CancellationToken cancellationToken = default)
     {
+        await YtDlpProcessHelper.EnsureYtDlpReadyAndUpdatedAsync(cancellationToken).ConfigureAwait(false);
+
         if (!ToolPaths.IsYtDlpReady)
         {
             throw new InvalidOperationException(
                 "yt-dlp is not installed. Restart the application to trigger the download.");
         }
-
-        return Task.CompletedTask;
     }
 
     public async Task<YouTubeVideoInfo> FetchVideoInfoAsync(string url, CancellationToken cancellationToken = default)
     {
         await EnsureToolsReadyAsync(cancellationToken).ConfigureAwait(false);
 
+        return await FetchVideoInfoInternalAsync(url, allowRetryOn403: true, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<YouTubeVideoInfo> FetchVideoInfoInternalAsync(
+        string url,
+        bool allowRetryOn403,
+        CancellationToken cancellationToken)
+    {
         // Run the entire process on the thread pool so blocking reads never freeze the UI.
         return await Task.Run(async () =>
         {
-            var args = $"--dump-single-json --flat-playlist --no-download \"{url}\"";
+            var rawArgs = $"--dump-single-json --flat-playlist --no-download \"{url}\"";
+            var args = YtDlpProcessHelper.EnhanceArguments(rawArgs);
 
             var psi = new ProcessStartInfo
             {
@@ -45,7 +53,7 @@ public sealed partial class YtDlpYouTubeAudioService : IYouTubeAudioService
                 CreateNoWindow = true
             };
 
-            SetFfmpegEnvVars(psi);
+            YtDlpProcessHelper.ConfigureProcessStartInfo(psi);
 
             using var proc = new Process { StartInfo = psi };
             proc.Start();
@@ -61,8 +69,17 @@ public sealed partial class YtDlpYouTubeAudioService : IYouTubeAudioService
 
             if (proc.ExitCode != 0)
             {
+                if (allowRetryOn403 && (stderr.Contains("403") || stderr.Contains("Forbidden") || stderr.Contains("extractor")))
+                {
+                    var updated = await YtDlpProcessHelper.TrySelfUpdateAsync(cancellationToken).ConfigureAwait(false);
+                    if (updated)
+                    {
+                        return await FetchVideoInfoInternalAsync(url, allowRetryOn403: false, cancellationToken).ConfigureAwait(false);
+                    }
+                }
+
                 throw new InvalidOperationException(
-                    $"yt-dlp failed (exit {proc.ExitCode}): {stderr.Trim()}");
+                    $"yt-dlp failed (exit {proc.ExitCode}): {YtDlpProcessHelper.FormatErrorMessage(proc.ExitCode, stderr)}");
             }
 
             using var doc = JsonDocument.Parse(stdout);
@@ -157,16 +174,18 @@ public sealed partial class YtDlpYouTubeAudioService : IYouTubeAudioService
 
         Directory.CreateDirectory(request.OutputFolderPath);
 
+        return await DownloadAudioInternalAsync(request, progress, allowRetryOn403: true, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private async Task<string> DownloadAudioInternalAsync(
+        YouTubeDownloadRequest request,
+        IProgress<YouTubeDownloadProgress> progress,
+        bool allowRetryOn403,
+        CancellationToken cancellationToken)
+    {
         var formatExt = MapFormatToExtension(request.AudioFormat);
 
-        // yt-dlp arguments:
-        // -x  = extract audio
-        // --audio-format = target format
-        // --audio-quality = bitrate for lossy
-        // -o  = output template
-        // --no-playlist/--yes-playlist = playlist handling
-        // --newline = progress on each line
-        // --ffmpeg-location = use our bundled ffmpeg
         var outputTemplate = Path.Combine(request.OutputFolderPath, "%(title)s.%(ext)s");
         var bitrateArg = IsLossyFormat(request.AudioFormat)
             ? $"--audio-quality {request.BitrateKbps}K"
@@ -174,16 +193,13 @@ public sealed partial class YtDlpYouTubeAudioService : IYouTubeAudioService
 
         var playlistArg = request.IsPlaylist ? "--yes-playlist" : "--no-playlist";
 
-        var args = $"-x --audio-format {formatExt} {bitrateArg} " +
-                   $"{playlistArg} --newline --no-mtime " +
-                   $"--ffmpeg-location \"{ToolPaths.FfmpegDirectory}\" " +
-                   $"-o \"{outputTemplate}\" \"{request.Url}\"";
+        var rawArgs = $"-x --audio-format {formatExt} {bitrateArg} " +
+                      $"{playlistArg} --newline --no-mtime " +
+                      $"--ffmpeg-location \"{ToolPaths.FfmpegDirectory}\" " +
+                      $"-o \"{outputTemplate}\" \"{request.Url}\"";
 
-        // Run the entire process on the thread pool.
-        // Process.StandardOutput.EndOfStream is a BLOCKING property — running it on the
-        // UI thread freezes the app. Task.Run ensures all blocking I/O stays off the UI.
-        // Progress<T> marshals Report() calls back to the captured SynchronizationContext
-        // automatically, so UI updates remain safe.
+        var args = YtDlpProcessHelper.EnhanceArguments(rawArgs);
+
         return await Task.Run(async () =>
         {
             var psi = new ProcessStartInfo
@@ -196,7 +212,7 @@ public sealed partial class YtDlpYouTubeAudioService : IYouTubeAudioService
                 CreateNoWindow = true
             };
 
-            SetFfmpegEnvVars(psi);
+            YtDlpProcessHelper.ConfigureProcessStartInfo(psi);
 
             using var proc = new Process { StartInfo = psi };
             var outputFilePath = string.Empty;
@@ -207,8 +223,6 @@ public sealed partial class YtDlpYouTubeAudioService : IYouTubeAudioService
 
             var stderrTask = proc.StandardError.ReadToEndAsync(cancellationToken);
 
-            // Read stdout line-by-line. ReadLineAsync returns null at end-of-stream,
-            // which avoids the blocking EndOfStream property.
             string? line;
             while ((line = await proc.StandardOutput.ReadLineAsync(cancellationToken)
                        .ConfigureAwait(false)) is not null)
@@ -295,8 +309,18 @@ public sealed partial class YtDlpYouTubeAudioService : IYouTubeAudioService
 
             if (proc.ExitCode != 0)
             {
+                if (allowRetryOn403 && (stderr.Contains("403") || stderr.Contains("Forbidden") || stderr.Contains("extractor")))
+                {
+                    var updated = await YtDlpProcessHelper.TrySelfUpdateAsync(cancellationToken).ConfigureAwait(false);
+                    if (updated)
+                    {
+                        return await DownloadAudioInternalAsync(request, progress, allowRetryOn403: false, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                }
+
                 throw new InvalidOperationException(
-                    $"yt-dlp download failed (exit {proc.ExitCode}): {stderr.Trim()}");
+                    $"yt-dlp download failed (exit {proc.ExitCode}): {YtDlpProcessHelper.FormatErrorMessage(proc.ExitCode, stderr)}");
             }
 
             if (request.IsPlaylist)
@@ -326,29 +350,9 @@ public sealed partial class YtDlpYouTubeAudioService : IYouTubeAudioService
         }, cancellationToken).ConfigureAwait(false);
     }
 
-    private static void SetFfmpegEnvVars(ProcessStartInfo psi)
-    {
-        // Ensure yt-dlp finds our bundled FFmpeg
-        var currentPath = psi.Environment.TryGetValue("PATH", out var p) ? p : "";
-        psi.Environment["PATH"] = ToolPaths.FfmpegDirectory + ";" + currentPath;
-    }
-
     /// <summary>Downloads yt-dlp.exe to the shared tools folder. Called during app startup.</summary>
-    internal static async Task DownloadYtDlpAsync(CancellationToken cancellationToken)
-    {
-        const string downloadUrl = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe";
-
-        Directory.CreateDirectory(ToolPaths.YtDlpDirectory);
-
-        using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
-        using var response = await http.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
-            .ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
-
-        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        await using var file = File.Create(ToolPaths.YtDlpExePath);
-        await stream.CopyToAsync(file, cancellationToken).ConfigureAwait(false);
-    }
+    internal static Task DownloadYtDlpAsync(CancellationToken cancellationToken) =>
+        YtDlpProcessHelper.DownloadYtDlpAsync(cancellationToken);
 
     private static string MapFormatToExtension(YouTubeAudioFormat format) =>
         format switch

@@ -14,24 +14,33 @@ namespace MediaTools.Infrastructure.Services;
 /// </summary>
 public sealed partial class YtDlpYouTubeVideoService : IYouTubeVideoService
 {
-    public Task EnsureToolsReadyAsync(CancellationToken cancellationToken = default)
+    public async Task EnsureToolsReadyAsync(CancellationToken cancellationToken = default)
     {
+        await YtDlpProcessHelper.EnsureYtDlpReadyAndUpdatedAsync(cancellationToken).ConfigureAwait(false);
+
         if (!ToolPaths.IsYtDlpReady)
         {
             throw new InvalidOperationException(
                 "yt-dlp is not installed. Restart the application to trigger the download.");
         }
-
-        return Task.CompletedTask;
     }
 
     public async Task<YouTubeVideoInfo> FetchVideoInfoAsync(string url, CancellationToken cancellationToken = default)
     {
         await EnsureToolsReadyAsync(cancellationToken).ConfigureAwait(false);
 
+        return await FetchVideoInfoInternalAsync(url, allowRetryOn403: true, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<YouTubeVideoInfo> FetchVideoInfoInternalAsync(
+        string url,
+        bool allowRetryOn403,
+        CancellationToken cancellationToken)
+    {
         return await Task.Run(async () =>
         {
-            var args = $"--dump-single-json --flat-playlist --no-download \"{url}\"";
+            var rawArgs = $"--dump-single-json --flat-playlist --no-download \"{url}\"";
+            var args = YtDlpProcessHelper.EnhanceArguments(rawArgs);
 
             var psi = new ProcessStartInfo
             {
@@ -43,7 +52,7 @@ public sealed partial class YtDlpYouTubeVideoService : IYouTubeVideoService
                 CreateNoWindow = true
             };
 
-            SetFfmpegEnvVars(psi);
+            YtDlpProcessHelper.ConfigureProcessStartInfo(psi);
 
             using var proc = new Process { StartInfo = psi };
             proc.Start();
@@ -59,8 +68,17 @@ public sealed partial class YtDlpYouTubeVideoService : IYouTubeVideoService
 
             if (proc.ExitCode != 0)
             {
+                if (allowRetryOn403 && (stderr.Contains("403") || stderr.Contains("Forbidden") || stderr.Contains("extractor")))
+                {
+                    var updated = await YtDlpProcessHelper.TrySelfUpdateAsync(cancellationToken).ConfigureAwait(false);
+                    if (updated)
+                    {
+                        return await FetchVideoInfoInternalAsync(url, allowRetryOn403: false, cancellationToken).ConfigureAwait(false);
+                    }
+                }
+
                 throw new InvalidOperationException(
-                    $"yt-dlp failed (exit {proc.ExitCode}): {stderr.Trim()}");
+                    $"yt-dlp failed (exit {proc.ExitCode}): {YtDlpProcessHelper.FormatErrorMessage(proc.ExitCode, stderr)}");
             }
 
             using var doc = JsonDocument.Parse(stdout);
@@ -155,6 +173,16 @@ public sealed partial class YtDlpYouTubeVideoService : IYouTubeVideoService
 
         Directory.CreateDirectory(request.OutputFolderPath);
 
+        return await DownloadVideoInternalAsync(request, progress, allowRetryOn403: true, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private async Task<string> DownloadVideoInternalAsync(
+        YouTubeVideoDownloadRequest request,
+        IProgress<YouTubeDownloadProgress> progress,
+        bool allowRetryOn403,
+        CancellationToken cancellationToken)
+    {
         var formatExt = MapFormatToExtension(request.VideoFormat);
         var sortFilter = BuildSortFilter(request.Resolution, request.VideoQuality);
 
@@ -162,11 +190,13 @@ public sealed partial class YtDlpYouTubeVideoService : IYouTubeVideoService
         var playlistArg = request.IsPlaylist ? "--yes-playlist" : "--no-playlist";
 
         // yt-dlp arguments for video downloading and merging
-        var args = $"-f \"bv+ba/b\" -S \"{sortFilter}\" " +
-                   $"--merge-output-format {formatExt} " +
-                   $"{playlistArg} --newline --no-mtime " +
-                   $"--ffmpeg-location \"{ToolPaths.FfmpegDirectory}\" " +
-                   $"-o \"{outputTemplate}\" \"{request.Url}\"";
+        var rawArgs = $"-f \"bv+ba/b\" -S \"{sortFilter}\" " +
+                      $"--merge-output-format {formatExt} " +
+                      $"{playlistArg} --newline --no-mtime " +
+                      $"--ffmpeg-location \"{ToolPaths.FfmpegDirectory}\" " +
+                      $"-o \"{outputTemplate}\" \"{request.Url}\"";
+
+        var args = YtDlpProcessHelper.EnhanceArguments(rawArgs);
 
         return await Task.Run(async () =>
         {
@@ -180,7 +210,7 @@ public sealed partial class YtDlpYouTubeVideoService : IYouTubeVideoService
                 CreateNoWindow = true
             };
 
-            SetFfmpegEnvVars(psi);
+            YtDlpProcessHelper.ConfigureProcessStartInfo(psi);
 
             using var proc = new Process { StartInfo = psi };
             var outputFilePath = string.Empty;
@@ -277,8 +307,18 @@ public sealed partial class YtDlpYouTubeVideoService : IYouTubeVideoService
 
             if (proc.ExitCode != 0)
             {
+                if (allowRetryOn403 && (stderr.Contains("403") || stderr.Contains("Forbidden") || stderr.Contains("extractor")))
+                {
+                    var updated = await YtDlpProcessHelper.TrySelfUpdateAsync(cancellationToken).ConfigureAwait(false);
+                    if (updated)
+                    {
+                        return await DownloadVideoInternalAsync(request, progress, allowRetryOn403: false, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                }
+
                 throw new InvalidOperationException(
-                    $"yt-dlp download failed (exit {proc.ExitCode}): {stderr.Trim()}");
+                    $"yt-dlp download failed (exit {proc.ExitCode}): {YtDlpProcessHelper.FormatErrorMessage(proc.ExitCode, stderr)}");
             }
 
             if (request.IsPlaylist)
@@ -306,12 +346,6 @@ public sealed partial class YtDlpYouTubeVideoService : IYouTubeVideoService
 
             return outputFilePath ?? throw new InvalidOperationException("Output file was not created.");
         }, cancellationToken).ConfigureAwait(false);
-    }
-
-    private static void SetFfmpegEnvVars(ProcessStartInfo psi)
-    {
-        var currentPath = psi.Environment.TryGetValue("PATH", out var p) ? p : "";
-        psi.Environment["PATH"] = ToolPaths.FfmpegDirectory + ";" + currentPath;
     }
 
     private static string MapFormatToExtension(YouTubeVideoFormat format) =>
