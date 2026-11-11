@@ -228,7 +228,13 @@ public partial class DashboardViewModel : ObservableObject
     private void GoToPhotoEnhancer() => _shell.NavigateCommand.Execute("PhotoEnhancer");
 
     [RelayCommand]
+    private void GoToImageCompress() => _shell.NavigateCommand.Execute("ImageCompress");
+
+    [RelayCommand]
     private void GoToAudioEnhancer() => _shell.NavigateCommand.Execute("AudioEnhancer");
+
+    [RelayCommand]
+    private void GoToAudioCompress() => _shell.NavigateCommand.Execute("AudioCompress");
 
     [RelayCommand]
     private void GoToThumbnailGenerator() => _shell.NavigateCommand.Execute("ThumbnailGenerator");

@@ -601,6 +601,34 @@
             </Grid>
           </Border>
 
+          <Border Margin="0,0,12,12"
+                  Style="{StaticResource ToolLaunchCardStyle}">
+            <Border.InputBindings>
+              <MouseBinding Command="{Binding GoToImageCompressCommand}"
+                            MouseAction="LeftClick" />
+            </Border.InputBindings>
+            <Grid Margin="4">
+              <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                  <iconPacks:PackIconMaterial Width="26"
+                                              Height="26"
+                                              Foreground="{DynamicResource AccentPrimaryBrush}"
+                                              Kind="ImageSizeSelectLarge" />
+                  <TextBlock Margin="12,0,0,0"
+                             VerticalAlignment="Center"
+                             FontSize="18"
+                             FontWeight="SemiBold"
+                             Text="Image Compress" />
+                </StackPanel>
+                <TextBlock Margin="0,10,0,0"
+                           FontSize="13"
+                           Foreground="#FF5F6B76"
+                           TextWrapping="Wrap"
+                           Text="Shrink image files with JPEG, WebP, or PNG output while preserving dimensions." />
+              </StackPanel>
+            </Grid>
+          </Border>
+
           <Border Margin="0,0,0,12"
                   Style="{StaticResource ToolLaunchCardStyle}">
             <Border.InputBindings>
@@ -625,6 +653,34 @@
                            Foreground="#FF5F6B76"
                            TextWrapping="Wrap"
                            Text="Convert formats, set bitrate and sample rate, normalize loudness, and add clarity EQ." />
+              </StackPanel>
+            </Grid>
+          </Border>
+
+          <Border Margin="0,0,12,12"
+                  Style="{StaticResource ToolLaunchCardStyle}">
+            <Border.InputBindings>
+              <MouseBinding Command="{Binding GoToAudioCompressCommand}"
+                            MouseAction="LeftClick" />
+            </Border.InputBindings>
+            <Grid Margin="4">
+              <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                  <iconPacks:PackIconMaterial Width="26"
+                                              Height="26"
+                                              Foreground="{DynamicResource AccentPrimaryBrush}"
+                                              Kind="MusicBoxOutline" />
+                  <TextBlock Margin="12,0,0,0"
+                             VerticalAlignment="Center"
+                             FontSize="18"
+                             FontWeight="SemiBold"
+                             Text="Audio Compress" />
+                </StackPanel>
+                <TextBlock Margin="0,10,0,0"
+                           FontSize="13"
+                           Foreground="#FF5F6B76"
+                           TextWrapping="Wrap"
+                           Text="Reduce audio file size by choosing a compact format and bitrate." />
               </StackPanel>
             </Grid>
           </Border>

@@ -1,0 +1,140 @@
+<Page x:Class="MediaTools.Presentation.Views.ImageCompressPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
+      Title="Image Compress"
+      AllowDrop="True"
+      Drop="OnDrop"
+      DragEnter="OnDragEnter"
+      DragLeave="OnDragLeave"
+      DragOver="OnDragOver">
+  <Grid Background="{DynamicResource ContentBackgroundBrush}">
+    <ScrollViewer Padding="28"
+                  HorizontalScrollBarVisibility="Disabled"
+                  VerticalScrollBarVisibility="Auto">
+      <StackPanel MaxWidth="900"
+                  HorizontalAlignment="Left">
+        <TextBlock FontSize="26"
+                   FontWeight="SemiBold"
+                   Text="Image Compress" />
+        <TextBlock Margin="0,6,0,20"
+                   FontSize="14"
+                   Foreground="#FF5F6B76"
+                   Text="Reduce image file size by choosing a compact format and quality. Original dimensions are preserved." />
+
+        <Border Padding="24">
+          <Border.Style>
+            <Style BasedOn="{StaticResource CardBorderStyle}" TargetType="Border">
+              <Setter Property="BorderThickness" Value="2" />
+              <Style.Triggers>
+                <DataTrigger Binding="{Binding IsDropHover}" Value="True">
+                  <Setter Property="BorderBrush" Value="{DynamicResource AccentPrimaryBrush}" />
+                </DataTrigger>
+              </Style.Triggers>
+            </Style>
+          </Border.Style>
+          <StackPanel HorizontalAlignment="Center">
+            <iconPacks:PackIconMaterial Width="44"
+                                        Height="44"
+                                        Foreground="{DynamicResource AccentPrimaryBrush}"
+                                        Kind="ImageOutline" />
+            <TextBlock Margin="0,12,0,0"
+                       FontWeight="SemiBold"
+                       Text="Drop an image here" />
+            <TextBlock Margin="0,5,0,0"
+                       Foreground="#FF5F6B76"
+                       Text="PNG, JPEG, WebP, BMP, TIFF, GIF" />
+            <Button Margin="0,14,0,0"
+                    Command="{Binding BrowseFileCommand}"
+                    Content="Browse image…"
+                    Style="{DynamicResource OutlinedButtonStyle}" />
+          </StackPanel>
+        </Border>
+
+        <Border Margin="0,16,0,0"
+                Padding="18"
+                Style="{DynamicResource CardBorderStyle}"
+                Visibility="{Binding ShowFileInfo, Converter={StaticResource BoolToVisibilityConverter}}">
+          <StackPanel>
+            <TextBlock FontSize="16"
+                       FontWeight="SemiBold"
+                       Text="{Binding FileDisplayName}" />
+            <TextBlock Margin="0,5,0,0"
+                       Foreground="#FF5F6B76"
+                       Text="{Binding FileInfoDisplay}" />
+          </StackPanel>
+        </Border>
+
+        <Border Margin="0,16,0,0"
+                Padding="18"
+                Style="{DynamicResource CardBorderStyle}">
+          <StackPanel>
+            <TextBlock FontSize="16"
+                       FontWeight="SemiBold"
+                       Text="Compression settings" />
+            <Grid Margin="0,14,0,0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <StackPanel Margin="0,0,12,0">
+                <TextBlock Margin="0,0,0,6"
+                           FontWeight="SemiBold"
+                           Text="Output format" />
+                <ComboBox ItemsSource="{Binding TargetFormats}"
+                          SelectedItem="{Binding TargetFormat}" />
+              </StackPanel>
+              <StackPanel Grid.Column="1"
+                          Margin="12,0,0,0">
+                <TextBlock FontWeight="SemiBold"
+                           Text="{Binding Quality, StringFormat=Quality: {0}}" />
+                <Slider Margin="0,7,0,0"
+                        Minimum="1"
+                        Maximum="100"
+                        TickFrequency="1"
+                        IsSnapToTickEnabled="True"
+                        Value="{Binding Quality}" />
+                <TextBlock Margin="0,4,0,0"
+                           FontSize="12"
+                           Foreground="#FF5F6B76"
+                           Text="Used by JPEG and WebP; PNG uses lossless compression." />
+              </StackPanel>
+            </Grid>
+            <StackPanel Margin="0,16,0,0"
+                        Orientation="Horizontal">
+              <Button MinWidth="170"
+                      Padding="18,10"
+                      Command="{Binding CompressCommand}"
+                      Content="Compress image"
+                      Style="{DynamicResource PrimaryButtonStyle}" />
+              <Button Margin="10,0,0,0"
+                      Padding="16,10"
+                      Command="{Binding CancelCompressionCommand}"
+                      Content="Cancel"
+                      IsEnabled="{Binding IsRunning}"
+                      Style="{DynamicResource OutlinedButtonStyle}" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <Border Margin="0,16,0,0"
+                Padding="18"
+                Style="{DynamicResource CardBorderStyle}">
+          <StackPanel>
+            <ProgressBar Height="10"
+                         Maximum="100"
+                         Value="{Binding ProgressPercent}" />
+            <TextBlock Margin="0,10,0,0"
+                       FontWeight="SemiBold"
+                       Text="{Binding StatusText}" />
+            <TextBlock Margin="0,8,0,0"
+                       Foreground="#FF37474F"
+                       TextWrapping="Wrap"
+                       Text="{Binding ResultText}"
+                       Visibility="{Binding ShowResult, Converter={StaticResource BoolToVisibilityConverter}}" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</Page>

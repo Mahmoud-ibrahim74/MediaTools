@@ -104,6 +104,8 @@ public partial class MainWindow : MetroWindow
         {
             "Dashboard" => _services.GetRequiredService<DashboardPage>(),
             "VideoCompress" => _services.GetRequiredService<VideoCompressPage>(),
+            "ImageCompress" => _services.GetRequiredService<ImageCompressPage>(),
+            "AudioCompress" => _services.GetRequiredService<AudioCompressPage>(),
             "PhotoEnhancer" => _services.GetRequiredService<PhotoEnhancerPage>(),
             "AudioEnhancer" => _services.GetRequiredService<AudioEnhancerPage>(),
             "ThumbnailGenerator" => _services.GetRequiredService<ThumbnailGeneratorPage>(),

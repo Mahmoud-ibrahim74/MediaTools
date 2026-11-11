@@ -73,6 +73,8 @@ public partial class App : System.Windows.Application
         services.AddSingleton<MainWindowViewModel>();
         services.AddSingleton<DashboardViewModel>();
         services.AddSingleton<VideoCompressViewModel>();
+        services.AddSingleton<ImageCompressViewModel>();
+        services.AddSingleton<AudioCompressViewModel>();
         services.AddSingleton<PhotoEnhancerViewModel>();
         services.AddSingleton<AudioEnhancerViewModel>();
         services.AddSingleton<ThumbnailGeneratorViewModel>();
@@ -84,6 +86,8 @@ public partial class App : System.Windows.Application
         services.AddSingleton<FacebookVideoViewModel>();
         services.AddSingleton<DashboardPage>();
         services.AddSingleton<VideoCompressPage>();
+        services.AddSingleton<ImageCompressPage>();
+        services.AddSingleton<AudioCompressPage>();
         services.AddSingleton<PhotoEnhancerPage>();
         services.AddSingleton<AudioEnhancerPage>();
         services.AddSingleton<ThumbnailGeneratorPage>();

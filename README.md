@@ -10,7 +10,7 @@
 
 **Media Tools** is a comprehensive desktop application designed to handle a vast array of media manipulation tasks. Whether you need to compress large video files, download playlists from YouTube, enhance your photos, or record your screen, Media Tools provides a sleek, modern, and unified interface to get the job done quickly.
 
-The application leverages the power of industry-standard tools like **FFmpeg** and **yt-dlp** under the hood, wrapping them in an intuitive UI built with MahApps.Metro.
+The application leverages the power of industry-standard tools like **FFmpeg** and **yt-dlp** under the hood, wrapping them in an intuitive UI built with MahApps.Metro. Dedicated image and audio compressors complement the video compressor.
 
 ---
 
@@ -35,6 +35,16 @@ Clean up and boost your audio tracks.
 Bring your images to life with automated improvements.
 - **What it does:** Applies sharpness, contrast adjustments, and upscaling to standard images.
 - **How to use:** Select the **Photo Enhancer** tool, drag and drop your image, and apply the enhancements.
+
+### 🖼️ Image Compressor
+Reduce image file size without changing its dimensions.
+- **What it does:** Re-encodes images as JPEG, WebP, or PNG with adjustable quality where supported.
+- **How to use:** Open **Image Compress**, select or drop an image, choose an output format and quality, then compress.
+
+### 🎵 Audio Compressor
+Create smaller audio files with a selected codec and bitrate.
+- **What it does:** Converts audio to MP3, AAC, or Opus using FFmpeg.
+- **How to use:** Open **Audio Compress**, select or drop an audio file, choose a format and bitrate, then compress.
 
 ### 🔴 5. Screen Recorder
 Capture your screen with ease.
@@ -76,7 +86,7 @@ We provide an automated installer that will set up Media Tools on your system.
 Upon launching the app for the very first time (or after resetting your cache), Media Tools requires an **active internet connection**. The app will automatically detect and securely download its core dependencies to your local `%TEMP%\MediaTools` folder in the background. 
 
 **Tools downloaded automatically:**
-- `FFmpeg` (Required for video compression, audio enhancement, and screen recording)
+- `FFmpeg` (Required for video and audio compression, audio enhancement, and screen recording)
 - `yt-dlp` (Required for downloading YouTube videos and audio)
 
 You will see the progress on the Splash Screen. Please wait for the setup to complete! Once downloaded, the tools are cached and you will not need an internet connection again for the offline features.
