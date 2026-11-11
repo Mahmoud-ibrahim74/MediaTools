@@ -2,7 +2,7 @@
      xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
   <Package Name="Media Tools"
            Manufacturer="Mahmoud Ibrahim"
-           Version="2.0.0"
+           Version="2.0.1"
            UpgradeCode="72DE71B9-71E5-4C3D-B7E7-59DA39E7019C"
            Scope="perMachine">
 
